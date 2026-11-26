@@ -170,35 +170,36 @@
   .camview:fullscreen { aspect-ratio: auto; max-height: none; padding: 0; width: 100vw; height: 100vh; }
   .camview:fullscreen .camhud { display: block; }
   .camwait a { color: #fff; }
-  .pigrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-bottom: 14px; }
-  .pi3d { position: relative; height: 360px; border-radius: 12px; background: radial-gradient(ellipse at 50% 45%, #ffffff, #eef1f1 70%); overflow: hidden; }
+  .camflow { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+  .cf { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; }
+  .cf-n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); color: var(--muted); font-weight: 700; font-size: 12.5px; box-shadow: inset 0 0 0 1px var(--rule); }
+  .cf.done .cf-n { background: var(--go); color: #fff; box-shadow: none; }
+  .cf h3 { margin: 2px 0 8px; font-size: 14px; }
+  .cf-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cf-p { margin: 0 0 8px; font-size: 13.5px; }
+  .cf-p code, .cf-foot code, .cmd code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .cf-foot { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+  .cf-foot .link { font-size: 12.5px; }
+  .facts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; }
+  .facts li { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: var(--soft); }
+  .facts b { font-weight: 600; color: var(--muted); margin-right: 5px; }
+  .piwhich { margin-top: 8px; font-size: 12.5px; color: var(--muted); max-width: 60ch; }
+  .piplug { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .pi3d { position: relative; height: 300px; border-radius: 12px; background: radial-gradient(ellipse at 50% 45%, #ffffff, #eef1f1 70%); overflow: hidden; }
   .pi3dmsg { position: absolute; left: 16px; top: 12px; margin: 0; }
-  .pimodel { position: absolute; left: 12px; bottom: 12px; z-index: 2; background: #ffffffd9; }
   .pimarks { position: absolute; inset: 0; pointer-events: none; }
-  .pimark { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); color: #fff; font: 700 11.5px/1 var(--ui); box-shadow: 0 0 0 2px #fff, 0 2px 6px #0003; }
+  .pimark { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); color: #fff; font: 700 11.5px/1 var(--ui); box-shadow: 0 0 0 2px #fff, 0 2px 6px #0003; pointer-events: auto; cursor: pointer; }
   .pimark.ok { background: var(--go); }
   .pimark.on { background: #f0a21a; color: #1c2124; }
-  .pilegend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; }
-  .pilegend li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 7px 9px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; cursor: default; }
-  .pilegend li:hover, .pilegend li.on { background: var(--soft); }
-  .pilegend .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); color: #fff; font-weight: 700; font-size: 11px; }
-  .pilegend li.ok .n { background: var(--go); }
-  .pilegend b { display: block; font-size: 13px; }
-  .pilegend span.t { color: var(--muted); }
-  .pisub { font-size: 14px; margin: 0 0 6px; }
-  .pinotes { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 10px; padding: 10px 12px; background: var(--soft); border-radius: 10px; font-size: 13px; }
-  .pinotes dt { color: var(--muted); }
-  .pinotes dd { margin: 0; }
-  .piwhich { margin: 0 0 14px; font-size: 13px; }
-  .piwhich summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
-  .piwhich p { margin: 8px 0; line-height: 1.5; }
-  .piwhich code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
-  .pitable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-  .pitable th, .pitable td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  .pitable th { font-weight: 600; color: var(--muted); }
-  @media (max-width: 900px) { .pigrid { grid-template-columns: 1fr; } }
-  .camsteps { margin: 0 0 12px; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
-  .camsteps code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .pichips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pichips button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--face); border-radius: 999px; padding: 3px 10px 3px 4px; font-size: 12.5px; cursor: pointer; }
+  .pichips button .n { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); color: #fff; font-weight: 700; font-size: 10.5px; }
+  .pichips button.ok .n { background: var(--go); }
+  .pichips button[aria-selected=true] { border-color: #f0a21a; background: #fff6e6; }
+  .picap { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--soft); font-size: 13px; line-height: 1.5; min-height: 64px; }
+  .picap b { display: block; margin-bottom: 2px; }
+  .cmd { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 900px) { .piplug { grid-template-columns: 1fr; } }
   .camform input[type=text], .camform input[type=password] { flex: 1 1 180px; min-width: 0; }
   .camform input[type=number] { width: 84px; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r-s); background: #fbfcfc; }
   .stagebar { position: absolute; left: 14px; right: 14px; top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 2; }
@@ -1171,42 +1172,51 @@
         </div>
         <div data-sub="cam" class="hidden">
           <div class="card-head"><h2>Camera setup</h2><span class="muted">A Raspberry Pi with a camera, riding on the robot</span><button class="link" data-close>Close</button></div>
-          <div class="pigrid">
-            <div class="pi3d" id="pi3d" aria-label="A Raspberry Pi in 3D showing where the camera, power, SD card and WiFi connect. Drag to turn it.">
-              <p class="muted pi3dmsg" id="pi3dmsg">Loading the 3D Raspberry Pi…</p>
-              <div class="tabs pimodel" role="tablist" id="piModel" aria-label="Which Raspberry Pi"><button role="tab" aria-selected="true" data-m="pi3">Pi 3 B+</button><button role="tab" aria-selected="false" data-m="pi2">Pi 2</button></div>
-            </div>
-            <ol class="pilegend" id="piLegend"></ol>
-          </div>
-          <dl class="pinotes" id="piNotes"></dl>
-          <details class="piwhich">
-            <summary>Which Raspberry Pi do I have?</summary>
-            <p>The name is printed on the board in small white letters, usually between the GPIO pins and the processor: <b>Raspberry Pi 2 Model B</b>, <b>Raspberry Pi 3 Model B</b> or <b>Raspberry Pi 3 Model B+</b>. Unclip the top of the case if it's hard to read. Otherwise:</p>
-            <table class="pitable">
-              <thead><tr><th>Look for</th><th>Pi 2 B</th><th>Pi 3 B</th><th>Pi 3 B+</th></tr></thead>
-              <tbody>
-                <tr><td>Processor, the big square chip in the middle</td><td>black</td><td>black</td><td>shiny silver lid</td></tr>
-                <tr><td>Small silver cover with the Raspberry Pi logo (the WiFi)</td><td>–</td><td>–</td><td>yes</td></tr>
-                <tr><td>Little 4-pin header next to the end of the GPIO row</td><td>–</td><td>–</td><td>yes</td></tr>
-                <tr><td>Tiny chip antenna by the display connector</td><td>–</td><td>yes</td><td>–</td></tr>
-                <tr><td>Built-in WiFi and Bluetooth</td><td>no</td><td>yes (2.4 GHz)</td><td>yes (2.4 and 5 GHz)</td></tr>
-              </tbody>
-            </table>
-            <p>Once it's running, <code>cat /proc/device-tree/model</code> on the Pi prints the exact name.</p>
-          </details>
-          <h3 class="pisub">Start the camera</h3>
-          <ol class="camsteps">
-            <li>Copy <code>pi/powershock_cam.py</code> from the PowerShock folder to the Pi, and start it there: <code>python3 powershock_cam.py</code>. <span class="muted">Full guide: <code>docs/CAMERA.md</code>.</span></li>
-            <li>It prints an access key. Enter it below with the Pi's address.</li>
+          <ol class="camflow">
+            <li class="cf" id="cfSd">
+              <span class="cf-n">1</span>
+              <div class="cf-b">
+                <h3>Prepare the SD card</h3>
+                <div class="cf-row">
+                  <div class="tabs" role="tablist" id="piModel" aria-label="Which Raspberry Pi"><button role="tab" aria-selected="true" data-m="pi3">Pi 3 B+</button><button role="tab" aria-selected="false" data-m="pi2">Pi 2</button></div>
+                  <button class="link" id="piWhichBtn" aria-expanded="false" aria-controls="piWhich">Which one do I have?</button>
+                </div>
+                <div class="piwhich hidden" id="piWhich">The name is printed on the board, e.g. <b>Raspberry Pi 3 Model B+</b>. A Pi 3 B+ also has a shiny silver processor and a small silver cover with the Raspberry Pi logo; a Pi 2 has neither.</div>
+                <ul class="facts" id="piNotes"></ul>
+              </div>
+            </li>
+            <li class="cf" id="cfPlug">
+              <span class="cf-n">2</span>
+              <div class="cf-b">
+                <h3>Plug everything in</h3>
+                <div class="piplug">
+                  <div class="pi3d" id="pi3d" aria-label="A Raspberry Pi in 3D showing where the camera, power, SD card and WiFi connect. Drag to turn it.">
+                    <p class="muted pi3dmsg" id="pi3dmsg">Loading the 3D Raspberry Pi…</p>
+                  </div>
+                  <div class="piinfo">
+                    <div class="pichips" id="piLegend" role="tablist" aria-label="Parts"></div>
+                    <div class="picap" id="piCap" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li class="cf" id="cfRun">
+              <span class="cf-n">3</span>
+              <div class="cf-b">
+                <h3>Start the camera and connect</h3>
+                <p class="cf-p">Copy <code>pi/powershock_cam.py</code> to the Pi and run it there. It prints an access key.</p>
+                <div class="cmd"><code id="camCmd">python3 powershock_cam.py</code><button class="link" id="camCopy">Copy</button></div>
+                <div class="row camform">
+                  <input id="camHost" type="text" placeholder="Pi address, e.g. ev3cam.local" spellcheck="false" aria-label="Pi address">
+                  <input id="camPort" type="number" value="8080" min="1" max="65535" aria-label="Port">
+                  <input id="camKey" type="password" placeholder="Access key" autocomplete="off" spellcheck="false" aria-label="Access key">
+                  <button id="camSave" class="btn dark">Save and test</button>
+                </div>
+                <p class="note" id="camNote"></p>
+                <p class="cf-foot">Step-by-step guide: <code>docs/CAMERA.md</code> · <button class="link" id="camForget">Forget camera</button></p>
+              </div>
+            </li>
           </ol>
-          <div class="row camform">
-            <input id="camHost" type="text" placeholder="Pi address, e.g. ev3cam.local" spellcheck="false" aria-label="Pi address">
-            <input id="camPort" type="number" value="8080" min="1" max="65535" aria-label="Port">
-            <input id="camKey" type="password" placeholder="Access key" autocomplete="off" spellcheck="false" aria-label="Access key">
-            <button id="camSave" class="btn dark">Save and test</button>
-            <button id="camForget" class="link">Forget camera</button>
-          </div>
-          <p class="note" id="camNote"></p>
         </div>
         <div data-sub="addr" class="hidden">
           <div class="card-head"><h2>Connect by address</h2><span class="muted">The address the brick shows under 10.0.1.1</span><button class="link" data-close>Close</button></div>
@@ -2482,8 +2492,9 @@ function drawCamTile() {
     : c.error || `Set up for ${c.host}.`;
   $("camShow").disabled = !c.configured;
   if (window.Pi3D) window.Pi3D.setStatus({ live: !!c.ok, reachable: !!c.reachable });
-  document.querySelectorAll("#piLegend li").forEach((li) => li.classList.toggle("ok",
-    li.dataset.key === "camera" || li.dataset.key === "module" ? !!c.ok : ["power", "sd", "wifi"].includes(li.dataset.key) ? !!c.reachable : false));
+  document.querySelectorAll("#piLegend button").forEach((b) => b.classList.toggle("ok",
+    b.dataset.key === "camera" || b.dataset.key === "module" ? !!c.ok : ["power", "sd", "wifi"].includes(b.dataset.key) ? !!c.reachable : false));
+  $("cfSd").classList.toggle("done", !!c.reachable); $("cfPlug").classList.toggle("done", !!c.ok); $("cfRun").classList.toggle("done", !!c.ok);
   $("camSetupBtn").textContent = c.configured ? "Change" : "Set up";
   if (c.configured && document.activeElement !== $("camHost") && !$("camHost").value) { $("camHost").value = c.host; $("camPort").value = c.port; }
 }
@@ -2602,35 +2613,50 @@ try {
 <script type="module">
 // The Raspberry Pi in 3D, in the Camera setup panel: what plugs in where.
 import { createPi, PARTS } from "./pi3d.js";
-const legend = document.getElementById("piLegend");
-legend.innerHTML = PARTS.map((p) => `<li data-key="${p.key}"><span class="n">${p.n}</span><div><b>${p.title}</b><span class="t">${p.text}</span></div></li>`).join("");
+const legend = document.getElementById("piLegend"), cap = document.getElementById("piCap");
+const SHORT = { camera: "Camera cable", module: "Camera", power: "Power", sd: "SD card", wifi: "WiFi", leds: "Lights", unused: "Not needed" };
+legend.innerHTML = PARTS.map((p) => `<button role="tab" aria-selected="false" data-key="${p.key}"><span class="n">${p.n}</span>${SHORT[p.key]}</button>`).join("");
+// what each model needs: three short facts under the model switch
+const NOTES = {
+  pi3: [["Imager", "Raspberry Pi 3 → Raspberry Pi OS Lite (64-bit)"], ["WiFi", "built in"], ["Power", "5 V · 2.5 A"]],
+  pi2: [["Imager", "Raspberry Pi 2 → Raspberry Pi OS Lite (32-bit)"], ["WiFi", "USB dongle needed"], ["Power", "5 V · 2 A"]],
+};
+let pi = null, pinned = PARTS[0].key;
+function show(key, light) {
+  const p = PARTS.find((x) => x.key === key);
+  cap.innerHTML = `<b>${p.n} · ${p.title}</b>${p.text}`;
+  legend.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.key === key ? "true" : "false"));
+  if (pi) pi.highlight(light ? key : null);
+}
+show(pinned, false);
+legend.addEventListener("pointerover", (e) => { const b = e.target.closest("button[data-key]"); if (b) show(b.dataset.key, true); });
+legend.addEventListener("pointerleave", () => show(pinned, false));
+legend.addEventListener("click", (e) => { const b = e.target.closest("button[data-key]"); if (b) { pinned = b.dataset.key; show(pinned, true); } });
+document.getElementById("piWhichBtn").addEventListener("click", (e) => {
+  const box = document.getElementById("piWhich"), open = box.classList.toggle("hidden") === false;
+  e.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
+});
+document.getElementById("camCopy").addEventListener("click", async (e) => {
+  try { await navigator.clipboard.writeText(document.getElementById("camCmd").textContent); e.target.textContent = "Copied"; } catch (err) { e.target.textContent = "Select and copy it"; }
+  setTimeout(() => { e.target.textContent = "Copy"; }, 1500);
+});
+const tabs = document.getElementById("piModel"), notes = document.getElementById("piNotes");
+const pick = (m) => {
+  if (pi) pi.setModel(m);
+  localStorage.setItem("piModel", m);
+  tabs.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.m === m ? "true" : "false"));
+  notes.innerHTML = NOTES[m].map(([k, v]) => `<li><b>${k}</b>${v}</li>`).join("");
+};
+tabs.addEventListener("click", (e) => { const b = e.target.closest("button[data-m]"); if (b) pick(b.dataset.m); });
 try {
-  const pi = createPi(document.getElementById("pi3d"));
+  pi = createPi(document.getElementById("pi3d"));
   document.getElementById("pi3dmsg").remove();
   window.Pi3D = pi;
-  const tabs = document.getElementById("piModel");
-  // what each model needs, shown under the 3D Pi
-  const NOTES = {
-    pi3: [["Model", "Raspberry Pi 3 Model B+"], ["WiFi", "Built in (2.4 and 5 GHz): no dongle needed. Take a USB WiFi dongle out to save power."],
-      ["Bluetooth", "Built in (4.2). The camera doesn't need it."], ["Power", "5 V, at least 2.5 A, through the micro-USB port."],
-      ["Imager", "Device: Raspberry Pi 3. System: Raspberry Pi OS Lite (64-bit)."]],
-    pi2: [["Model", "Raspberry Pi 2 Model B"], ["WiFi", "None built in: plug a USB WiFi dongle that works with Raspberry Pi OS into any USB port. An Ethernet cable works for the first start."],
-      ["Bluetooth", "None. The camera doesn't need it."], ["Power", "5 V, at least 2 A, through the micro-USB port."],
-      ["Imager", "Device: Raspberry Pi 2. System: Raspberry Pi OS Lite (32-bit)."]],
-  };
-  const notes = document.getElementById("piNotes");
-  const pick = (m) => {
-    pi.setModel(m); localStorage.setItem("piModel", m);
-    tabs.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.m === m ? "true" : "false"));
-    notes.innerHTML = NOTES[m].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
-  };
-  pick(localStorage.getItem("piModel") === "pi2" ? "pi2" : "pi3");
-  tabs.addEventListener("click", (e) => { const b = e.target.closest("button[data-m]"); if (b) pick(b.dataset.m); });
-  legend.addEventListener("pointerover", (e) => { const li = e.target.closest("li[data-key]"); pi.highlight(li ? li.dataset.key : null); legend.querySelectorAll("li").forEach((x) => x.classList.toggle("on", x === li)); });
-  legend.addEventListener("pointerleave", () => { pi.highlight(null); legend.querySelectorAll("li").forEach((x) => x.classList.remove("on")); });
+  document.getElementById("pi3d").addEventListener("click", (e) => { const m = e.target.closest(".pimark"); if (m) { pinned = m.dataset.key; show(pinned, true); } });
 } catch (e) {
   document.getElementById("pi3dmsg").textContent = "This browser can't show the 3D Raspberry Pi (WebGL is off).";
 }
+pick(localStorage.getItem("piModel") === "pi2" ? "pi2" : "pi3");
 </script>
 <script type="module">
 // The live map in 3D (three.js).

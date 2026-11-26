@@ -36,8 +36,11 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
     - The camera module, power, the microSD card underneath, the WiFi dongle or built-in WiFi, and the lights.
     - Numbered markers on the model match a list that explains each connection. Pointing at a list entry lights up its part, and parts turn green when the camera is live.
     - It shows a Pi 3 B+ (built-in WiFi under a metal cover, PoE header) or a Pi 2 (USB WiFi dongle).
-    - Notes under it list what the chosen model needs: WiFi, Bluetooth, power, and what to pick in Raspberry Pi Imager.
-    - "Which Raspberry Pi do I have?" shows how to tell the models apart.
+  - **Camera setup is three short steps:**
+    1. Prepare the SD card: a model switch, three facts and a one-line "Which one do I have?".
+    2. Plug everything in: the 3D Pi, with part buttons and one explanation at a time.
+    3. Start the camera and connect: the command with a Copy button, then the address and key.
+    - Each step turns green as it is done.
   - **Full screen:** the Camera view goes full screen with a button, F or a double-click, and driving keeps working there. A small overlay shows whether the motors are on.
   - **Own window:** a button opens just the video in a separate window (`/camera`), e.g. for a second monitor. Clicking into it takes the focus from the console, which switches the motors off; click back in the console to drive.
 - **Controller colour swatches** replace the colour dropdown on the Robot page.
