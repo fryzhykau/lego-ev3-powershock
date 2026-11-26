@@ -10,6 +10,7 @@ to DS4Receiver on the brick (port 5000) and streams per-port commands ("P ...") 
 import concurrent.futures
 import ipaddress
 import json
+import math
 import os
 import socket
 import struct
@@ -25,6 +26,7 @@ import ds4_hid  # noqa: E402
 import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
 import version  # noqa: E402
+import worldmap  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -59,6 +61,7 @@ class Link:
         self.telemetry = None  # live battery + ports streamed back by the receiver
         self.telemetry_at = 0.0
         self.brick_version = None  # from the receiver's "V <version>" line; None for versions before 0.7.0
+        self.world = worldmap.WorldMap()  # live map from motor angles and sensor readings
         # Controls mapping: the page sends raw controller input; the mapping turns it into
         # per-port commands here, 50 times a second, with smoothing.
         self.mapper = mapping.Mapper(mapping.load())
@@ -119,6 +122,7 @@ class Link:
                 return self.sock is not None
             self.sock = s
             self.brick_version = None
+            self.world.relink()  # motor angles restart from 0 with a new connection
             self.telemetry_at = time.monotonic()  # grace period for the first status line
             self.connected_at = time.time()
             self.connect_ms = round((time.monotonic() - t0) * 1000, 1)
@@ -156,6 +160,8 @@ class Link:
                 if t:
                     with self.lock:
                         self.telemetry, self.telemetry_at = t, time.monotonic()
+                        m = self.mapper.mapping
+                    self.world.feed(t, m)
 
     def disconnect(self):
         with self.lock:
@@ -255,6 +261,41 @@ def _abort(s):
     s.close()
 
 
+def _box(x0, y0, x1, y1):
+    return [((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))]
+
+
+# The practice robot's room, in cm. It starts at (0, 0) facing +x, with a box just ahead.
+PRACTICE_ROOM = _box(-60, -90, 220, 90) + _box(70, -10, 100, 30) + _box(140, -75, 175, -45)
+
+
+def _range(x, y, th, segments, limit):
+    """Distance from (x, y) along heading th to the nearest segment, or None beyond limit."""
+    dx, dy = math.cos(th), math.sin(th)
+    best = None
+    for (ax, ay), (bx, by) in segments:
+        ex, ey = bx - ax, by - ay
+        den = dx * ey - dy * ex
+        if abs(den) < 1e-9:
+            continue
+        t = ((ax - x) * ey - (ay - y) * ex) / den   # along the ray
+        u = ((ax - x) * dy - (ay - y) * dx) / den   # along the segment
+        if t >= 0 and 0 <= u <= 1 and (best is None or t < best):
+            best = t
+    return best if best is not None and best <= limit else None
+
+
+def practice_sensors(x, y, th):
+    """What the practice robot's IR sensor (proximity 0..100) and colour sensor (ID) read."""
+    r = worldmap.ROBOT
+    ex, ey = x + r["eyeAhead"] / 10 * math.cos(th), y + r["eyeAhead"] / 10 * math.sin(th)
+    d = _range(ex, ey, th, PRACTICE_ROOM, worldmap.IR_RANGE)
+    ir = 100 if d is None else max(0, min(99, round(d / worldmap.IR_RANGE * 100)))
+    fx, fy = x + r["floorAhead"] / 10 * math.cos(th), y + r["floorAhead"] / 10 * math.sin(th)
+    col = 2 if 120 <= fx <= 126 else 0 if (150 <= fx <= 205 and 30 <= fy <= 80) else 6  # blue tape, red mat, white floor
+    return ir, col
+
+
 class FakeEV3:
     """A stand-in for DS4Receiver on 127.0.0.1:5000, for testing without the brick."""
 
@@ -295,7 +336,9 @@ class FakeEV3:
 
     def _client(self, conn):
         """Simulates the receiver: a robot with a medium motor on A, large motors on B and C,
-        and a touch sensor on 1. Understands mapping lines (P), tests (M) and the old format."""
+        a touch sensor on 1, a colour sensor on 3 facing the floor and an infrared sensor on 4
+        facing ahead, in a small room (PRACTICE_ROOM). Understands mapping lines (P), tests (M)
+        and the old format."""
         with self.lock:
             self.clients += 1
         buf = b""
@@ -311,6 +354,7 @@ class FakeEV3:
         max_dps = {"A": 1300.0, "B": 900.0, "C": 900.0}  # roughly medium / large motor top speed
         tests = {}  # port -> {"pct", "until"} for held runs, or {"pct", "left"} for exact turns
         pcmd, pcmd_at = {}, 0.0  # latest mapping line
+        truth = worldmap.Odometry()  # the pretend robot's real position, for its sensors
         try:
             while self.srv:
                 now = time.monotonic()
@@ -345,15 +389,23 @@ class FakeEV3:
                         v = 0.0
                     speeds[k] = v
                     tacho[k] += v * dt
+                # where the pretend robot really is in the practice room, using the default robot size
+                if any(c[0] == "p" for c in pcmd.values()):
+                    steer = next(k for k, c in sorted(pcmd.items()) if c[0] == "p")
+                    lay = {"type": "car", "drive": {k: 1 for k, c in pcmd.items() if c[0] == "s"}, "steer": (steer, 1)}
+                else:
+                    lay = {"type": "tank", "left": {"B": 1}, "right": {"C": 1}}
+                truth.update(dict(tacho), lay, worldmap.ROBOT)
                 if now - last_status >= 0.25:
                     # Same status line the real receiver sends.
                     last_status = now
                     load = sum(abs(speeds[k]) / max_dps[k] for k in speeds) / 3
                     volts = 8.35 - 0.4 * load
                     motors = " ".join(f"m{k}={int(tacho[k])}:{int(speeds[k])}:0:-" for k in ("A", "B", "C"))
+                    ir, col = practice_sensors(truth.x, truth.y, truth.th)
                     conn.sendall((f"T {volts:.2f} {0.15 + 0.6 * load:.3f} {0.55 * load:.3f} "
-                                  "A=125:8h B=125:7h C=125:7h D=126:126 1=121:16 2=126:126 3=126:126 4=126:126 "
-                                  f"{motors}\n").encode())
+                                  "A=125:8h B=125:7h C=125:7h D=126:126 1=121:16 2=126:126 3=122:29h 4=122:33h "
+                                  f"{motors} s3=col:{col} s4=ir:{ir}\n").encode())
                     with self.lock:
                         self.motors_now = {k: round(speeds[k] / max_dps[k] * 100) for k in speeds}
                 try:
@@ -748,6 +800,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"mapping": current, "presets": mapping.PRESETS})
         elif self.path == "/api/bluetooth":
             self._json(bt.status())
+        elif self.path == "/api/map":
+            self._json(link.world.snapshot())
         elif self.path == "/api/ds4":
             # battery, model and firmware straight from Windows; no browser device picker needed
             with DS4_LOCK:
@@ -815,6 +869,11 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/bluetooth/open":
             Bluetooth.open_windows_panel()
             self._json({"ok": True})
+        elif self.path == "/api/map/reset":
+            link.world.reset()
+            self._json({"ok": True})
+        elif self.path == "/api/map/robot":
+            self._json({"ok": True, "robot": link.world.set_robot(b.get("robot"))})
         elif self.path == "/api/fake":
             if b.get("on"):
                 err = fake.start()

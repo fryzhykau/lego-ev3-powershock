@@ -612,6 +612,25 @@
   /* pages: shared layout */
   .pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
   .pagehead h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+
+  /* map page */
+  .mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+  .mapstage { padding: 0; overflow: hidden; }
+  .map3d { height: clamp(380px, calc(100vh - 230px), 760px); background: linear-gradient(180deg, #f4f6f6, #e9ecec); }
+  .mapbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--rule); }
+  .mapbar #mapPose { flex: 1; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .mapside h2 { font-size: 15px; margin: 0 0 8px; }
+  .msens { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+  .msens li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 7px 9px; background: var(--soft); border-radius: 8px; font-size: 13px; }
+  .msens li.off { color: var(--muted); }
+  .msens .pbadge { width: 22px; height: 22px; }
+  .msens .v { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .msens .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; box-shadow: inset 0 0 0 1px #0002; }
+  .mapsize { margin: 12px 0; border-top: 1px solid var(--rule); padding-top: 10px; }
+  .mapsize summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+  .msform { display: grid; gap: 7px; margin: 10px 0; }
+  .msform .field { grid-template-columns: 1fr 110px; }
+  @media (max-width: 1100px) { .mapgrid { grid-template-columns: 1fr; } }
   .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
   @media (max-width: 960px) { .two { grid-template-columns: minmax(0, 1fr); } }
   .section + .section { border-top: 1px solid var(--rule); margin-top: 14px; padding-top: 14px; }
@@ -758,6 +777,7 @@
 <div class="shell">
   <nav>
     <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
+    <a href="#map" data-page="map" title="Map: what the sensors found around the robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Map</span></a>
     <a href="#brick" data-page="brick" title="Brick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4M6 10v4M9 10v4M12 10v4"/></svg><span>Brick</span><span class="badge" id="navBrick"></span></a>
     <a href="#controls" data-page="controls" title="Controls: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Controls</span></a>
     <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
@@ -983,6 +1003,45 @@
       </div>
     </section>
 
+    <!-- ================= MAP ================= -->
+    <section class="page" id="page-map">
+      <div class="pagehead"><h1>Map</h1><span class="muted">What the robot's sensors have found, drawn while it drives</span></div>
+      <div class="mapgrid">
+        <div class="card mapstage">
+          <div class="map3d" id="map3d"><p class="muted" id="map3dmsg" style="padding:20px">Loading the 3D view…</p></div>
+          <div class="mapbar">
+            <div class="tabs" role="tablist" id="mapView" aria-label="Camera">
+              <button role="tab" aria-selected="true" data-view="behind">Behind</button>
+              <button role="tab" aria-selected="false" data-view="above">Above</button>
+            </div>
+            <span class="muted" id="mapPose">Not moving yet</span>
+            <button class="btn" id="mapReset" title="Forget what was seen and start again from here">Clear map</button>
+          </div>
+        </div>
+        <div class="card mapside">
+          <h2>Sensors</h2>
+          <ul class="msens" id="mapSensors"></ul>
+          <p class="note" id="mapHint"></p>
+          <details class="mapsize" id="mapSize">
+            <summary>Robot size</summary>
+            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
+            <div class="msform">
+              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
+              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
+              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
+              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
+              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
+              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
+              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
+              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
+            </div>
+            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSaved"></span>
+          </details>
+          <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= GEARING ================= -->
     <section class="page" id="page-gearing">
       <div class="pagehead"><h1>Gearing</h1><span class="muted">Trade speed for strength with standard LEGO gears</span></div>
@@ -1037,7 +1096,7 @@
         </div>
         <div class="ctile" id="tilePractice">
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
-          <div class="ct-body">A pretend EV3 on this laptop: two large motors, a medium motor and a touch sensor.</div>
+          <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, a medium motor, and touch, colour and infrared sensors.</div>
           <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
         </div>
       </div>
@@ -2278,6 +2337,64 @@ async function pollBrick() {
   if (!h) { S.brick = null; return; }
   try { S.brick = await api("/api/brick?host=" + encodeURIComponent(h)); } catch (e) { return; }
 }
+// ---------- map page ----------
+const COLOUR_NAMES = { 0: ["Red", "#d8392b"], 1: ["Green", "#2f9e57"], 2: ["Blue", "#2d6fd8"], 3: ["Yellow", "#f1c40f"], 6: ["White", "#f4f5f5"], 7: ["Black", "#232628"], 13: ["Brown", "#7b4a28"] };
+const IR_RANGE = 70;
+function sensorText(s) {
+  if (!s) return "";
+  if (s.kind === "ir") return s.value >= 95 ? "nothing in range" : `about ${Math.round(s.value * IR_RANGE / 100)} cm`;
+  if (s.kind === "us") return s.value >= 255 ? "nothing in range" : `${s.value} cm`;
+  if (s.kind === "gy") return `${s.value}°`;
+  if (s.kind === "col") { const c = COLOUR_NAMES[s.value]; return c ? `<span class="sw" style="background:${c[1]}"></span>${c[0]}` : "no colour"; }
+  return "";
+}
+function drawMapSide(m) {
+  const t = S.link && S.link.telemetry, ports = (t && t.ports) || {}, sens = (m && m.sensors) || {};
+  const role = { ir: "range ahead", us: "range ahead", col: "floor colour", gy: "heading" };
+  setHTML($("mapSensors"), ["S1", "S2", "S3", "S4"].map((p) => {
+    const d = ports[p] || {}, s = sens[p];
+    const name = d.connected ? d.label : "Empty";
+    const what = s ? `<span class="muted">${role[s.kind]}</span>` : d.connected ? '<span class="muted">not used by the map</span>' : "";
+    return `<li class="${s ? "" : "off"}"><span class="pbadge">${p.slice(1)}</span><div>${esc(name)}<br>${what}</div><span class="v">${sensorText(s)}</span></li>`;
+  }).join(""));
+  const has = Object.values(sens).map((s) => s.kind);
+  let hint = "";
+  if (!t) hint = "Connect to the brick, or turn on Practice on the Connection page, to start mapping.";
+  else if (!m.layout) hint = "The map needs to know which motors drive: pick a layout on the Controls page.";
+  else if (!has.includes("ir") && !has.includes("us")) {
+    const old = S.link && S.link.brickVersion !== (S.app && S.app.version) && !(S.fake && S.fake.running);
+    hint = old ? "Upload the latest build on the Program page: older versions don't send sensor readings."
+      : "Plug the infrared or ultrasonic sensor into any sensor port, facing forward. It's picked up within a few seconds.";
+  } else if (!has.includes("col")) hint = "Tip: a colour sensor pointing at the floor paints the floor's colours onto the map.";
+  setNote("mapHint", hint);
+  const p = m && m.pose;
+  $("mapPose").textContent = p && m.updates ? `${Math.round(p.x)} cm ahead, ${Math.abs(Math.round(p.y))} cm ${p.y >= 0 ? "left" : "right"} of the start · facing ${Math.round(((p.heading % 360) + 540) % 360 - 180)}° · ${m.cells.length} cells seen` : "Not moving yet";
+}
+function fillMapSize(r) {
+  document.querySelectorAll("#mapSize [data-k]").forEach((el) => { if (document.activeElement !== el) el.value = r[el.dataset.k]; });
+}
+async function pollMap() {
+  if (location.hash !== "#map") return;
+  let m; try { m = await api("/api/map"); } catch (e) { return; }
+  S.map = m;
+  if (window.Map3D) window.Map3D.update(m);
+  if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
+  drawMapSide(m);
+}
+$("mapView").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-view]"); if (!b) return;
+  $("mapView").querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
+  if (window.Map3D) window.Map3D.setView(b.dataset.view);
+});
+$("mapReset").addEventListener("click", () => busy($("mapReset"), async () => { await api("/api/map/reset", {}); pollMap(); }));
+$("mapSave").addEventListener("click", () => busy($("mapSave"), async () => {
+  const robot = {};
+  document.querySelectorAll("#mapSize [data-k]").forEach((el) => { robot[el.dataset.k] = Number(el.value); });
+  const r = await api("/api/map/robot", { robot });
+  if (r.ok) { fillMapSize(r.robot); setNote("mapSaved", "Saved.", "ok"); } else setNote("mapSaved", "Couldn't save.", "bad");
+}));
+setInterval(pollMap, 250);
+
 setInterval(pollLink, 250); setInterval(pollBt, 2500); setInterval(pollBrick, 3000);
 Promise.all([pollLink(), pollBt()]).then(pollBrick);
 addEventListener("beforeunload", () => navigator.sendBeacon && navigator.sendBeacon("/api/stop", new Blob(["{}"], { type: "application/json" })));
@@ -2300,6 +2417,16 @@ try {
   }).join("");
 } catch (e) {
   document.getElementById("gearMain").innerHTML = '<p class="muted" style="padding:20px">This browser can\'t show 3D gears (WebGL is off).</p>';
+}
+</script>
+<script type="module">
+// The live map in 3D (three.js).
+import { createMap } from "./map3d.js";
+try {
+  window.Map3D = createMap(document.getElementById("map3d"));
+  document.getElementById("map3dmsg").remove();
+} catch (e) {
+  document.getElementById("map3dmsg").textContent = "This browser can't show the 3D map (WebGL is off).";
 }
 </script>
 <script type="module">

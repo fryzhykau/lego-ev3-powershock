@@ -30,6 +30,16 @@ public final class PortWatch extends EV3AnalogPort {
         return new int[] {conn, typ};
     }
 
+    /** {connection, device type} for sensor port 0..3 (1..4): live if free, else as last seen. */
+    static int[] sensorCodes(int i) {
+        int conn = getPortType(i);
+        int typ = getAnalogSensorType(i);
+        if (conn == 0 && typ == 0 && lastFree[4 + i] != null) {
+            return lastFree[4 + i];
+        }
+        return new int[] {conn, typ};
+    }
+
     /** Last reading taken while a port was still free; see snapshot(). */
     private static final int[][] lastFree = new int[8][];
 

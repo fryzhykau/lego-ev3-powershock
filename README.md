@@ -7,6 +7,7 @@ Drive a LEGO Mindstorms EV3 running leJOS with a PS4 DualShock 4 controller, fro
 - **Plug and drive:** pair the controller with Windows, connect the brick over WiFi or Bluetooth, and drive.
 - **Your robot, your controls:** choose which stick drives which motor. Each port gets two-wheel drive, speed, or a steering angle, with smoothing and a steering centre.
 - **See what the brick sees:** the brick, its motors and sensors in 3D, live. Each motor can be tested on its own.
+- **A live map:** the robot's infrared, ultrasonic, colour and gyro sensors build a 3D map of the room as you drive.
 - **Built for a safe first drive:** the motors stop within half a second if anything goes quiet. They never restart by themselves after a dropped link.
 - **No hardware?** **Practice** mode runs a pretend brick on the laptop.
 
@@ -66,6 +67,24 @@ The brick's battery shows top-left on the leJOS screen. A blinking number means 
 
 ## The console
 
+### Map
+
+A live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above.
+
+- **Infrared or ultrasonic sensor,** facing forward: draws walls and obstacles.
+- **Colour sensor,** pointing at the floor: paints the floor's colours.
+- **Gyro sensor,** if you have one: keeps the heading accurate.
+
+Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set **Robot size** to match your robot: wheel diameter, wheel spacing, axle spacing, and where the sensors sit. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
+
+What to expect from the sensors that come with EV3 sets:
+
+- **Infrared:** reads up to about 70 cm, with a wide beam.
+- **Ultrasonic:** up to about 1.5 m, with a narrower beam.
+- **Drift:** each wheel slip adds an error, so the map drifts. **Clear map** starts again from where the robot is.
+
+![The Map page: the robot from behind, the infrared beam hitting a box, walls seen so far, blue floor tape and the path driven](docs/screenshots/map.png)
+
 ### Controls
 
 Pick a starting layout, then fine-tune each motor port.
@@ -106,6 +125,7 @@ Bluetooth, WiFi or **Practice**.
 ### Other pages
 
 - **Brick:** battery, memory, versions, and what's plugged into each port.
+- **Robot:** the controller and the brick in 3D, live, with a test panel for each motor.
 - **Program:** is PowerShock on the brick, and is it this version? **Upload latest build**, **Start**, **Stop**.
 
 ## Safety and security
@@ -159,6 +179,7 @@ Read [AGENTS.md](AGENTS.md) before contributing, whether you are a person or a c
 ev3/src/powershock/      brick side (Java 7, leJOS 0.9.1)
   DS4Receiver.java       A: TCP server on port 5000; port commands (P), motor tests (M), version (V) and status (T) back
   Drive.java             claims motors as they're plugged in; speed / angle / test commands; limits
+  Sensors.java           reads IR, ultrasonic, colour and gyro sensors for the map, on its own thread
   PortWatch.java         what's plugged into each port, from the kernel's connection manager
   Version.java           the version stamped in by build.ps1
   PortProbe.java         one-off port check (JSON)
@@ -166,8 +187,10 @@ ev3/src/powershock/      brick side (Java 7, leJOS 0.9.1)
   Mixer.java             tank mixing for the old "left right aux" lines
 pc/
   ev3_console.py         the console: web server, 50 Hz sender, practice brick
-  console/               the page (index.html), 3D controller (ds4model.js), 3D gears (gears3d.js), three.js
+  console/               the page (index.html), 3D controller (ds4model.js), 3D gears (gears3d.js),
+                         3D map (map3d.js), three.js
   mapping.py             controls mapping, stick calibration and response curve
+  worldmap.py            the live map: position from the wheels, occupancy grid from the sensors
   ev3_brick.py           talks to the brick: SSH, upload, start/stop, WiFi setup, port check
   ds4_hid.py             DualShock battery, model and firmware through Windows' HID API
   version.py             reads VERSION

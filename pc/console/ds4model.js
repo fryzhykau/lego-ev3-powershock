@@ -260,7 +260,7 @@ export function createDS4(container) {
   let yaw = HOME.yaw, pitch = HOME.pitch, drag = null;
   const el = renderer.domElement;
   el.style.touchAction = "none"; el.style.cursor = "grab";
-  el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; el.setPointerCapture(e.pointerId); el.style.cursor = "grabbing"; });
+  el.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; try { el.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ } el.style.cursor = "grabbing"; });
   el.addEventListener("pointermove", (e) => { if (!drag) return; yaw = drag.yaw + (e.clientX - drag.x) * 0.01; pitch = Math.max(-0.6, Math.min(1.1, drag.pitch + (e.clientY - drag.y) * 0.008)); });
   el.addEventListener("pointerup", () => { drag = null; el.style.cursor = "grab"; });
   el.addEventListener("dblclick", () => { yaw = HOME.yaw; pitch = HOME.pitch; });

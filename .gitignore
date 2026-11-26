@@ -23,3 +23,6 @@ __pycache__/
 
 # Your own controls layout and stick calibration (saved by the console)
 pc/mapping.json
+
+# Your robot size for the live map (saved by the console)
+pc/worldmap.json

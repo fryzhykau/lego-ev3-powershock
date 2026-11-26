@@ -20,7 +20,8 @@ import lejos.hardware.lcd.LCD;
  * or the older "left right aux" (each -100..100). The motors stop if nothing arrives for
  * 500 ms, and as soon as the connection drops. ESCAPE on the brick exits.
  *
- * Sends back "V <version>" once per connection, then "T ..." status lines.
+ * Sends back "V <version>" once per connection, then "T ..." status lines: battery, ports,
+ * motor angles, and sensor readings for the console's map (see Sensors).
  *
  * Only the main loop drives motors. Network reading and status sending run on their own
  * threads, so a slow or stuck connection can never hold up the watchdog or ESCAPE.
@@ -73,6 +74,10 @@ public final class DS4Receiver {
         }, "status");
         status.setDaemon(true);
         status.start();
+        final Sensors sensors = new Sensors(); // IR, colour, ultrasonic and gyro readings for the console's map
+        Thread sense = new Thread(sensors, "sensors");
+        sense.setDaemon(true);
+        sense.start();
 
         LCD.clear();
         LCD.drawString(pad("PowerShock " + Version.get()), 0, 0);
@@ -91,7 +96,7 @@ public final class DS4Receiver {
                 }
                 if (clientOut != null && now - lastTelemetry >= TELEMETRY_MS) {
                     lastTelemetry = now;
-                    telemetry = "T " + PortWatch.snapshot() + drive.telemetry() + "\n"; // sent by the "status" thread
+                    telemetry = "T " + PortWatch.snapshot() + drive.telemetry() + sensors.telemetry() + "\n"; // sent by the "status" thread
                 }
                 String[] t;
                 while ((t = tests.poll()) != null) {
@@ -123,6 +128,7 @@ public final class DS4Receiver {
             }
         } finally {
             running = false;
+            sensors.stop();
             drive.close();
             server.close();
         }

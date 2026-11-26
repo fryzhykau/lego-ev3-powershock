@@ -326,6 +326,9 @@ def describe_live(conn, typ):
     return {"connected": True, "label": label, "kind": "sensor"}
 
 
+SENSOR_KINDS = ("ir", "us", "col", "gy")
+
+
 def parse_telemetry(line):
     """'T 8.61 0.162 0.000 A=126:126 ... 4=126:126' -> dict, or None."""
     p = line.split()
@@ -355,6 +358,12 @@ def parse_telemetry(line):
                     out.setdefault("motors", {})[name] = {
                         "tacho": int(v[0]), "speed": int(v[1]), "stalled": v[2] == "1",
                         "role": {"L": "left", "R": "right", "X": "aux"}.get(v[3] if len(v) > 3 else "", None)}
+            # " s4=ir:37", " s3=col:5", " s2=us:123", " s1=gy:-45": sensor readings for the map
+            elif item.startswith("s") and item[1:2].isdigit() and "=" in item:
+                name, _, vals = item[1:].partition("=")
+                kind, _, val = vals.partition(":")
+                if kind in SENSOR_KINDS and name in "1234":
+                    out.setdefault("sensors", {})["S" + name] = {"kind": kind, "value": int(val)}
         return out
     except ValueError:
         return None

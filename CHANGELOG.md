@@ -17,6 +17,16 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### Added
+- **Map page:** a live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above.
+  - **Position:** worked out from the wheel motors' angles and the robot's size. In car layouts the steering angle is used too, and a gyro, if one is plugged in, gives the heading.
+  - **Walls and obstacles:** the infrared or ultrasonic sensor marks them on an occupancy grid. Each cell keeps a score, so one stray reading doesn't draw a wall.
+  - **Floor colours:** painted by the colour sensor.
+  - **Robot size:** wheel diameter, wheel spacing, axle spacing, steering ratio and sensor positions, saved to `pc/worldmap.json`.
+- **Brick program:** a sensor thread (`Sensors.java`) reads IR, ultrasonic, colour and gyro sensors as they are plugged in. Their readings go to the console in the status line (`s1=ir:37`, `s3=col:5`, …). Older consoles ignore them.
+- **Practice brick** now has colour and infrared sensors and drives around a small room with two boxes, blue tape and a red mat.
+- **Tests** for odometry, the grid, sensor parsing and the practice room.
+
 ### Changed
 - **3D DualShock 4** closer to the real controller:
   - Slimmer grips that taper and splay outwards.

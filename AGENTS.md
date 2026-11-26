@@ -90,10 +90,12 @@ The repository is public. Before every commit:
    - Every bug fix gets a test that fails without the fix.
    - Every new behaviour in `pc/*.py` gets tests in `pc/test_*.py`.
    - Tests need no hardware: use the practice brick (`FakeEV3`) or a local socket, as `test_link.py` and `test_version.py` do.
+   - Turn Practice off in any running console first. Its pretend brick holds port 5000, which the tests' own pretend brick also uses.
    - Keep tests fast (seconds) and deterministic.
    - Java has no test harness. Keep brick logic simple, and check it through the console's practice brick and by reasoning. Describe what you checked on real hardware, if anything.
 4. **Brick protocol changes:**
    - Lines from the PC are `P`, `M` and the old `l r a`. Lines from the brick are `V` and `T`.
+   - A `T` line ends with optional items: `mB=tacho:speed:stalled:role` for motors, and `s4=ir:37` / `s2=us:123` / `s3=col:5` / `s1=gy:-45` for sensors.
    - Change both sides together, plus the practice brick in `ev3_console.py`.
    - Keep older versions working where you can: unknown lines are ignored.
 5. **The page:**
