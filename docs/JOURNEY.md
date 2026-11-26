@@ -373,5 +373,9 @@ The hardest problems so far, grouped by where they came from.
 - **Upload the new brick program** (0.8, with sensors) and try the map on the real robot.
 - **Finish the Raspberry Pi setup** and drive with the camera, with object recognition on.
 - **Use what's recognised:** mark it on the map, or let the robot turn towards a chosen thing while a button is held.
+- **Self-driving around the house** (the end goal: EV3, Pi, camera and power bank on one LEGO car).
+  - **Who does what:** reflexes on the brick (it brakes by itself, without WiFi), eyes on the Pi, planning on the laptop, and the owner holding a button to let it drive.
+  - **First step:** the brick-side brake.
+  - **The alternative weighed:** a BrickPi3 board, so the Pi drives the EV3 motors itself. That's one computer on board, but it means new hardware and a rewrite.
 - **Choose a licence.**
 - **Release 0.8.0** once the map and camera are tested on hardware.
