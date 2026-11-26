@@ -107,6 +107,7 @@ The repository is public. Before every commit:
    - **Performance:** the page polls every 250 ms. Don't rewrite large `innerHTML` blocks when nothing changed (use `setHTML`).
 6. **Docs:** update `README.md` and `docs/TROUBLESHOOTING.md` when behaviour or setup changes.
 7. **Changelog:** add a line under `## [Unreleased]` in `CHANGELOG.md` for anything a user would notice (Added / Changed / Fixed / Security / Removed).
+8. **Journey:** when a new idea is tried, or something fails or succeeds in an instructive way, add it to `docs/JOURNEY.md` (stages, what worked and what didn't). No personal data.
 
 ## Versioning and releases
 

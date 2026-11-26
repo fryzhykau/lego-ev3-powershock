@@ -160,7 +160,7 @@ PowerShock uses [Semantic Versioning](https://semver.org/), with one version for
 - **On the brick:** `build.ps1` stamps it into the brick programs, and the brick reports it when the console connects.
 - **In the console:** it shows next to the name. The Program page warns when the brick runs an older version.
 
-Changes are listed in [CHANGELOG.md](CHANGELOG.md), which also describes how to make a release.
+Changes are listed in [CHANGELOG.md](CHANGELOG.md), which also describes how to make a release. How the project grew, and what worked and what didn't along the way, is in [docs/JOURNEY.md](docs/JOURNEY.md).
 
 ## B. Controller straight to the brick (experimental)
 
@@ -213,6 +213,7 @@ pi/
 build.ps1                compile for Java 7, stamp the version, package, upload
 docs/TROUBLESHOOTING.md  battery, WiFi, Bluetooth PAN, SSH, port detection, DualShock
 docs/CAMERA.md           setting up the Raspberry Pi camera
+docs/JOURNEY.md          how the project came about: stages, what worked and what didn't
 ```
 
 Not done yet: light bar and rumble; pairing for variant B, so it reconnects with just the PS button.
