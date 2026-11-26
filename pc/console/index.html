@@ -2561,6 +2561,7 @@ function drawSee() {
       + "Then turn it on again. The guide is <code>docs/VISION.md</code>."
     : s && s.error ? esc(s.error)
     : !r || r.age == null ? "Starting object recognition…"
+    : r.age > 2 ? "Waiting for pictures from the camera…"
     : items.length ? `Recognising ${r.fps} times a second: ${seeSummary(items)}`
     : `Recognising ${r.fps} times a second: nothing it knows in view`;
   note.classList.toggle("hidden", !msg);

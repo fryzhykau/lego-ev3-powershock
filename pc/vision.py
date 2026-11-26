@@ -243,7 +243,10 @@ class Vision:
                 self.error = str(e)
 
     def _work(self):
-        stop, reader, next_try, seen = threading.Event(), None, 0.0, 0
+        stop, reader, next_try = threading.Event(), None, 0.0
+        with self.lock:
+            # a frame left from an earlier run may be from another camera, or minutes old
+            self.frame, seen = None, self.seq
         try:
             if self.detector is None:
                 self.detector = Detector(self.model, self.sha256)

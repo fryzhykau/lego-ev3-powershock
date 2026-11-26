@@ -19,8 +19,8 @@ The project was built in a few long sessions over two days (25–26 November 202
 | 8 | Make it safe before driving and before going public | ✅ Motors stop on every kind of failure; console locked down |
 | 9 | Publish it | ✅ Public repo, versioning, changelog, privacy check, agent rules |
 | 10 | A Tesla-style map of the room from the sensors | ✅ Works in Practice mode; not yet tried on the real robot |
-| 11 | Let the robot see through a camera | 🔄 Software ready and tested; the Pi is up and running |
-| 12 | Recognise things in the video, on the laptop | ✅ Works with a stand-in camera; real Pi next |
+| 11 | Let the robot see through a camera | ✅ Live video from the Pi in the console; not yet mounted on the robot |
+| 12 | Recognise things in the video, on the laptop | ✅ Works on the real camera; not yet tried while driving |
 | – | Control cheap RC toy cars too | 💡 Options worked out, nothing built |
 
 ## Stage 0: the first idea, a direct Bluetooth driver
@@ -215,7 +215,12 @@ Still open: choosing a licence.
 
 **Status:**
 - **The Pi is running:** Raspberry Pi OS Lite 64-bit on a 128 GB card, set up in Imager with WiFi and SSH. It answered on the network about 100 seconds after its first boot.
-- **Next:** key-based SSH login, then copy the streamer over and connect the console.
+- **The camera is live in the console:** 640 × 480 at 20 frames a second, with the Pi only about 10% busy.
+  - **The camera (OV5647):** detected without any `config.txt` change.
+  - **SSH:** the laptop's key was added once with the Pi's password, typed by the owner. Since then it logs in without one.
+  - **The access key:** the owner pasted it into the console, so it never went through the agent.
+- **A surprise:** every connection to the Pi took 2.1 s. The `.local` name also gives an IPv6 address, the streamer listens on IPv4 only, and Windows retries a refused connection for about 2 s before moving on. The console now tries IPv4 first.
+- **The picture is pinkish** indoors: a night-vision camera with its infrared filter open.
 - **Learned on the way:** the Pi has no BIOS to update (its firmware is on the SD card and updates with the system), and no gyro (the EV3 gyro sensor does that job).
 
 ## Stage 12: recognising things in the video
@@ -245,7 +250,9 @@ Still open: choosing a licence.
 - **A loose size limit:** the download's size cap had slack, which the test for "too big" caught.
 - **A misleading screenshot:** with a moving test picture, each box trailed behind its object (it belongs to a frame about 0.1 s old). The screenshot uses a still picture, and the guide explains the delay.
 
-**Status:** tested with a stand-in camera on the laptop; next, the real Pi camera.
+- **A stale first result:** on the real camera, the first "find" was the stand-in camera's last picture, still in memory from the test before. Each start now waits for a fresh picture.
+
+**Status:** runs on the real Pi camera, 10 times a second at about 16 ms a picture. Not yet tried while driving.
 
 ## Side ideas
 

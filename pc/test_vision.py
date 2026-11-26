@@ -213,6 +213,17 @@ class VisionTest(unittest.TestCase):
         self.assertTrue(wait_for(lambda: self.v.poll(True).get("items")))
         self.v.poll(False)
 
+    def test_a_frame_from_an_earlier_run_is_not_used(self):
+        self.start([jpeg()])
+        self.pi.close()  # no new frames will come
+        with self.v.lock:
+            self.v.frame, self.v.seq = jpeg(), 7  # left over from an earlier run
+        self.v.poll(True)
+        self.assertTrue(wait_for(lambda: self.v.poll(True).get("error")))
+        time.sleep(0.5)
+        self.assertNotIn("items", self.v.poll(True))
+        self.v.poll(False)
+
     def test_camera_off_is_explained(self):
         self.start([jpeg()])
         self.pi.close()

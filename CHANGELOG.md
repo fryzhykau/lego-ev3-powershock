@@ -30,6 +30,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **On the Pi:** `pi/powershock_cam.py` uses only the standard library. It works with `rpicam-vid`, `libcamera-vid` or `raspivid`, needs an access key for every request, and has a `--test` pattern mode.
   - **In the console:** the Robot page's 3D view switches between **Brick** and **Camera**, and **Connection → Camera** sets it up.
   - **Relay:** the console relays the video, so the page only ever talks to the console.
+  - **Quick to connect by name:** the console tries the Pi's IPv4 address first. On Windows, a `.local` name otherwise cost about 2 seconds per connection, on a refused IPv6 attempt.
   - **Setup guide:** `docs/CAMERA.md`.
   - **3D Raspberry Pi** in the Camera setup panel, shown as a Pi 2 or Pi 3: what plugs in where.
     - The camera ribbon, with its contacts facing the HDMI port.
@@ -53,6 +54,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
     - Without them the console works as before, and the page shows the setup commands.
   - **Guide:** `docs/VISION.md`.
   - **Tests:** decoding the model's output, overlapping boxes, the frame reader, the checked download, and starting and stopping. Tests that need the packages are skipped without them.
+  - **Fresh pictures only:** each start waits for a new picture, never one left from an earlier run, which could be from another camera.
 
 ### Changed
 - **3D DualShock 4 rebuilt from reference drawings:**
