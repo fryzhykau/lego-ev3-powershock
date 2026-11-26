@@ -15,10 +15,35 @@ CONFIG = os.path.join(HERE, "camera.json")
 HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
 KEY_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 MAX_STREAMS = 3
+MAX_FRAME = 8 * 1024 * 1024
 
 
 class CameraError(Exception):
     pass
+
+
+def read_parts(f):
+    """The JPEGs in a multipart/x-mixed-replace body, one at a time, by each part's Content-Length.
+    Stops at the end of the stream, or at a part that's cut short or far too big."""
+    size = None
+    while True:
+        line = f.readline(1024)
+        if not line:
+            return
+        head = line.strip().lower()
+        if head.startswith(b"content-length:"):
+            try:
+                size = int(head.split(b":", 1)[1])
+            except ValueError:
+                size = None
+        elif not head and size is not None:
+            if not 0 < size <= MAX_FRAME:
+                return
+            data = f.read(size)
+            if len(data) < size:
+                return
+            yield data
+            size = None
 
 
 def check(host, port, key):
@@ -126,6 +151,27 @@ class Camera:
             return resp.read(8 * 1024 * 1024)
         finally:
             conn.close()
+
+    def frames(self, stop):
+        """The Pi's live video as single JPEGs, until `stop` (an Event) is set or the video ends.
+        It takes one of the camera view slots, like a page showing the video."""
+        if not self.streams.acquire(blocking=False):
+            raise CameraError("Too many camera views are open.")
+        try:
+            conn, resp = self._request("/stream.mjpg", 5)
+            try:
+                if resp.status != 200 or not (resp.getheader("Content-Type") or "").startswith("multipart/x-mixed-replace"):
+                    raise CameraError("The camera didn't send video.")
+                for jpeg in read_parts(resp):
+                    if stop.is_set():
+                        break
+                    yield jpeg
+            except OSError:
+                pass  # the Pi went away, or stopped sending for 5 seconds
+            finally:
+                conn.close()
+        finally:
+            self.streams.release()
 
     def relay(self, out, on_start):
         """Copies the Pi's live video to `out` (a file-like) until either side stops.

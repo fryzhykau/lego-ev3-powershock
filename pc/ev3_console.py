@@ -23,6 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import camera  # noqa: E402
+import vision  # noqa: E402
 import ds4_hid  # noqa: E402
 import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
@@ -716,6 +717,7 @@ fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()
 cam = camera.Camera()
+see = vision.Vision(cam)  # object recognition, optional (pc/vision.py)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -826,6 +828,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(link.world.snapshot())
         elif self.path == "/api/camera":
             self._json(cam.status())
+        elif self.path == "/api/vision":
+            self._json(see.status())
         elif self.path.split("?")[0] == "/api/camera/stream":
             self._camera_stream()
         elif self.path.split("?")[0] == "/api/camera/snapshot":
@@ -915,6 +919,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "error": f"Couldn't save the camera settings: {e.strerror or e}"})
             st = cam.status(max_age=0)
             self._json({"ok": True, "status": st})
+        elif self.path == "/api/vision":
+            # {"on": true} while the Camera view shows recognition (it stops a few seconds after the
+            # last one), {"on": false} when the page is done. Answers with what was found.
+            on = b.get("on")
+            if not isinstance(on, bool):
+                return self._json({"ok": False, "error": "bad vision command"})
+            self._json(see.poll(on))
         elif self.path == "/api/camera/forget":
             cam.forget()
             self._json({"ok": True})

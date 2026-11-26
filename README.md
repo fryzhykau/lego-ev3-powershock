@@ -8,7 +8,7 @@ Drive a LEGO Mindstorms EV3 running leJOS with a PS4 DualShock 4 controller, fro
 - **Your robot, your controls:** choose which stick drives which motor. Each port gets two-wheel drive, speed, or a steering angle, with smoothing and a steering centre.
 - **See what the brick sees:** the brick, its motors and sensors in 3D, live. Each motor can be tested on its own.
 - **A live map:** the robot's infrared, ultrasonic, colour and gyro sensors build a 3D map of the room as you drive.
-- **A camera, if you have a Raspberry Pi:** drive from the robot's point of view.
+- **A camera, if you have a Raspberry Pi:** drive from the robot's point of view. Optionally, the laptop recognises people, cups, balls, pets and more in the video, live.
 - **Built for a safe first drive:** the motors stop within half a second if anything goes quiet. They never restart by themselves after a dropped link.
 - **No hardware?** **Practice** mode runs a pretend brick on the laptop.
 
@@ -34,7 +34,7 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
 ## You need
 
 - **Windows 10 or 11** with Bluetooth. The console uses Windows' built-in OpenSSH client.
-- **Python 3.9 or newer.** Nothing to install.
+- **Python 3.9 or newer.** Nothing to install. Optional object recognition needs Python 3.10+ and three packages (see below).
 - **A JDK, 17 or newer,** to build the brick program. It is found in `%USERPROFILE%\.jdks`, `JAVA_HOME` or on `PATH`.
 - **A LEGO EV3 with a leJOS 0.9.1-beta SD card.** For WiFi you also need a supported USB dongle, e.g. Netgear WNA1100.
 - **A DualShock 4**, and Chrome or Edge.
@@ -75,6 +75,21 @@ Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live v
 - **On the Pi:** run `pi/powershock_cam.py`. It uses only the standard library and works with any Raspberry Pi OS camera tool.
 - **In the console:** **Connection → Camera** takes the Pi's address and the access key it prints.
 - **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
+
+### Object recognition (optional)
+
+The laptop can recognise 80 kinds of everyday thing in the camera's video, and draw a box and a name around each, about 10 times a second. Turn it on with the **Recognise objects** button on the Camera view, or press **R**.
+
+It's the one part of PowerShock that needs more than the standard library. Set it up once, with Python 3.10 or newer:
+
+```powershell
+python -m pip install -r pc\requirements-vision.txt
+python pc\tools\get_model.py
+```
+
+The second command downloads the YOLOX-nano model (3.7 MB, Apache-2.0) and checks its checksum. Everything runs on the laptop. The full guide is [docs/VISION.md](docs/VISION.md).
+
+![Object recognition on the Camera view, with a test picture: a red disc the model takes for a frisbee](docs/screenshots/vision.png)
 
 ### Map
 
@@ -206,6 +221,9 @@ pc/
   tools/BrickMenu.java   leJOS menu over RMI (versions, battery)
   tools/extract_libs.py  copies the three jars from your SD card
   camera.py              the robot camera: Pi address and key, status, video relay
+  vision.py              object recognition on the camera's video (optional; numpy, onnxruntime, Pillow)
+  requirements-vision.txt   the packages object recognition needs
+  tools/get_model.py     downloads and checks the recognition model into pc/models/ (not in git)
 pi/
   powershock_cam.py      runs on a Raspberry Pi: streams its camera as MJPEG (needs the access key)
   test_*.py              tests
@@ -213,6 +231,7 @@ pi/
 build.ps1                compile for Java 7, stamp the version, package, upload
 docs/TROUBLESHOOTING.md  battery, WiFi, Bluetooth PAN, SSH, port detection, DualShock
 docs/CAMERA.md           setting up the Raspberry Pi camera
+docs/VISION.md           setting up object recognition: packages, model download, what to expect
 docs/JOURNEY.md          how the project came about: stages, what worked and what didn't
 ```
 
@@ -220,4 +239,4 @@ Not done yet: light bar and rumble; pairing for variant B, so it reconnects with
 
 ## Licence
 
-No licence has been chosen yet, so all rights are reserved for now. Third-party code keeps its own licence: three.js is MIT (see `pc/console/vendor/three/LICENSE`).
+No licence has been chosen yet, so all rights are reserved for now. Third-party code keeps its own licence: three.js is MIT (see `pc/console/vendor/three/LICENSE`). The optional recognition model, YOLOX-nano, is Apache-2.0 and isn't included: `pc/tools/get_model.py` downloads it from its source.

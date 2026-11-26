@@ -113,6 +113,8 @@ It works with whichever camera tool the OS has: `rpicam-vid`, `libcamera-vid`, o
 
 The video only runs while the Camera view is on screen.
 
+To have the laptop recognise things in the video (people, cups, balls, pets…), see [VISION.md](VISION.md).
+
 ## 6. Start it with the Pi (optional)
 
 So you don't need SSH every time, make it a service. Create `/etc/systemd/system/powershock-cam.service` with `sudo nano`:

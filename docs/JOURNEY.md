@@ -19,7 +19,8 @@ The project was built in a few long sessions over two days (25–26 November 202
 | 8 | Make it safe before driving and before going public | ✅ Motors stop on every kind of failure; console locked down |
 | 9 | Publish it | ✅ Public repo, versioning, changelog, privacy check, agent rules |
 | 10 | A Tesla-style map of the room from the sensors | ✅ Works in Practice mode; not yet tried on the real robot |
-| 11 | Let the robot see through a camera | 🔄 Software ready and tested; the Pi is being set up |
+| 11 | Let the robot see through a camera | 🔄 Software ready and tested; the Pi is up and running |
+| 12 | Recognise things in the video, on the laptop | ✅ Works with a stand-in camera; real Pi next |
 | – | Control cheap RC toy cars too | 💡 Options worked out, nothing built |
 
 ## Stage 0: the first idea, a direct Bluetooth driver
@@ -212,7 +213,39 @@ Still open: choosing a licence.
 - **A separate camera window and safety:** clicking into it takes the focus from the console, which switches the motors off. So driving stays in the console window, and full screen happens inside the console.
 - **The first setup panel was "information overload":** a full table, a notes list and seven paragraphs. It became three steps with one explanation at a time.
 
-**Status:** the Pi's SD card is being prepared: Raspberry Pi OS Lite 64-bit on a 128 GB card.
+**Status:**
+- **The Pi is running:** Raspberry Pi OS Lite 64-bit on a 128 GB card, set up in Imager with WiFi and SSH. It answered on the network about 100 seconds after its first boot.
+- **Next:** key-based SSH login, then copy the streamer over and connect the console.
+- **Learned on the way:** the Pi has no BIOS to update (its firmware is on the SD card and updates with the system), and no gyro (the EV3 gyro sensor does that job).
+
+## Stage 12: recognising things in the video
+
+**Idea:** run object recognition on the camera's video while the robot moves.
+
+**Where to run it:**
+
+| Option | Speed | Verdict |
+|---|---|---|
+| On the Pi 3 B+ (TensorFlow Lite) | 2–4 pictures a second | Too slow, and it heats and drains the Pi |
+| On the Pi with a Coral USB stick | 15–25 a second | Extra hardware to buy |
+| **On the laptop**, from the video the console already relays | ~15 ms a picture, capped at 10 a second | ✅ Chosen |
+
+**What was built:**
+- **`pc/vision.py`:** reads the Pi's video, keeps only the newest frame so it never falls behind, and runs YOLOX-nano (3.7 MB, 80 kinds of thing).
+- **On the page:** boxes and names over the Camera view, a status line, and a button or **R** to turn it on and off.
+- **Only when wanted:** it runs only while the Camera view shows it, and stops a few seconds after the page stops asking.
+- **Setup:** a guide (`docs/VISION.md`) and a download tool that checks the model's checksum.
+
+**Decisions:**
+- **The first dependencies:** the owner agreed to PowerShock's first packages outside the standard library (numpy, onnxruntime, Pillow), kept optional: without them everything else works, and the page shows the setup commands.
+- **The model stays out of the repository:** each person downloads it from its source, checked against a fixed checksum.
+- **Choosing the model:** the popular newest YOLO versions are AGPL-licensed, so the Apache-2.0 YOLOX was picked.
+
+**What didn't, at first:**
+- **A loose size limit:** the download's size cap had slack, which the test for "too big" caught.
+- **A misleading screenshot:** with a moving test picture, each box trailed behind its object (it belongs to a frame about 0.1 s old). The screenshot uses a still picture, and the guide explains the delay.
+
+**Status:** tested with a stand-in camera on the laptop; next, the real Pi camera.
 
 ## Side ideas
 
@@ -306,7 +339,8 @@ The hardest problems so far, grouped by where they came from.
 ## Open threads
 
 - **Upload the new brick program** (0.8, with sensors) and try the map on the real robot.
-- **Finish the Raspberry Pi setup** and drive with the camera.
+- **Finish the Raspberry Pi setup** and drive with the camera, with object recognition on.
+- **Use what's recognised:** mark it on the map, or let the robot turn towards a chosen thing while a button is held.
 - **Choose a licence.**
 - **Program page layout,** and folding the Brick page into the other pages.
 - **Release 0.8.0** once the map and camera are tested on hardware.

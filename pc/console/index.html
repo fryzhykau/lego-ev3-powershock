@@ -170,6 +170,13 @@
   .camview:fullscreen { aspect-ratio: auto; max-height: none; padding: 0; width: 100vw; height: 100vh; }
   .camview:fullscreen .camhud { display: block; }
   .camwait a { color: #fff; }
+  .camboxes { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .camboxes .cb { position: absolute; box-sizing: border-box; border: 2px solid #f0a21a; border-radius: 4px; }
+  .camboxes .cb span { position: absolute; left: -2px; bottom: 100%; padding: 1px 6px; border-radius: 4px 4px 4px 0; background: #f0a21a; color: #1c2124; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .camboxes .cb.top span { bottom: auto; top: 0; border-radius: 0 0 4px 0; }
+  .camsee { position: absolute; left: 16px; bottom: 14px; max-width: calc(100% - 32px); box-sizing: border-box; padding: 6px 12px; border-radius: 10px; background: #000000b3; color: #e6e8e9; font-size: 12.5px; line-height: 1.55; }
+  .camsee code { background: #ffffff1f; padding: 1px 5px; border-radius: 4px; font-size: 12px; overflow-wrap: anywhere; }
+  .iconbtn[aria-pressed=true] { color: #1c2124; background: #f0a21a; border-color: #f0a21a; }
   .camflow { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
   .cf { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; }
   .cf-n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); color: var(--muted); font-weight: 700; font-size: 12.5px; box-shadow: inset 0 0 0 1px var(--rule); }
@@ -892,8 +899,8 @@
         </div>
 
         <div class="card stagecard">
-          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><span class="grow1 hidden" id="camGap"></span><button class="iconbtn hidden" id="camFull" title="Full screen, driving keeps working (Esc or F to leave)" aria-label="Show the camera full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="iconbtn hidden" id="camPop" title="Open the camera in its own window, e.g. for a second monitor" aria-label="Open the camera in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="M13 3h8v8M21 3l-9 9"/></svg></button><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
-          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div></div>
+          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><span class="grow1 hidden" id="camGap"></span><button class="iconbtn hidden" id="camSeeBtn" aria-pressed="false" title="Recognise objects in the video (R)" aria-label="Recognise objects in the video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg></button><button class="iconbtn hidden" id="camFull" title="Full screen, driving keeps working (Esc or F to leave)" aria-label="Show the camera full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="iconbtn hidden" id="camPop" title="Open the camera in its own window, e.g. for a second monitor" aria-label="Open the camera in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="M13 3h8v8M21 3l-9 9"/></svg></button><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
+          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div><div class="camboxes" id="camBoxes" aria-hidden="true"></div><div class="camsee hidden" id="camSeeNote" role="status"></div></div>
           <div class="scene" id="scene" aria-label="The EV3 brick with what's plugged into each port. Drag to turn it.">
             <div class="brick intro" id="brick">
               <div class="f back"></div>
@@ -2457,7 +2464,7 @@ function setStage(v) {
   $("resetView").classList.toggle("hidden", v === "cam");
   document.querySelector(".stagefoot").classList.toggle("hidden", v === "cam");
   $("portsNote").hidden = v === "cam";
-  ["camGap", "camFull", "camPop"].forEach((id) => $(id).classList.toggle("hidden", v !== "cam"));
+  ["camGap", "camSeeBtn", "camFull", "camPop"].forEach((id) => $(id).classList.toggle("hidden", v !== "cam"));
   $("camView").classList.toggle("hidden", v !== "cam");
   syncCam();
 }
@@ -2513,6 +2520,61 @@ addEventListener("keydown", (e) => { if (e.code === "KeyF" && S.stageView === "c
 // The camera alone in its own window. Driving stays in this window: clicking into the other one
 // takes the focus away from here, which switches the motors off, as with any other window.
 $("camPop").addEventListener("click", () => { window.open("/camera", "powershock-camera", "popup,width=960,height=760"); });
+// ---------- object recognition on the camera's video (pc/vision.py, optional) ----------
+// It runs on the laptop while this view shows it; the console stops it a few seconds after the last ask.
+S.see = localStorage.getItem("see") === "1";
+S.seeRes = null; S.seeOn = false; S.seeBusy = false; S.seeAt = 0;
+const seeWanted = () => S.see && S.stageView === "cam" && (location.hash || "#robot") === "#robot"
+  && document.visibilityState === "visible" && !!$("camImg").dataset.live;
+async function pollSee() {
+  const want = seeWanted();
+  if (S.seeBusy || (!want && !S.seeOn)) return drawSee();
+  // not set up yet: ask again only now and then, in case it has been since
+  if (want && S.seeRes && S.seeRes.ok === false && Date.now() - S.seeAt < 3000) return drawSee();
+  S.seeBusy = true;
+  try { S.seeRes = await api("/api/vision", { on: want }); S.seeOn = want && S.seeRes.ok !== false; S.seeAt = Date.now(); }
+  catch (e) { S.seeRes = null; S.seeOn = false; }
+  finally { S.seeBusy = false; }
+  drawSee();
+}
+function seeSummary(items) {
+  const n = {};
+  items.forEach((t) => { n[t.label] = (n[t.label] || 0) + 1; });
+  return Object.keys(n).map((k) => esc(k) + (n[k] > 1 ? " ×" + n[k] : "")).join(", ");
+}
+function drawSee() {
+  const img = $("camImg"), boxes = $("camBoxes"), note = $("camSeeNote");
+  $("camSeeBtn").setAttribute("aria-pressed", S.see ? "true" : "false");
+  const r = S.seeOn ? S.seeRes : null;
+  const items = r && r.items && r.age != null && r.age < 2 ? r.items : [];
+  // the boxes are fractions of the picture, so lay them over exactly where the picture is
+  Object.assign(boxes.style, { left: img.offsetLeft + "px", top: img.offsetTop + "px", width: img.offsetWidth + "px", height: img.offsetHeight + "px" });
+  setHTML(boxes, items.map((t) => {
+    const [x0, y0, x1, y1] = t.box.map((v) => v * 100);
+    return `<div class="cb${y0 < 6 ? " top" : ""}" style="left:${x0.toFixed(2)}%;top:${y0.toFixed(2)}%;width:${(x1 - x0).toFixed(2)}%;height:${(y1 - y0).toFixed(2)}%"><span>${esc(t.label)} ${Math.round(t.score * 100)}%</span></div>`;
+  }).join(""));
+  const s = S.seeRes;
+  const msg = !S.see || S.stageView !== "cam" || !img.dataset.live ? ""
+    : s && s.ok === false && s.missing ? "Object recognition needs a one-time setup on this laptop. In PowerShell, in the PowerShock folder:<br>"
+      + (s.missing.some((m) => m !== "model") ? "<code>python -m pip install -r pc/requirements-vision.txt</code><br>" : "")
+      + (s.missing.includes("model") ? "<code>python pc/tools/get_model.py</code><br>" : "")
+      + "Then turn it on again. The guide is <code>docs/VISION.md</code>."
+    : s && s.error ? esc(s.error)
+    : !r || r.age == null ? "Starting object recognition…"
+    : items.length ? `Recognising ${r.fps} times a second: ${seeSummary(items)}`
+    : `Recognising ${r.fps} times a second: nothing it knows in view`;
+  note.classList.toggle("hidden", !msg);
+  setHTML(note, msg);
+}
+function toggleSee() {
+  S.see = !S.see; localStorage.setItem("see", S.see ? "1" : "0");
+  S.seeRes = null; S.seeAt = 0;
+  pollSee();
+}
+$("camSeeBtn").addEventListener("click", toggleSee);
+addEventListener("keydown", (e) => { if (e.code === "KeyR" && !e.ctrlKey && !e.metaKey && !e.altKey && S.stageView === "cam" && !typing() && (location.hash || "#robot") === "#robot") toggleSee(); });
+addEventListener("resize", drawSee);
+setInterval(pollSee, 200);
 $("camSave").addEventListener("click", () => busy($("camSave"), async () => {
   setNote("camNote", "Testing…");
   const r = await api("/api/camera", { host: $("camHost").value, port: Number($("camPort").value) || 8080, key: $("camKey").value });

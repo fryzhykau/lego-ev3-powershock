@@ -74,3 +74,11 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - Over Bluetooth the controller sends a short report without the battery until feature report `0x02` (calibration) is read; reading it switches it to the full report.
 - Feature report `0xA3` holds the firmware build date/time and hardware/firmware version numbers.
 - The DS4 doesn't report Bluetooth signal strength. Sony updates DS4 firmware only through a PS4/PS5; there's no Windows updater (the PC updater is for the DualSense).
+
+## Object recognition on the camera
+
+- **"Needs a one-time setup":** install the packages and get the model, as the page shows. The full steps are in [VISION.md](VISION.md).
+- **`pip` can't find `onnxruntime`:** it needs 64-bit Python 3.10 or newer.
+- **"The model file isn't the one PowerShock expects":** the download was damaged or is another version. Run `python pc/tools/get_model.py` again; it checks the SHA-256 checksum before keeping a file.
+- **No boxes:** the model knows 80 everyday kinds of thing (the COCO set), not LEGO parts, walls or doors. It needs a sharp, well-lit picture; fast turns blur it.
+- **"Too many camera views are open":** recognition uses one of the console's three video connections to the Pi. Close the camera's own window or another console tab.

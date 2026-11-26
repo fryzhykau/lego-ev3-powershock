@@ -37,6 +37,27 @@ class SplitTest(unittest.TestCase):
         self.assertEqual(rest, b"")
 
 
+def part(jpeg, size=None):
+    n = len(jpeg) if size is None else size
+    return b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " + str(n).encode() + b"\r\n\r\n" + jpeg + b"\r\n"
+
+
+class ReadPartsTest(unittest.TestCase):
+    def test_parts_by_length(self):
+        body = io.BytesIO(part(J1) + part(J2) + part(J1))
+        self.assertEqual(list(camera.read_parts(body)), [J1, J2, J1])
+
+    def test_cut_short(self):
+        body = io.BytesIO(part(J1) + part(J2)[:-10])
+        self.assertEqual(list(camera.read_parts(body)), [J1])
+
+    def test_far_too_big_or_bad_length_stops(self):
+        self.assertEqual(list(camera.read_parts(io.BytesIO(part(J1, camera.MAX_FRAME + 1)))), [])
+        self.assertEqual(list(camera.read_parts(io.BytesIO(part(J1, 0)))), [])
+        bad = io.BytesIO(b"Content-Length: lots\r\n\r\n" + J1 + b"\r\n" + part(J2))
+        self.assertEqual(list(camera.read_parts(bad)), [J2])
+
+
 class KeyTest(unittest.TestCase):
     def test_key_is_made_once_and_kept(self):
         path = os.path.join(tempfile.mkdtemp(), "key")
@@ -140,6 +161,25 @@ class CameraTest(unittest.TestCase):
         st = self.cam.status(max_age=0)
         self.assertFalse(st["reachable"])
         self.assertIn("isn't answering", st["error"])
+
+    def test_frames_come_one_at_a_time_and_free_the_slot(self):
+        self.cam.set("127.0.0.1", self.pi.port, KEY)
+        stop, got = threading.Event(), []
+        for jpeg in self.cam.frames(stop):
+            got.append(jpeg)
+            if len(got) == 3:
+                stop.set()
+        self.assertTrue(all(j in (J1, J2) for j in got) and len(got) == 3, got)
+        self.assertTrue(self.cam.streams.acquire(blocking=False))  # the slot was given back
+        self.cam.streams.release()
+
+    def test_frames_need_a_free_slot(self):
+        self.cam.set("127.0.0.1", self.pi.port, KEY)
+        for _ in range(camera.MAX_STREAMS):
+            self.cam.streams.acquire()
+        self.addCleanup(lambda: [self.cam.streams.release() for _ in range(camera.MAX_STREAMS)])
+        with self.assertRaises(camera.CameraError):
+            next(self.cam.frames(threading.Event()))
 
     def test_forget(self):
         self.cam.set("127.0.0.1", self.pi.port, KEY)

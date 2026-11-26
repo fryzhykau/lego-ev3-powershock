@@ -44,6 +44,15 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Full screen:** the Camera view goes full screen with a button, F or a double-click, and driving keeps working there. A small overlay shows whether the motors are on.
   - **Own window:** a button opens just the video in a separate window (`/camera`), e.g. for a second monitor. Clicking into it takes the focus from the console, which switches the motors off; click back in the console to drive.
 - **Controller colour swatches** replace the colour dropdown on the Robot page.
+- **Object recognition** on the camera's video, run on the laptop (optional):
+  - **What it shows:** boxes and names for 80 kinds of everyday thing (people, cups, bottles, chairs, balls, pets…), about 10 times a second.
+  - **Turning it on:** the **Recognise objects** button on the Camera view, or **R**, also in full screen. It runs only while it's on screen, and stops a few seconds after you leave.
+  - **Setup:**
+    - PowerShock's first optional packages: `numpy`, `onnxruntime`, `pillow`, in `pc/requirements-vision.txt`.
+    - The YOLOX-nano model (Apache-2.0, 3.7 MB), downloaded by `pc/tools/get_model.py`, which checks its SHA-256 checksum.
+    - Without them the console works as before, and the page shows the setup commands.
+  - **Guide:** `docs/VISION.md`.
+  - **Tests:** decoding the model's output, overlapping boxes, the frame reader, the checked download, and starting and stopping. Tests that need the packages are skipped without them.
 
 ### Changed
 - **3D DualShock 4 rebuilt from reference drawings:**

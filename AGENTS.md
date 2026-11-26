@@ -8,7 +8,8 @@ PowerShock drives a LEGO EV3 (leJOS 0.9.1-beta, **Java 7**) with a PS4 DualShock
 
 | Part | Where | Language / limits |
 |---|---|---|
-| Console server | `pc/ev3_console.py` and the other `pc/*.py` | Python 3.9+, **standard library only** |
+| Console server | `pc/ev3_console.py` and the other `pc/*.py` | Python 3.9+, **standard library only** (one owner-approved exception, below) |
+| Object recognition | `pc/vision.py`, `pc/tools/get_model.py` | **Optional.** numpy, onnxruntime, Pillow (`pc/requirements-vision.txt`), imported only inside functions; model in `pc/models/` (git-ignored) |
 | Console page | `pc/console/index.html` (one file: HTML, CSS, JS), `ds4model.js`, `gears3d.js` | Plain JS, no build step; three.js is vendored in `pc/console/vendor/three/` |
 | Brick programs | `ev3/src/powershock/*.java` | **Java 7 language and API only**: no lambdas, streams, `java.time`, try-with-resources on non-`AutoCloseable` types, or `String.join` |
 | Camera streamer | `pi/powershock_cam.py`, runs on a Raspberry Pi | Python 3, **standard library only** (Pillow only for `--test`) |
@@ -45,6 +46,7 @@ The repository is public. Before every commit:
      - `sd_lejos/`, `sd_backup*`, `lib/*.jar` and anything from the leJOS SD card. Oracle's Java runtime may not be redistributed.
      - `out/` (build output).
      - `pc/mapping.json` (a user's own controls).
+     - `pc/camera.json` (the Pi's address and access key), `pc/models/` (downloaded models).
      - `docs/DEVICE_LOG.md` (a user's own brick history).
      - `.private-terms`.
 4. **Examples and tests** use placeholders: `HomeNetwork`, `00:00:00:00:00:00`, `AA:BB:CC:DD:EE:FF`, `192.168.1.40`, `<brick address>`.
@@ -76,6 +78,11 @@ The repository is public. Before every commit:
   - Escape all text put into HTML (`esc()` in the page).
   - Never build shell commands from user input. Pass arguments as lists, as `ev3_brick.py` does.
 - **No new dependencies** without the owner's OK. That means no pip packages, CDNs or remote scripts; the page works offline.
+  - **The one exception:** object recognition (`pc/vision.py`) may use numpy, onnxruntime and Pillow. Keep it optional:
+    - import them only inside functions, never at module level
+    - the console must start, and the tests must pass, without them (skip tests that need them)
+    - the page explains what's missing
+  - **Model files** are never committed (`pc/models/` is ignored). `pc/tools/get_model.py` downloads them from their source, and `pc/vision.py` pins each one's SHA-256 checksum. A new or changed model needs the owner's OK and a licence check: AGPL models are out.
 
 ### 4. The brick and the user's machine
 
