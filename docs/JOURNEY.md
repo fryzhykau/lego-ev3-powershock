@@ -220,6 +220,72 @@ Still open: choosing a licence.
 - **Sony Action Cam:** kept as a fallback camera.
 - **Reading old claude.ai chats from Claude Code:** not possible today, so a feature request was filed.
 
+## Challenges
+
+The hardest problems so far, grouped by where they came from.
+
+### Old hardware and software on the brick
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **leJOS 0.9.1 is from 2015, with Java 7** | Today's JDKs can't build for Java 7; no lambdas or newer APIs | Build against the brick's own Java 7 library, patch the class version, keep the code Java 7-only (enforced by the build) |
+| **A 2008 SSH server** | Modern SSH clients refuse its algorithms; `scp` is unreliable | Legacy options re-enabled for the brick only; files copied with `cat` over SSH |
+| **WiFi menu bug** | "No access points" while 16 networks were in range | Skip the menu: join WiFi from the console over Bluetooth |
+| **Only some WiFi dongles work** | leJOS only has drivers for a few chips (e.g. Netgear WNA1100), and only 2.4 GHz | Documented; the right dongle was already in hand |
+| **Port detection switches off** | Ports a program opens read as empty, and stay that way if the program is killed | Wake detection at start, release ports on exit, claim a motor port only once a motor is seen there |
+| **Weak batteries** | The brick switched off at about 6 V, mid-pairing | Live voltage in the console, with a warning below 7.5 V |
+
+### Windows, the browser and the controller
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **Bluetooth network on Windows 11** | The needed menu is hidden in the old *Devices and Printers* | Step-by-step, self-ticking instructions with a button that opens it |
+| **The controller is invisible to the page** at first | Browsers hide controllers until a button is pressed while the page is open | The page says "press any button" right where you look |
+| **Battery and firmware aren't in the browser's controller API** | The browser's own fix (WebHID) showed no picker in the app's browser | Read the controller through Windows' HID API instead, with no installs |
+| **Controller sleeps** | It turns itself off after a while | A clear "asleep, press PS" state and help |
+| **Firmware updates** | Sony only updates it through a PS4/PS5 | Shown as information; PowerShock works with any version |
+
+### Making it look real
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **A believable DualShock 4 in code** | Organic shapes; no model files allowed (licences, size) | One smooth shape built from distance functions and traced from a measured drawing, after three attempts from memory |
+| **The EV3 brick's proportions and details** | Easy to get roughly right and still look wrong | Matched against a photo of the real brick |
+| **Screenshots lied** | Headless browsers drew the 3D brick flat | Software 3D rendering for screenshots, and checking in a real browser |
+
+### Safety, privacy and trust
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **A robot must never drive off by itself** | Links drop, pages lose focus, controllers disconnect, messages arrive late | Stops at every layer: brick watchdog, stop on disconnect, motors off after any drop, Stop always wins |
+| **Driving with the camera on a second monitor** | Clicking another window takes focus, and focus loss stops the motors | Driving stays in the console; full screen happens inside it; the separate window is for watching |
+| **A public repo from a personal setup** | Addresses, network names, the WiFi key, Oracle's Java runtime and SD backups were all in the folder | `.gitignore`, a privacy check that runs with the tests, redacted screenshots, a no-reply commit email |
+| **Open ports on the network** | The brick's receiver and the Pi camera listen on the network | Range limits and input caps on the brick; an access key on the camera; advice to use trusted networks |
+
+### Design
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **Too much on screen** | Every feature wanted its own card and instructions | Setup behind buttons, short steps, one explanation at a time, details on demand |
+| **Making status honest** | Easy to show "Connected" when the brick has gone quiet | "Not answering" with the last-seen time, last-known details greyed out |
+
+### Working with an AI agent
+
+| Challenge | Why it was hard | How it was handled |
+|---|---|---|
+| **The original design chat couldn't be read** | Claude Code can't open claude.ai chats | An exported summary was used to rebuild; a feature request was filed |
+| **Long sessions** | The conversation outgrew the agent's memory more than once | Summaries carried the context over; lasting facts live in memory notes, the device log and this journal |
+| **The agent mustn't type passwords or approve device pickers** | Some steps (WiFi password, browser device permission, SD card settings) need the owner | The owner does those steps, and the tools are built so they're needed as little as possible |
+| **Shell quirks on Windows** | Backslashes and line breaks were silently changed when written through the shell | Edit files directly instead of through shell commands (now a rule in CLAUDE.md) |
+
+### Still ahead
+
+- **Map drift:** position from the wheels drifts with every slip. A gyro, or markers on the walls seen by the camera, could pin it down.
+- **Short sensor range:** the IR sensor reaches about 70 cm and the ultrasonic about 1.5 m, so the map fills in slowly.
+- **Power and weight on the robot:** the Pi, camera and power bank add roughly 200–300 g and need 2.5 A.
+- **Camera delay over WiFi:** expected to be about 0.2–0.4 s; to be measured on the real robot.
+- **The direct Bluetooth driver (variant B):** still untested; many controllers may refuse a host they aren't paired with.
+
 ## What worked and what didn't, overall
 
 **Worked:**
