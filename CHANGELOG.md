@@ -28,13 +28,17 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Tests** for odometry, the grid, sensor parsing and the practice room.
 
 ### Changed
-- **3D DualShock 4** closer to the real controller:
-  - Slimmer grips that taper and splay outwards.
-  - A thinner shell with a tighter edge.
-  - A smaller D-pad in its own recess, and slightly smaller face buttons.
-  - The USB port, headset jack and extension port.
-  - The whole controller fits in view.
-- **3D EV3 brick** has its real proportions (about 76 × 119 × 48 mm). It is taller and deeper than before, without the stray line under the screen.
+- **3D DualShock 4 rebuilt from reference drawings:**
+  - **Outline:** traced from the Wikimedia Commons layout drawing (162 mm wide).
+  - **Shell:** one smooth surface. The grips flow out of the body and bend down, and the stick bosses and button pods are blended in.
+  - **Parts:** every part sits where it is on the real pad, sized to match. The D-pad has four separate arrows, and the touchpad is full size.
+  - **View:** the default view shows the top of the pad.
+- **3D EV3 brick** matched to a photo of the real one:
+  - Real proportions (about 76 × 119 × 48 mm).
+  - A raised light-grey screen housing that steps up from the white body.
+  - The seam line between the screen and the buttons.
+  - White sides with Technic holes, and a grey EV3 band along the bottom.
+- **Devices list** shows live readings from IR, ultrasonic, colour and gyro sensors.
 - **Brick view:** the brick and its motors and sensors fit the card on wide screens. Unchecked ports show just their letter, so their labels no longer overlap.
 - **README screenshots** show the 3D brick properly.
 

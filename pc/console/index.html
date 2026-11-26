@@ -275,10 +275,10 @@
   .brick.intro { animation: arrive 1.2s cubic-bezier(.2,.8,.2,1) both; }
   @keyframes arrive { from { transform: rotateX(40deg) rotateY(-80deg) scale(.9); opacity: 0; } }
   .f { position: absolute; transform-style: preserve-3d; }
-  .f.front { inset: 0; transform: translateZ(calc(var(--D) / 2)); border-radius: 16px; background: var(--ev3-grey); padding: 7px; }
-  .f.back { inset: 0; transform: rotateY(180deg) translateZ(calc(var(--D) / 2)); border-radius: 16px; background: var(--ev3-grey-2);
+  .f.front { inset: 0; transform: translateZ(calc(var(--D) / 2)); border-radius: 16px; background: var(--ev3-white); transform-style: preserve-3d; }
+  .f.back { inset: 0; transform: rotateY(180deg) translateZ(calc(var(--D) / 2)); border-radius: 16px; background: #e4e7e7;
     background-image: repeating-linear-gradient(90deg, transparent 0 34px, #00000026 34px 40px, transparent 40px 60px); }
-  .f.left, .f.right { width: var(--D); height: calc(var(--H) - 14px); top: 7px; left: calc((var(--W) - var(--D)) / 2); background: var(--ev3-grey-2); border-radius: 10px; }
+  .f.left, .f.right { width: var(--D); height: calc(var(--H) - 14px); top: 7px; left: calc((var(--W) - var(--D)) / 2); background: #e6e8e8; border-radius: 10px; }
   .f.left { transform: rotateY(-90deg) translateZ(calc(var(--W) / 2 - 1px)); }
   .f.right { transform: rotateY(90deg) translateZ(calc(var(--W) / 2 - 1px)); }
   .f.top, .f.bottom { width: calc(var(--W) - 14px); height: var(--D); left: 7px; top: calc((var(--H) - var(--D)) / 2); background: var(--ev3-grey); border-radius: 10px; }
@@ -286,9 +286,16 @@
   .f.bottom { transform: rotateX(-90deg) translateZ(calc(var(--H) / 2 - 1px)); }
 
   /* front face */
-  .body-white { position: absolute; inset: 7px; border-radius: 11px; background: linear-gradient(180deg, #ffffff, var(--ev3-white) 70%, #eceeee); }
-  .bezel { position: absolute; left: 7px; right: 7px; top: 7px; height: 41%; border-radius: 11px 11px 6px 6px; background: linear-gradient(180deg, #c5c9ca, var(--ev3-grey)); box-shadow: 0 2px 0 #9fa4a5; }
-  .screen { position: absolute; left: 13%; right: 13%; top: 11%; bottom: 12%; background: var(--ev3-dark); border-radius: 7px; padding: 7px; box-shadow: inset 0 0 0 2px #000; }
+  .body-white { position: absolute; inset: 0; border-radius: 16px; background: linear-gradient(180deg, #ffffff, var(--ev3-white) 70%, #eceeee); }
+  /* the screen sits in a light-grey housing that stands proud of the white body */
+  .bezel { position: absolute; left: 0; right: 0; top: 0; height: 40%; border-radius: 16px 16px 5px 5px; background: linear-gradient(180deg, #c6cacb, #b2b6b7); transform: translateZ(7px); transform-style: preserve-3d; }
+  .bezel .step { position: absolute; }
+  .bezel .s-b { left: 3px; right: 3px; bottom: 0; height: 7px; transform-origin: bottom; transform: rotateX(90deg); background: #8f9597; }
+  .bezel .s-t { left: 8px; right: 8px; top: 0; height: 7px; transform-origin: top; transform: rotateX(-90deg); background: #b8bcbd; }
+  .bezel .s-l { left: 0; top: 8px; bottom: 3px; width: 7px; transform-origin: left; transform: rotateY(90deg); background: #a1a6a7; }
+  .bezel .s-r { right: 0; top: 8px; bottom: 3px; width: 7px; transform-origin: right; transform: rotateY(-90deg); background: #a1a6a7; }
+  .seam { position: absolute; left: 57%; top: 40%; height: 9.5%; width: 1.5px; background: #2b3033; opacity: .75; }
+  .screen { position: absolute; left: 12%; right: 12%; top: 12%; bottom: 10%; background: var(--ev3-dark); border-radius: 7px; padding: 7px; box-shadow: inset 0 0 0 2px #000; }
   .lcd { height: 100%; background: var(--lcd); color: var(--lcd-ink); border-radius: 2px; padding: 4px 6px; font-family: var(--mono); font-size: 8.5px; line-height: 1.25; background-image: radial-gradient(#00000012 1px, transparent 1px); background-size: 3px 3px; display: flex; flex-direction: column; }
   .lcd-top, .lcd-foot { display: flex; justify-content: space-between; }
   .lcd-top { border-bottom: 1px solid var(--lcd-ink); padding-bottom: 2px; } .lcd-foot { border-top: 1px solid var(--lcd-ink); padding-top: 2px; margin-top: auto; }
@@ -297,7 +304,7 @@
   .meter b { font-size: 9px; } .meter .num { text-align: right; font-weight: 700; }
   .cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; height: 6px; }
   .cells i { background: #9fae97; opacity: .35; } .cells i.on { background: var(--lcd-ink); opacity: 1; } .cells i.mid { box-shadow: -1px 0 0 var(--lcd-ink); }
-  .backkey { position: absolute; left: 8%; top: 44.5%; width: 17%; height: 6%; background: linear-gradient(180deg, #bfc3c4, var(--ev3-grey-2)); clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); border-radius: 2px; }
+  .backkey { position: absolute; left: 8%; top: 43.5%; width: 17%; height: 6%; background: linear-gradient(180deg, #bfc3c4, var(--ev3-grey-2)); clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); border-radius: 2px; }
   .cluster { position: absolute; left: 50%; top: 50%; width: 64%; height: 27%; transform: translateX(-50%); }
   .cluster .glow { position: absolute; inset: -4px; clip-path: var(--shape); background: #8e9496; transition: background .3s; }
   .cluster .glow.green { background: #47e08a; filter: drop-shadow(0 0 6px #47e08a); } .cluster .glow.orange { background: #f5a83d; } .cluster .glow.red { background: #ff5b5b; }
@@ -309,7 +316,7 @@
   .cluster .k.left { left: 2%; width: 26%; top: 34%; bottom: 34%; border-radius: 999px 6px 6px 999px; }
   .cluster .k.right { right: 2%; width: 26%; top: 34%; bottom: 34%; border-radius: 6px 999px 999px 6px; }
   .cluster .k.mid { left: 38%; right: 38%; top: 34%; bottom: 34%; background: linear-gradient(180deg, #5a6064, #3d4245); border-radius: 4px; }
-  .band { position: absolute; left: 7px; right: 7px; bottom: 7px; height: 16%; border-radius: 6px 6px 11px 11px; background: linear-gradient(180deg, #c2c6c7, var(--ev3-grey)); }
+  .band { position: absolute; left: 0; right: 0; bottom: 0; height: 15%; border-radius: 4px 4px 16px 16px; background: linear-gradient(180deg, #c2c6c7, #adb1b2); }
   .band .ev3 { position: absolute; left: 10%; top: 50%; transform: translateY(-50%) skewX(-8deg); color: #f4f5f5; font: 800 25px/1 var(--ui); letter-spacing: 3px; text-shadow: 0 -1px 0 #8f9596; }
   .lego { position: absolute; right: 9%; top: 50%; width: 26px; height: 26px; margin-top: -13px; background: #d11f1f; border-radius: 3px; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px #ffe34d; }
   .lego::after { content: "LEGO"; color: #fff; font: 900 7.5px/1 var(--ui); transform: rotate(-12deg); text-shadow: 0 0 1px #000; }
@@ -329,7 +336,7 @@
   .pcport { width: 20px; height: 9px; background: #23272a; border-radius: 2px; margin-left: 4px; align-self: center; }
 
   /* sides */
-  .side-plate { position: absolute; left: 10%; right: 10%; top: 14%; bottom: 14%; background: var(--ev3-white); border-radius: 8px; }
+  .side-plate { position: absolute; left: 10%; right: 10%; top: 14%; bottom: 14%; background: #eff1f1; border-radius: 8px; box-shadow: inset 0 0 0 1px #d9dddd; }
   .holes { position: absolute; display: grid; grid-template-columns: repeat(3, 11px); gap: 5px; }
   .holes i { width: 11px; height: 11px; border-radius: 50%; background: #d2d6d6; box-shadow: inset 0 1px 2px #0005; }
   .usb { position: absolute; left: 50%; top: 42%; width: 30px; height: 13px; margin-left: -15px; background: #202427; border-radius: 2px; transform-style: preserve-3d; }
@@ -861,11 +868,12 @@
               <div class="f bottom"><div class="end"><div class="plate"></div><div class="sockrow" id="sensorRow"></div></div></div>
               <div class="f front">
                 <div class="body-white"></div>
-                <div class="bezel"><div class="screen"><div class="lcd">
+                <div class="bezel"><i class="step s-b"></i><i class="step s-t"></i><i class="step s-l"></i><i class="step s-r"></i><div class="screen"><div class="lcd">
                   <div class="lcd-top"><span id="lcdHost">EV3</span><span id="lcdRate"></span></div>
                   <div class="meters" id="meters"></div>
                   <div class="lcd-foot"><span id="lcdArm">SAFE</span><span id="lcdBatt"></span></div>
                 </div></div></div>
+                <div class="seam"></div>
                 <div class="backkey"></div>
                 <div class="cluster"><div class="glow" id="ledRing"></div><div class="keys"></div>
                   <div class="k up"></div><div class="k down"></div><div class="k left"></div><div class="k right"></div><div class="k mid"></div></div>
@@ -1256,7 +1264,7 @@ setMeters({});
 // ---------- ports: live from the receiver, else the periodic check ----------
 function currentPorts() {
   const t = S.link && S.link.telemetry;
-  if (t) return { ports: t.ports, motors: t.motors || {}, live: true };
+  if (t) return { ports: t.ports, motors: t.motors || {}, sensors: t.sensors || {}, live: true };
   return { ports: (S.brick || {}).ports, motors: {}, live: false };
 }
 function portView(p, cp) {
@@ -1351,7 +1359,7 @@ function drawDevices(cp) {
       const dis = canTest ? "" : "disabled";
       return `<div class="devrow" data-p="${p}"><span class="pbadge">${p.replace("S", "")}</span>
         <div class="d">${esc(d.label)} <span>· ${role ? esc(role.replace(/ \(.*\)/, "")) : motor ? "not in your controls" : "sensor"}</span></div>
-        <div class="live" data-live>${motor ? "–" : "no readings yet"}</div>
+        <div class="live" data-live>${motor ? "–" : "no reading"}</div>
         ${motor ? `<div class="tbtns">
           <span class="grp"><button class="hold" data-dir="-1" ${dis} title="Hold to run backwards">⟲</button><button class="hold" data-dir="1" ${dis} title="Hold to run forwards">⟳</button></span>
           <span class="grp"><button data-deg="-90" ${dis} title="Turn back 90°">−90°</button><button data-deg="90" ${dis} title="Turn 90°">+90°</button></span>
@@ -1360,7 +1368,8 @@ function drawDevices(cp) {
     }).join("") : `<p class="muted">Nothing plugged in yet. Devices appear here the moment you plug them in.</p>`;
   }
   list.querySelectorAll(".devrow").forEach((row) => {
-    const live = m[row.dataset.p], el = row.querySelector("[data-live]");
+    const live = m[row.dataset.p], el = row.querySelector("[data-live]"), sv = (cp.sensors || {})[row.dataset.p];
+    if (sv && el) setHTML(el, sensorText(sv)); // IR, ultrasonic, colour and gyro readings (brick program 0.8+)
     if (live && el) el.innerHTML = `<b>${Math.round(live.speed / 6)}</b> rpm · ${live.tacho}°${live.stalled ? ' · <span style="color:var(--stop)">stalled</span>' : ""}`;
   });
   const empty = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected === false).map((p) => p.replace("S", ""));
