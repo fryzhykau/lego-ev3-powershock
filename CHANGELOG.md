@@ -57,6 +57,14 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Fresh pictures only:** each start waits for a new picture, never one left from an earlier run, which could be from another camera.
 
 ### Changed
+- **A simpler menu: 6 pages instead of 8,** with nothing removed:
+  - **Setup** brings together Connection, Program and Brick, in the order you use them: Connect (Bluetooth, WiFi, Practice, Camera), Program on the brick, Brick. Status bar items jump to their section, and old links (`#connection`, `#program`, `#brick`) still work.
+  - **Controls is now Driving**, so it isn't confused with Controller.
+  - **Gearing** moved to the end of the menu, below a divider, as a tool.
+  - **Opening a page** starts at its top, instead of at the last page's scroll position.
+  - **The Devices list** on the Robot page links to the specs for each port.
+  - **A Start button that can't be used** now looks greyed out, not green.
+  - **README screenshots** show the new menu.
 - **3D DualShock 4 rebuilt from reference drawings:**
   - **Outline:** traced from the Wikimedia Commons layout drawing (162 mm wide).
   - **Shell:** one smooth surface. The grips flow out of the body and bend down, and the stick bosses and button pods are blended in.

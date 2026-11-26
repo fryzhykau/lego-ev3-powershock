@@ -99,6 +99,12 @@
     nav .foot { display: none; }
   }
   .page { display: none; } .page.on { display: block; }
+  nav .navsep { height: 1px; background: var(--rule); margin: 8px 12px; flex: none; }
+  @media (max-width: 860px) { nav .navsep { width: 1px; height: auto; margin: 6px 2px; } }
+  .setupsec { scroll-margin-top: 64px; }
+  .setupsec + .setupsec { margin-top: 30px; }
+  .setupsec > .sechead { margin: 0 2px 12px; }
+  .devmore { margin: 10px 0 0; font-size: 12.5px; }
 
   /* ---------- shared ---------- */
   .card { background: var(--face); border-radius: var(--r-l); padding: 16px; }
@@ -108,6 +114,7 @@
   .btn.dark { background: var(--panel); border-color: var(--panel); color: #fff; }
   .btn.go { background: var(--go); border-color: var(--go); color: #fff; }
   .btn:disabled { opacity: .5; cursor: default; }
+  .btn.go:disabled { background: var(--soft); border-color: var(--rule); color: var(--muted); opacity: 1; }
   .btn.busy { position: relative; color: transparent !important; }
   .btn.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #ffffff88; border-top-color: #fff; animation: spin .8s linear infinite; }
   .btn:not(.dark):not(.go).busy::after { border-color: #0002; border-top-color: var(--ink); }
@@ -706,12 +713,12 @@
   .ctltop .presets .preset { flex: 1 1 170px; min-width: 0; }
   .ctltop .globals { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 24px; }
   .ctltop .card-head { margin-bottom: 8px; }
-  #page-controls .pgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  @media (max-width: 1250px) { #page-controls .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { #page-controls .pgrid { grid-template-columns: minmax(0, 1fr); } }
-  #page-controls .pcard.off { opacity: 1; background: transparent; border: 1.5px dashed var(--rule); }
-  #page-controls .pcard.off .top .pbadge { background: var(--soft); color: var(--muted); }
-  #page-controls .pcard.off { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; }
+  #page-driving .pgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 1250px) { #page-driving .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { #page-driving .pgrid { grid-template-columns: minmax(0, 1fr); } }
+  #page-driving .pcard.off { opacity: 1; background: transparent; border: 1.5px dashed var(--rule); }
+  #page-driving .pcard.off .top .pbadge { background: var(--soft); color: var(--muted); }
+  #page-driving .pcard.off { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; }
   @media (max-width: 640px) { #fitBtn { flex: 1 1 100%; } }
   .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .files li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 10px; background: var(--soft); border-radius: 8px; }
@@ -839,12 +846,11 @@
   <nav>
     <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
     <a href="#map" data-page="map" title="Map: what the sensors found around the robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Map</span></a>
-    <a href="#brick" data-page="brick" title="Brick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4M6 10v4M9 10v4M12 10v4"/></svg><span>Brick</span><span class="badge" id="navBrick"></span></a>
-    <a href="#controls" data-page="controls" title="Controls: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Controls</span></a>
+    <a href="#driving" data-page="driving" title="Driving: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Driving</span></a>
     <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
+    <a href="#setup" data-page="setup" title="Setup: connect the brick and the camera, the program on the brick, the brick's details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></svg><span>Setup</span><span class="badge" id="navSetup"></span></a>
+    <div class="navsep" role="separator"></div>
     <a href="#gearing" data-page="gearing" title="Gearing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="9" r="3"/><path d="M8 3v2M8 13v2M2 9h2M12 9h2M3.8 4.8l1.4 1.4M10.8 11.8l1.4 1.4M3.8 13.2l1.4-1.4M10.8 6.2l1.4-1.4"/><circle cx="17" cy="16" r="2.2"/><path d="M17 12v1.5M17 18.5V20M13 16h1.5M19.5 16H21"/></svg><span>Gearing</span></a>
-    <a href="#connection" data-page="connection" title="Connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg><span>Connection</span><span class="badge" id="navConn"></span></a>
-    <a href="#program" data-page="program" title="Program"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg><span>Program</span><span class="badge" id="navProg"></span></a>
     <div class="foot">leJOS EV3 · DualShock 4</div>
     <button class="navtoggle" id="navToggle" title="Collapse the menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6"/></svg><span>Collapse</span></button>
   </nav>
@@ -946,26 +952,14 @@
             <div id="devList"></div>
             <div class="emptyline" id="emptyLine"></div>
             <p class="devnote" id="devNote"></p>
+            <p class="devmore"><a class="link" href="#brick">Specs for each port</a></p>
         </div>
       </div>
     </section>
 
-    <!-- ================= BRICK ================= -->
-    <section class="page" id="page-brick">
-      <div class="pagehead"><h1>Brick</h1><span class="muted" id="brickAge"></span></div>
-      <div class="strip" id="strip"><div class="stat"><div class="k">Brick</div><div class="s">Connect over Bluetooth or WiFi to see the battery, versions and settings.</div></div></div>
-      <div class="bgrid">
-        <div class="card">
-          <div class="card-head"><h2>Ports</h2><span class="muted" id="portsSrc">What's plugged in, with LEGO's specs</span></div>
-          <div class="portcols" id="specs"></div>
-        </div>
-        <div class="card about" id="details"><p class="muted">Connect to the brick to see its software, Bluetooth and WiFi.</p></div>
-      </div>
-    </section>
-
-    <!-- ================= CONTROLS ================= -->
-    <section class="page" id="page-controls">
-      <div class="pagehead"><h1>Controls</h1><span class="savestate" id="mapSaved"></span></div>
+    <!-- ================= DRIVING (which stick drives which motor) ================= -->
+    <section class="page" id="page-driving">
+      <div class="pagehead"><h1>Driving</h1><span class="savestate" id="mapSaved"></span><span class="muted" style="margin-left:auto">Which stick drives which motor</span></div>
       <div class="ctltop">
         <div class="card">
           <div class="card-head"><h2>Start from</h2></div>
@@ -1066,86 +1060,11 @@
       </div>
     </section>
 
-    <!-- ================= MAP ================= -->
-    <section class="page" id="page-map">
-      <div class="pagehead"><h1>Map</h1><span class="muted">What the robot's sensors have found, drawn while it drives</span></div>
-      <div class="mapgrid">
-        <div class="card mapstage">
-          <div class="map3d" id="map3d"><p class="muted" id="map3dmsg" style="padding:20px">Loading the 3D view…</p></div>
-          <div class="mapbar">
-            <div class="tabs" role="tablist" id="mapView" aria-label="Camera">
-              <button role="tab" aria-selected="true" data-view="behind">Behind</button>
-              <button role="tab" aria-selected="false" data-view="above">Above</button>
-            </div>
-            <span class="muted" id="mapPose">Not moving yet</span>
-            <button class="btn" id="mapReset" title="Forget what was seen and start again from here">Clear map</button>
-          </div>
-        </div>
-        <div class="card mapside">
-          <h2>Sensors</h2>
-          <ul class="msens" id="mapSensors"></ul>
-          <p class="note" id="mapHint"></p>
-          <details class="mapsize" id="mapSize">
-            <summary>Robot size</summary>
-            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
-            <div class="msform">
-              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
-              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
-              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
-              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
-              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
-              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
-              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
-              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
-            </div>
-            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSaved"></span>
-          </details>
-          <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= GEARING ================= -->
-    <section class="page" id="page-gearing">
-      <div class="pagehead"><h1>Gearing</h1><span class="muted">Trade speed for strength with standard LEGO gears</span></div>
-      <div class="card rulestrip">
-        <div><b>Small drives big: slower, stronger</b>12 turning 36: the output turns 3× slower with about 3× the force. For lifting, climbing, arms.</div>
-        <div><b>Big drives small: faster, weaker</b>36 turning 12: 3× faster, about ⅓ of the force. For fast cars on flat ground.</div>
-        <div><b>Speed × force stays the same</b>Gears can't add power. Each pair loses about 10% to friction; a worm gear much more.</div>
-        <div><b>Spacing = (teeth + teeth) ÷ 16 studs</b>12 + 36 = 3, 8 + 24 = 2, 24 + 40 = 4. Half studs (20 + 36 = 3.5) need offset holes.</div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Try a combination</h2><span class="muted" id="gMotorNote"></span></div>
-        <div class="calc">
-          <div>
-            <div class="gearstage" id="gearMain"></div>
-            <p class="help" style="margin-top:6px">Red axle: the motor. Drag to turn the view, double-click to reset.</p>
-          </div>
-          <div>
-            <div class="gform">
-              <label>Motor<select id="gMotor"><option value="large">Large motor</option><option value="medium">Medium motor</option></select></label>
-              <label>Motor gear<select id="g1"></select></label>
-              <label>Meshes with<select id="g2"></select></label>
-              <label>Second stage<select id="g3"><option value="0">None</option></select></label>
-              <label>Meshes with<select id="g4"></select></label>
-            </div>
-            <div class="gnums" id="gNums"></div>
-            <ul class="gnotes" id="gNotes"></ul>
-          </div>
-        </div>
-      </div>
-      <div class="sechead"><h2>Ready-made combinations</h2><span class="muted">Each one opens in the calculator above</span></div>
-      <div class="examples" id="examples" style="margin-top:10px"></div>
-      <div class="card" style="margin-top:16px">
-        <div class="card-head"><h2>The gears</h2><span class="muted">Standard LEGO Technic gears, to scale with each other</span></div>
-        <div class="gearstage" id="partsheet3d"></div>
-        <div class="partlabels" id="partlabels"></div>
-      </div>
-    </section>
-
-    <!-- ================= CONNECTION ================= -->
-    <section class="page" id="page-connection">
-      <div class="pagehead"><h1>Connection</h1><span class="muted">How this laptop talks to the brick</span></div>
+    <!-- ================= SETUP: connection, program on the brick, the brick ================= -->
+    <section class="page" id="page-setup">
+      <div class="pagehead"><h1>Setup</h1><span class="muted">Everything the robot needs before driving</span></div>
+      <div class="setupsec" id="sec-connection">
+      <div class="sechead first"><h2>Connect</h2><span class="muted">How this laptop talks to the brick, and the robot's camera</span></div>
       <div class="conntiles">
         <div class="ctile" id="tileBt">
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>Bluetooth<span class="pill" id="btPill">…</span></div>
@@ -1240,11 +1159,9 @@
           <p class="note" id="joinNote"></p>
         </div>
       </div>
-    </section>
-
-    <!-- ================= PROGRAM ================= -->
-    <section class="page" id="page-program">
-      <div class="pagehead"><h1>Program</h1><span class="muted">PowerShock runs on the brick and listens for driving commands</span></div>
+      </div>
+      <div class="setupsec" id="sec-program">
+      <div class="sechead"><h2>Program on the brick</h2><span class="muted">PowerShock runs on the brick and listens for driving commands</span></div>
       <div class="card proghead">
         <div class="prog"><span class="pdot" id="progDot"></span><div><div id="progTitle" style="font-weight:650">Unknown</div><div class="muted" id="progBody">Connect to the brick to see.</div></div></div>
         <div class="row">
@@ -1268,7 +1185,97 @@
           <pre id="buildLog">Nothing built in this session yet.</pre>
         </div>
       </div>
+      </div>
+      <div class="setupsec" id="sec-brick">
+      <div class="sechead"><h2>Brick</h2><span class="muted" id="brickAge"></span></div>
+      <div class="strip" id="strip"><div class="stat"><div class="k">Status</div><div class="s">Connect over Bluetooth or WiFi to see the battery, versions and settings.</div></div></div>
+      <div class="bgrid">
+        <div class="card">
+          <div class="card-head"><h2>Ports</h2><span class="muted" id="portsSrc">What's plugged in, with LEGO's specs</span></div>
+          <div class="portcols" id="specs"></div>
+        </div>
+        <div class="card about" id="details"><p class="muted">Connect to the brick to see its software, Bluetooth and WiFi.</p></div>
+      </div>
+      </div>
     </section>
+
+    <!-- ================= MAP ================= -->
+    <section class="page" id="page-map">
+      <div class="pagehead"><h1>Map</h1><span class="muted">What the robot's sensors have found, drawn while it drives</span></div>
+      <div class="mapgrid">
+        <div class="card mapstage">
+          <div class="map3d" id="map3d"><p class="muted" id="map3dmsg" style="padding:20px">Loading the 3D view…</p></div>
+          <div class="mapbar">
+            <div class="tabs" role="tablist" id="mapView" aria-label="Camera">
+              <button role="tab" aria-selected="true" data-view="behind">Behind</button>
+              <button role="tab" aria-selected="false" data-view="above">Above</button>
+            </div>
+            <span class="muted" id="mapPose">Not moving yet</span>
+            <button class="btn" id="mapReset" title="Forget what was seen and start again from here">Clear map</button>
+          </div>
+        </div>
+        <div class="card mapside">
+          <h2>Sensors</h2>
+          <ul class="msens" id="mapSensors"></ul>
+          <p class="note" id="mapHint"></p>
+          <details class="mapsize" id="mapSize">
+            <summary>Robot size</summary>
+            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
+            <div class="msform">
+              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
+              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
+              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
+              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
+              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
+              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
+              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
+              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
+            </div>
+            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSaved"></span>
+          </details>
+          <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GEARING ================= -->
+    <section class="page" id="page-gearing">
+      <div class="pagehead"><h1>Gearing</h1><span class="muted">Trade speed for strength with standard LEGO gears</span></div>
+      <div class="card rulestrip">
+        <div><b>Small drives big: slower, stronger</b>12 turning 36: the output turns 3× slower with about 3× the force. For lifting, climbing, arms.</div>
+        <div><b>Big drives small: faster, weaker</b>36 turning 12: 3× faster, about ⅓ of the force. For fast cars on flat ground.</div>
+        <div><b>Speed × force stays the same</b>Gears can't add power. Each pair loses about 10% to friction; a worm gear much more.</div>
+        <div><b>Spacing = (teeth + teeth) ÷ 16 studs</b>12 + 36 = 3, 8 + 24 = 2, 24 + 40 = 4. Half studs (20 + 36 = 3.5) need offset holes.</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Try a combination</h2><span class="muted" id="gMotorNote"></span></div>
+        <div class="calc">
+          <div>
+            <div class="gearstage" id="gearMain"></div>
+            <p class="help" style="margin-top:6px">Red axle: the motor. Drag to turn the view, double-click to reset.</p>
+          </div>
+          <div>
+            <div class="gform">
+              <label>Motor<select id="gMotor"><option value="large">Large motor</option><option value="medium">Medium motor</option></select></label>
+              <label>Motor gear<select id="g1"></select></label>
+              <label>Meshes with<select id="g2"></select></label>
+              <label>Second stage<select id="g3"><option value="0">None</option></select></label>
+              <label>Meshes with<select id="g4"></select></label>
+            </div>
+            <div class="gnums" id="gNums"></div>
+            <ul class="gnotes" id="gNotes"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="sechead"><h2>Ready-made combinations</h2><span class="muted">Each one opens in the calculator above</span></div>
+      <div class="examples" id="examples" style="margin-top:10px"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>The gears</h2><span class="muted">Standard LEGO Technic gears, to scale with each other</span></div>
+        <div class="gearstage" id="partsheet3d"></div>
+        <div class="partlabels" id="partlabels"></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1287,8 +1294,23 @@ async function busy(btn, fn) { btn.classList.add("busy"); btn.disabled = true; t
 const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 10 ? "just now" : s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`; };
 
 // ---------- pages ----------
+// Pages that moved: old addresses (bookmarks, links, the status bar) still land in the right place.
+const MOVED = { connection: ["setup", "sec-connection"], program: ["setup", "sec-program"], brick: ["setup", "sec-brick"], controls: ["driving", null] };
+const BADGES = {};
+function setBadge(key, cls) {
+  BADGES[key] = cls || "";
+  const all = Object.values(BADGES);
+  $("navSetup").className = "badge " + (all.includes("bad") ? "bad" : all.includes("warn") ? "warn" : "");
+}
+let shownPage = null;
 function showPage() {
+  const moved = MOVED[(location.hash || "").slice(1)];
+  if (moved) history.replaceState(null, "", "#" + moved[0]);
   const page = (location.hash || "#robot").slice(1);
+  // a section of Setup scrolls to itself; any other new page starts at its top
+  if (moved && moved[1]) requestAnimationFrame(() => $(moved[1]).scrollIntoView({ block: "start" }));
+  else if (shownPage !== null && page !== shownPage) scrollTo(0, 0);
+  shownPage = page;
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("on", p.id === "page-" + page));
   document.querySelectorAll("nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
 }
@@ -2015,12 +2037,12 @@ function drawFacts() {
   $("lcdBatt").textContent = bat ? bat.volts.toFixed(1) + "V" : "";
   const wf = d && d.ok && d.wifi;
   $("sbWifi").innerHTML = !wf ? "WiFi –" : !wf.present ? "No WiFi dongle" : wf.ip ? `<b>${esc(wf.ssid)}</b> <span class="opt">${esc(wf.ip)}</span>` : "WiFi off";
-  $("navBrick").className = "badge " + (bv ? (bv.cls === "crit" ? "bad" : bv.cls === "low" ? "warn" : "") : "");
+  setBadge("brick", (bv ? (bv.cls === "crit" ? "bad" : bv.cls === "low" ? "warn" : "") : ""));
   drawSpecs();
-  if (!d) return setHTML($("strip"), `<div class="stat"><div class="k">Brick</div><div class="s">${brickHost() ? "Reading the brick…" : "Connect over Bluetooth or WiFi to see the battery, versions and settings."}</div></div>`);
+  if (!d) return setHTML($("strip"), `<div class="stat"><div class="k">Status</div><div class="s">${brickHost() ? "Reading the brick…" : "Connect over Bluetooth or WiFi to see the battery, versions and settings."}</div></div>`);
   if (!d.ok) {
     const since = S.aboutAt ? new Date(S.aboutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
-    setHTML($("strip"), `<div class="stat"><div class="k">Brick</div><div class="v" style="font-size:18px">Not answering</div><div class="s">It may be switched off, still starting, or out of WiFi range.${since ? ` Last seen at ${since}.` : ""}</div><div class="s" style="opacity:.75">${esc(d.error)}</div></div>`);
+    setHTML($("strip"), `<div class="stat"><div class="k">Status</div><div class="v" style="font-size:18px">Not answering</div><div class="s">It may be switched off, still starting, or out of WiFi range.${since ? ` Last seen at ${since}.` : ""}</div><div class="s" style="opacity:.75">${esc(d.error)}</div></div>`);
     if (S.aboutHTML) setHTML($("details"), `<p class="note" style="margin:0 0 10px">Last known details${since ? ` (${since})` : ""}:</p><div style="opacity:.5">${S.aboutHTML}</div>`);
     $("brickAge").textContent = "Not answering";
     return;
@@ -2094,7 +2116,7 @@ function drawProgram() {
   $("ledRing").className = "glow " + (run || (S.fake && S.fake.running) ? "green" : d && d.ok ? "orange" : "");
   $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : "");
   $("sbProg").textContent = S.fake && S.fake.running ? "Practice" : d && d.ok ? (run ? "PowerShock running" : builds && builds.onBrick ? "PowerShock stopped" : "Not uploaded") : "Program unknown";
-  $("navProg").className = "badge " + (dot === "warn" ? "warn" : "");
+  setBadge("prog", (dot === "warn" ? "warn" : ""));
   // PowerShock's own files: is the brick's copy the same as the latest build here?
   if (d && d.ok && d.builds) {
     const what = { "powershock-wifi.jar": "Receiver: drives the motors from this console", "powershock-bt.jar": "Direct Bluetooth driver (experimental)", "powershock-ports.jar": "One-off port check" };
@@ -2144,7 +2166,7 @@ function drawNext() {
   }
   if (!brickHost()) {
     if (bt.bricks && bt.bricks.length && !bt.linkUp) return nextStep("", "2", "Join the brick's Bluetooth network", "In Devices and Printers, right-click EV3, then Connect using, Access point.", "Open Devices and Printers", () => api("/api/bluetooth/open", {}));
-    return nextStep("", "1", "Connect to the brick", "Pair over Bluetooth or enter its WiFi address. Or try Practice mode.", "Open Connection", async () => { location.hash = "connection"; });
+    return nextStep("", "1", "Connect to the brick", "Pair over Bluetooth or enter its WiFi address. Or try Practice mode.", "Open Setup", async () => { location.hash = "connection"; });
   }
   if (!d) return nextStep("", "…", "Reading the brick", `Talking to ${brickHost()}.`);
   if (!d.ok) return nextStep("bad", "!", "Can't reach the brick", d.error);
@@ -2157,7 +2179,7 @@ function drawNext() {
   const cp = currentPorts();
   if (cp.ports) {
     const missing = MOTOR_PORTS.filter((p) => roleOf(p) && cp.ports[p] && cp.ports[p].connected === false);
-    if (missing.length) return nextStep("warn", "!", `Nothing plugged into ${missing.join(" and ")}`, `Your controls use ${missing.join(" and ")}. Plug motors in there, or change the layout on the Controls page.`, "Open Controls", async () => { location.hash = "controls"; });
+    if (missing.length) return nextStep("warn", "!", `Nothing plugged into ${missing.join(" and ")}`, `Your controls use ${missing.join(" and ")}. Plug motors in there, or change the layout on the Driving page.`, "Open Controls", async () => { location.hash = "controls"; });
   }
   if (volts != null && volts < 7.5) return nextStep("warn", "!", `Battery is getting low (${volts.toFixed(1)} V)`, "Motors will be slower. Replace the batteries soon.");
   if (!S.armed) return nextStep("go", "▶", "Ready to drive", `Connected over ${L.via || "the network"}. Turn motors on when the robot has room to move.`, "Turn motors on", async () => setArmed(true));
@@ -2191,7 +2213,7 @@ function drawBt() {
   $("btLinkHow").textContent = linked ? `Joined. This laptop is ${(b.ips || []).join(", ")}.` : brick ? "Right-click EV3 in Devices and Printers, then Connect using, Access point." : "Pairing alone doesn't connect.";
   step("btReady", linked && b.brickAnswers ? "done" : linked ? "now" : "");
   $("btReadyHow").textContent = linked && b.brickAnswers ? "The brick answers at 10.0.1.1." : linked ? "Waiting for 10.0.1.1 to answer…" : "The brick answers at 10.0.1.1.";
-  $("navConn").className = "badge " + (brickHost() || (S.fake && S.fake.running) ? "" : "warn");
+  setBadge("conn", (brickHost() || (S.fake && S.fake.running) ? "" : "warn"));
   const w = S.brick && S.brick.details && S.brick.details.wifi;
   $("wifiSummary").textContent = !w ? "" : w.ip ? `Brick is on ${w.ssid} at ${w.ip}` : "Brick isn't on WiFi yet";
 }
@@ -2404,7 +2426,7 @@ function drawPad(p) {
   if (location.hash === "#robot" || location.hash === "") setHTML($("getRows"), mapped.length ? mapped.map((x) => {
     const v = sent[x], pct = outPct(x, v), w = Math.abs(pct) / 2, left = pct >= 0 ? 50 : 50 - w;
     return `<div class="get ${pct ? "" : "idle"}"><span><b>${x}</b> ${esc((roleOf(x) || "").replace(/ \(.*\)/, ""))}</span><span class="bar"><i style="left:${left}%;width:${w}%"></i></span><span class="val">${outText(v)}</span></div>`;
-  }).join("") : '<p class="muted">No ports mapped. Set them up on the Controls page.</p>');
+  }).join("") : '<p class="muted">No ports mapped. Set them up on the Driving page.</p>');
   $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off: switch on Motors on to drive.") : q.btn.cross ? "✕ held: everything stopped." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
   // glow the sockets that are being driven
   document.querySelectorAll(".sock").forEach((el) => el.classList.toggle("active", !!outPct(el.dataset.p, sent[el.dataset.p]) && !!plugged(el.dataset.p)));
@@ -2446,8 +2468,8 @@ async function pollLink() {
   $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
   $("fakeToggle").checked = s.fake.running;
   drawPorts(); drawFacts(); drawProgram(); drawNext();
-  if (location.hash === "#controls") drawControls(false);
-  if (location.hash === "#connection") drawConnTiles();
+  if (location.hash === "#driving") drawControls(false);
+  if (location.hash === "#setup") drawConnTiles();
 }
 async function pollBt() { try { S.bt = await api("/api/bluetooth"); } catch (e) { return; } drawBt(); }
 async function pollBrick() {
@@ -2475,7 +2497,7 @@ function syncCam() {
   if (want && !img.dataset.on) { img.dataset.on = "1"; img.src = "/api/camera/stream?t=" + Date.now(); }
   if (!want && img.dataset.on) { img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live; }
   const wait = !c ? "Checking the camera…"
-    : !c.configured ? 'No camera yet. Set one up on the <a href="#connection" data-cam-setup>Connection page</a>.'
+    : !c.configured ? 'No camera yet. Set one up on the <a href="#connection" data-cam-setup>Setup page</a>.'
     : c.reachable === false ? esc(c.error || "The camera isn't answering.")
     : c.ok === false && c.error ? esc(c.error)
     : img.dataset.live ? "" : "Connecting to the camera…";
@@ -2613,11 +2635,11 @@ function drawMapSide(m) {
   }).join(""));
   const has = Object.values(sens).map((s) => s.kind);
   let hint = "";
-  if (!t) hint = "Connect to the brick, or turn on Practice on the Connection page, to start mapping.";
-  else if (!m.layout) hint = "The map needs to know which motors drive: pick a layout on the Controls page.";
+  if (!t) hint = "Connect to the brick, or turn on Practice on the Setup page, to start mapping.";
+  else if (!m.layout) hint = "The map needs to know which motors drive: pick a layout on the Driving page.";
   else if (!has.includes("ir") && !has.includes("us")) {
     const old = S.link && S.link.brickVersion !== (S.app && S.app.version) && !(S.fake && S.fake.running);
-    hint = old ? "Upload the latest build on the Program page: older versions don't send sensor readings."
+    hint = old ? "Upload the latest build on the Setup page: older versions don't send sensor readings."
       : "Plug the infrared or ultrasonic sensor into any sensor port, facing forward. It's picked up within a few seconds.";
   } else if (!has.includes("col")) hint = "Tip: a colour sensor pointing at the floor paints the floor's colours onto the map.";
   setNote("mapHint", hint);

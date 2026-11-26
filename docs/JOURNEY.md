@@ -141,7 +141,16 @@ Every page was reworked at least once, mostly prompted by one of these:
 - **Small controls:** colour swatches instead of a dropdown, and icons instead of big buttons.
 - **Status that's honest:** "Not answering" with the last-seen time, instead of a stale "Connected".
 
-The Program page layout and folding the Brick page into the others are still waiting.
+**A fresh look at the menu (after the camera worked):** eight pages had grown one at a time.
+- **Three thin pages became one:** Connection (four tiles), Program (three buttons and two lists) and Brick were all about getting the brick ready, and were visited in that order. They became **Setup**, with three sections: Connect, Program on the brick, Brick.
+- **Two names were too close:** "Controls" and "Controller" were easy to mix up. Controls became **Driving** ("which stick drives which motor").
+- **Tools apart from driving:** Gearing moved below a divider at the end of the menu.
+- **Nothing removed:** old addresses (`#connection`, `#program`, `#brick`, `#controls`) still open the right place, and the status bar jumps to the right section.
+
+What didn't, at first:
+- **A missing bracket** in the merge script stopped the whole page. A syntax check of the page's script now runs before trying it in the browser.
+- **Scroll position:** one long Setup page meant other pages opened half-way down, as each page kept the last scroll position. A new page now opens at its top.
+- **Private details in screenshots:** the new Setup screenshot showed the brick's Bluetooth address and the camera's host name. Both were replaced with placeholders, found by their pixels.
 
 ## Stage 8: safety and security
 
@@ -349,5 +358,4 @@ The hardest problems so far, grouped by where they came from.
 - **Finish the Raspberry Pi setup** and drive with the camera, with object recognition on.
 - **Use what's recognised:** mark it on the map, or let the robot turn towards a chosen thing while a button is held.
 - **Choose a licence.**
-- **Program page layout,** and folding the Brick page into the other pages.
 - **Release 0.8.0** once the map and camera are tested on hardware.

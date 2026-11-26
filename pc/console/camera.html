@@ -46,7 +46,7 @@ function sync() {
   if (want && !video.getAttribute("src")) video.src = "/api/camera/stream?t=" + Date.now();
   if (!want && video.getAttribute("src")) { video.removeAttribute("src"); live = false; }
   $("msg").textContent = !cam ? "Checking the camera…"
-    : !cam.configured ? (cam.error || "No camera is set up. Set one up on the Connection page in PowerShock.")
+    : !cam.configured ? (cam.error || "No camera is set up. Set one up on the Setup page in PowerShock.")
     : cam.reachable === false ? (cam.error || "The camera isn't answering.")
     : live ? "" : "Connecting to the camera…";
 }

@@ -56,24 +56,33 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
    python pc\ev3_console.py
    ```
    It opens http://127.0.0.1:8765.
-4. **Connect the brick** on the **Connection** page.
+4. **Setup page, Connect:** connect the brick.
    - **Bluetooth:** pair the EV3 in Windows, then Devices and Printers → right-click EV3 → *Connect using* → *Access point*.
    - **WiFi:** connect over Bluetooth first, then **Set up WiFi**.
-5. **Program page:** **Upload latest build**, then **Start**. Java takes about 30 seconds to start on the EV3.
+5. **Setup page, Program on the brick:** **Upload latest build**, then **Start**. Java takes about 30 seconds to start on the EV3.
 6. **Controller page:** pair the DualShock 4 with Windows, then press any button with the console open.
-7. **Controls page:** pick **Car**, **Tank** or **Fit to my motors**.
+7. **Driving page:** pick **Car**, **Tank** or **Fit to my motors**.
 8. **Robot page:** **Turn motors on**, and drive. **Stop motors** (or Space, Esc, ✕ or Options on the controller) stops everything.
 
 The brick's battery shows top-left on the leJOS screen. A blinking number means it's low: charge first.
 
 ## The console
 
+The menu has the pages you use while driving, then the setup and a tool:
+
+- **Robot:** drive, with the controller and the brick in 3D, live, the camera, and a test panel for each motor.
+- **Map:** what the sensors have found.
+- **Driving:** which stick drives which motor.
+- **Controller:** the DualShock: pairing, battery, sticks.
+- **Setup:** connect the brick and the camera, put PowerShock on the brick, and check the brick.
+- **Gearing:** a gear calculator.
+
 ### Camera
 
 Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video when you switch its 3D view from **Brick** to **Camera**, so you can drive from the robot's point of view.
 
 - **On the Pi:** run `pi/powershock_cam.py`. It uses only the standard library and works with any Raspberry Pi OS camera tool.
-- **In the console:** **Connection → Camera** takes the Pi's address and the access key it prints.
+- **In the console:** **Setup → Camera** takes the Pi's address and the access key it prints.
 - **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
 
 ### Object recognition (optional)
@@ -109,14 +118,14 @@ What to expect from the sensors that come with EV3 sets:
 
 ![The Map page: the robot from behind, the infrared beam hitting a box, walls seen so far, blue floor tape and the path driven](docs/screenshots/map.png)
 
-### Controls
+### Driving
 
-Pick a starting layout, then fine-tune each motor port.
+Which stick drives which motor. Pick a starting layout, then fine-tune each motor port.
 
 - **Steering ports** get a **Centre** control: nudge the wheels straight, then **Set centre here**.
 - **Changes** apply while you drive and are saved.
 
-![The Controls page: Car layout with steering on A and drive on B and C](docs/screenshots/controls.png)
+![The Driving page: Car layout with steering on A and drive on B and C](docs/screenshots/driving.png)
 
 ### Controller
 
@@ -137,20 +146,17 @@ Work out speed and force with standard LEGO gears, shown in 3D.
 
 ![The Gearing page: a 12-tooth gear driving a 36-tooth gear, 3× slower and 3× stronger](docs/screenshots/gearing.png)
 
-### Connection
+### Setup
 
-Bluetooth, WiFi or **Practice**.
+Everything the robot needs before driving, in the order you need it:
 
-- **Set up WiFi** puts the brick on your network. Your password is turned into a WPA key on the laptop, so only the key reaches the brick.
-- **Enter address** connects to the brick by its IP address.
+1. **Connect:** Bluetooth, WiFi, **Practice**, and the camera.
+   - **Set up WiFi** puts the brick on your network. Your password is turned into a WPA key on the laptop, so only the key reaches the brick.
+   - **Enter address** connects to the brick by its IP address.
+2. **Program on the brick:** is PowerShock on the brick, and is it this version? **Upload latest build**, **Start**, **Stop**.
+3. **Brick:** battery, memory, versions, and what's plugged into each port, with LEGO's specs.
 
-![The Connection page with Bluetooth, WiFi and Practice](docs/screenshots/connection.png)
-
-### Other pages
-
-- **Brick:** battery, memory, versions, and what's plugged into each port.
-- **Robot:** the controller and the brick in 3D, live, with a test panel for each motor.
-- **Program:** is PowerShock on the brick, and is it this version? **Upload latest build**, **Start**, **Stop**.
+![The Setup page: connect over Bluetooth, WiFi or Practice, the camera, the program on the brick, and the brick's ports](docs/screenshots/setup.png)
 
 ## Safety and security
 
@@ -173,7 +179,7 @@ PowerShock uses [Semantic Versioning](https://semver.org/), with one version for
 
 - **Where it lives:** in [`VERSION`](VERSION).
 - **On the brick:** `build.ps1` stamps it into the brick programs, and the brick reports it when the console connects.
-- **In the console:** it shows next to the name. The Program page warns when the brick runs an older version.
+- **In the console:** it shows next to the name. The Setup page warns when the brick runs an older version.
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md), which also describes how to make a release. How the project grew, and what worked and what didn't along the way, is in [docs/JOURNEY.md](docs/JOURNEY.md).
 
