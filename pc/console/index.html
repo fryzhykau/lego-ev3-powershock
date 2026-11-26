@@ -165,6 +165,10 @@
   .camview img:not([src]) { display: none; }
   .camwait { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; text-align: center; color: #c9ced1; font-size: 13.5px; line-height: 1.5; }
   .camwait:empty { display: none; }
+  .camhud { display: none; position: absolute; left: 16px; top: 16px; padding: 6px 12px; border-radius: 999px; background: #000000a6; color: #e6e8e9; font-size: 13px; }
+  .camhud b { color: #ff8a8f; }
+  .camview:fullscreen { aspect-ratio: auto; max-height: none; padding: 0; width: 100vw; height: 100vh; }
+  .camview:fullscreen .camhud { display: block; }
   .camwait a { color: #fff; }
   .camsteps { margin: 0 0 12px; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
   .camsteps code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
@@ -860,8 +864,8 @@
         </div>
 
         <div class="card stagecard">
-          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
-          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div></div>
+          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><span class="grow1 hidden" id="camGap"></span><button class="iconbtn hidden" id="camFull" title="Full screen, driving keeps working (Esc or F to leave)" aria-label="Show the camera full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="iconbtn hidden" id="camPop" title="Open the camera in its own window, e.g. for a second monitor" aria-label="Open the camera in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="M13 3h8v8M21 3l-9 9"/></svg></button><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
+          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div></div>
           <div class="scene" id="scene" aria-label="The EV3 brick with what's plugged into each port. Drag to turn it.">
             <div class="brick intro" id="brick">
               <div class="f back"></div>
@@ -2234,6 +2238,7 @@ function setArmed(on) {
   S.armed = on; $("armToggle").checked = on; $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
   $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmDot").className = "dot " + (on ? "bad" : "");
   $("stopBtn").classList.toggle("live", on);
+  $("camHud").innerHTML = on ? "<b>●</b> Motors on · Space stops" : "Motors off";
   if (!on) api("/api/stop", {});
   drawNext();
 }
@@ -2388,8 +2393,10 @@ function setStage(v) {
   S.stageView = v; localStorage.setItem("stageView", v);
   $("stageTabs").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.v === v ? "true" : "false"));
   $("scene").classList.toggle("hidden", v === "cam");
-  $("resetView").hidden = v === "cam";
+  $("resetView").classList.toggle("hidden", v === "cam");
+  document.querySelector(".stagefoot").classList.toggle("hidden", v === "cam");
   $("portsNote").hidden = v === "cam";
+  ["camGap", "camFull", "camPop"].forEach((id) => $(id).classList.toggle("hidden", v !== "cam"));
   $("camView").classList.toggle("hidden", v !== "cam");
   syncCam();
 }
@@ -2431,6 +2438,16 @@ async function pollCam() {
   drawCamTile(); syncCam();
 }
 $("camShow").addEventListener("click", () => { location.hash = "#robot"; setStage("cam"); });
+function camFullScreen() {
+  if (document.fullscreenElement) return document.exitFullscreen();
+  $("camView").requestFullscreen().catch(() => {});
+}
+$("camFull").addEventListener("click", camFullScreen);
+$("camView").addEventListener("dblclick", camFullScreen);
+addEventListener("keydown", (e) => { if (e.code === "KeyF" && S.stageView === "cam" && !typing() && (location.hash || "#robot") === "#robot") camFullScreen(); });
+// The camera alone in its own window. Driving stays in this window: clicking into the other one
+// takes the focus away from here, which switches the motors off, as with any other window.
+$("camPop").addEventListener("click", () => { window.open("/camera", "powershock-camera", "popup,width=960,height=760"); });
 $("camSave").addEventListener("click", () => busy($("camSave"), async () => {
   setNote("camNote", "Testing…");
   const r = await api("/api/camera", { host: $("camHost").value, port: Number($("camPort").value) || 8080, key: $("camKey").value });

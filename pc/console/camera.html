@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerShock camera</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0d0f10; color: #c9ced1; font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #video:not([src]) { display: none; }
+  #msg { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; text-align: center; }
+  #msg:empty { display: none; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 14px; transition: opacity .5s; }
+  .tip { background: #000000b3; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; }
+  button { font: inherit; color: #fff; background: #ffffff26; border: 1px solid #ffffff40; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { background: #ffffff40; }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  body.idle .bar { opacity: 0; }
+  body.idle { cursor: none; }
+</style>
+</head>
+<body>
+<img id="video" alt="Live picture from the robot's camera">
+<div id="msg">Checking the camera…</div>
+<div class="bar">
+  <span class="tip">To drive, click back in the PowerShock window: clicking here switches the motors off there.</span>
+  <button id="fs" title="Full screen (F or double-click)">Full screen</button>
+</div>
+<script>
+// Just the robot's camera, for a second monitor. Driving stays in the main PowerShock window.
+const $ = (id) => document.getElementById(id);
+const video = $("video");
+let cam = null, live = false, retry = null;
+
+async function check() {
+  try {
+    const r = await fetch("/api/camera", { headers: { "X-PowerShock": "1" } });
+    cam = await r.json();
+  } catch (e) {
+    cam = { configured: false, error: "The PowerShock console isn't running." };
+  }
+  sync();
+}
+function sync() {
+  const want = cam && cam.configured && cam.reachable !== false && document.visibilityState === "visible";
+  if (want && !video.getAttribute("src")) video.src = "/api/camera/stream?t=" + Date.now();
+  if (!want && video.getAttribute("src")) { video.removeAttribute("src"); live = false; }
+  $("msg").textContent = !cam ? "Checking the camera…"
+    : !cam.configured ? (cam.error || "No camera is set up. Set one up on the Connection page in PowerShock.")
+    : cam.reachable === false ? (cam.error || "The camera isn't answering.")
+    : live ? "" : "Connecting to the camera…";
+}
+video.addEventListener("load", () => { live = true; sync(); });
+video.addEventListener("error", () => { // the stream stopped: try again shortly
+  video.removeAttribute("src"); live = false; sync();
+  clearTimeout(retry); retry = setTimeout(sync, 2000);
+});
+document.addEventListener("visibilitychange", sync);
+
+function fullScreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+$("fs").addEventListener("click", fullScreen);
+addEventListener("dblclick", fullScreen);
+addEventListener("keydown", (e) => { if (e.code === "KeyF") fullScreen(); });
+document.addEventListener("fullscreenchange", () => { $("fs").textContent = document.fullscreenElement ? "Leave full screen" : "Full screen"; });
+
+// hide the controls while the mouse rests
+let idle = null;
+const wake = () => { document.body.classList.remove("idle"); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add("idle"), 3000); };
+addEventListener("mousemove", wake); wake();
+
+check(); setInterval(check, 3000);
+</script>
+</body>
+</html>

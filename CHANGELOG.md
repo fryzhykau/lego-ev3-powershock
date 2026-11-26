@@ -31,6 +31,8 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **In the console:** the Robot page's 3D view switches between **Brick** and **Camera**, and **Connection → Camera** sets it up.
   - **Relay:** the console relays the video, so the page only ever talks to the console.
   - **Setup guide:** `docs/CAMERA.md`.
+  - **Full screen:** the Camera view goes full screen with a button, F or a double-click, and driving keeps working there. A small overlay shows whether the motors are on.
+  - **Own window:** a button opens just the video in a separate window (`/camera`), e.g. for a second monitor. Clicking into it takes the focus from the console, which switches the motors off; click back in the console to drive.
 - **Controller colour swatches** replace the colour dropdown on the Robot page.
 
 ### Changed

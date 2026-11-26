@@ -32,6 +32,7 @@ import worldmap  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 UI_FILE = os.path.join(HERE, "console", "index.html")
+CAM_FILE = os.path.join(HERE, "console", "camera.html")
 HTTP_PORT = int(os.environ.get("POWERSHOCK_PORT", "8765"))
 EV3_PORT = 5000
 RATE_HZ = 50
@@ -787,8 +788,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._local_only():
             return
-        if self.path in ("/", "/index.html"):
-            with open(UI_FILE, "rb") as f:
+        if self.path in ("/", "/index.html", "/camera"):
+            # /camera: just the robot's camera, in a window of its own (for a second monitor)
+            with open(UI_FILE if self.path != "/camera" else CAM_FILE, "rb") as f:
                 body = f.read()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
