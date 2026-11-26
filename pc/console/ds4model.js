@@ -119,8 +119,8 @@ export function createDS4(container) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  camera.position.set(0, 10, 18.5);
-  camera.lookAt(0, -1.6, 1.0);
+  camera.position.set(0, 10.5, 19.5);
+  camera.lookAt(0, -1.4, 0.6);
 
   // studio lighting
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 1.25));
@@ -131,7 +131,7 @@ export function createDS4(container) {
   scene.add(key);
   const rim = new THREE.DirectionalLight(0xffffff, 0.9); rim.position.set(8, 4, -10); scene.add(rim);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.18 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -5.8; floor.receiveShadow = true; scene.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -4.6; floor.receiveShadow = true; scene.add(floor);
 
   // materials
   const shell = new THREE.MeshPhysicalMaterial({ color: COLORS["Magma Red"], roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.5 });
@@ -146,36 +146,44 @@ export function createDS4(container) {
   scene.add(model);
   const mesh = (geo, mat, parent = model) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
 
-  // ----- body: rounded shell plus two thick grips -----
-  mesh(slab(outlineShape(), 1.0, 0.75, 10), shell);
-  // Grips: long handles that taper from under the button areas down and back towards the
-  // player, oval in section, with a rounded end; the lower part is the darker textured band.
+  // ----- body: shell plus two grips -----
+  // Real DS4: 16.2 cm wide, 9.8 cm front to back (grips included), 5.2 cm tall (grips included).
+  // The shell is about 2.4 cm thick with a fairly tight edge radius; the grips hang below it.
+  mesh(slab(outlineShape(), 1.35, 0.5, 8), shell);
+  // Grips: start under the wings, splay outwards a little and run back and down towards the
+  // player, tapering to a rounded end; oval in section, about 3 cm wide at the root.
   const gripMat = new THREE.MeshPhysicalMaterial({ color: COLORS["Magma Red"], roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.6, vertexColors: true });
   const smooth = (a, b, u) => { const t = Math.min(1, Math.max(0, (u - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const endCap = (u) => (u < 0.86 ? 1 : Math.sqrt(Math.max(0, 1 - ((u - 0.86) / 0.14) ** 2)));
+  const endCap = (u) => (u < 0.84 ? 1 : Math.sqrt(Math.max(0, 1 - ((u - 0.84) / 0.16) ** 2)));
   for (const side of [-1, 1]) {
     // starts inside the wing (hidden), comes out under its rounded end and runs down and back
     const spine = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 5.35, -0.95, -0.6),
-      new THREE.Vector3(side * 5.7, -1.1, 1.3),
-      new THREE.Vector3(side * 6.0, -1.95, 3.05),
-      new THREE.Vector3(side * 6.2, -3.0, 4.55),
-      new THREE.Vector3(side * 6.25, -3.75, 5.55),
+      new THREE.Vector3(side * 5.25, -1.0, -0.9),
+      new THREE.Vector3(side * 5.55, -1.25, 1.0),
+      new THREE.Vector3(side * 5.9, -1.95, 2.55),
+      new THREE.Vector3(side * 6.15, -2.75, 3.75),
+      new THREE.Vector3(side * 6.25, -3.3, 4.55),
     ]);
     const g = sweep(spine,
-      (u) => (1.95 - 0.38 * u) * endCap(u),               // half-width: as wide as the wing where it starts
-      (u) => (0.92 + 0.5 * smooth(0.1, 0.45, u) - 0.25 * u) * endCap(u), // half-height: top flush with the wing
-      (u) => 1 - 0.2 * smooth(0.45, 0.65, u));            // darker lower band
+      (u) => (1.6 - 0.42 * smooth(0.15, 1, u)) * endCap(u),                       // half-width, tapering
+      (u) => (1.0 + 0.35 * smooth(0.05, 0.4, u) - 0.3 * smooth(0.5, 1, u)) * endCap(u), // half-height
+      (u) => 1 - 0.22 * smooth(0.4, 0.6, u));                                      // darker lower band
     mesh(g, gripMat);
   }
   // raised areas around the D-pad and the face buttons, as on the real shell
   for (const cx of [X(88), X(352)]) {
     const pod = mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), shell);
-    pod.scale.set(2.0, 0.42, 1.95); pod.position.set(cx, -0.05, -1.9);
+    pod.scale.set(1.85, 0.3, 1.8); pod.position.set(cx, -0.06, -1.9);
   }
+  // D-pad sits in a round dish
+  const dish = mesh(new THREE.CylinderGeometry(1.42, 1.3, 0.2, 48), darker); dish.position.set(X(88), 0.16, -1.93);
   // underside bulge between the grips
   const belly = mesh(new THREE.SphereGeometry(1, 40, 24), shell);
-  belly.scale.set(4.6, 1.15, 2.6); belly.position.set(0, -1.6, -1.2);
+  belly.scale.set(4.4, 1.0, 2.4); belly.position.set(0, -1.85, -1.1);
+  // ports: micro-USB at the back, headset jack and extension port at the front
+  const usb = mesh(new THREE.BoxGeometry(0.85, 0.28, 0.1), darker); usb.position.set(0, -1.05, Z(40) - 0.52);
+  const jack = mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 20), darker); jack.rotation.x = Math.PI / 2; jack.position.set(-0.35, -1.0, Z(208) + 0.5);
+  const ext = mesh(new THREE.BoxGeometry(0.75, 0.22, 0.1), darker); ext.position.set(0.55, -1.0, Z(208) + 0.5);
 
   // ----- top: touchpad, light strip, speaker, PS button -----
   const pad = mesh(slab(roundedRect(5.25, 2.5, 0.35), 0.12, 0.06, 3), new THREE.MeshStandardMaterial({ map: dotsTexture(), roughness: 0.75 }));
@@ -195,8 +203,8 @@ export function createDS4(container) {
   arrow.lineTo(0.22, 1.08); arrow.quadraticCurveTo(0.3, 1.08, 0.3, 1.0); arrow.lineTo(0.3, 0.35); arrow.lineTo(0, 0.12); arrow.closePath();
   const dpad = {};
   for (const [name, ang] of [["up", 0], ["right", -Math.PI / 2], ["down", Math.PI], ["left", Math.PI / 2]]) {
-    const g = slab(arrow, 0.16, 0.06, 3); g.scale(1.38, 1, 1.38); g.rotateY(ang);
-    const m = mesh(g, dark); m.position.set(X(88), 0.5, -1.93); dpad[name] = m;
+    const g = slab(arrow, 0.16, 0.06, 3); g.scale(1.05, 1, 1.05); g.rotateY(ang);
+    const m = mesh(g, dark); m.position.set(X(88), 0.42, -1.93); dpad[name] = m;
   }
 
   // ----- face buttons: domed caps with coloured symbols -----
@@ -204,7 +212,7 @@ export function createDS4(container) {
   const face = {};
   for (const [name, dx, dz, col] of [["triangle", 0, -1, "#3fd0b4"], ["circle", 1, 0, "#ff5b5b"], ["cross", 0, 1, "#7aa8ff"], ["square", -1, 0, "#ff7fd1"]]) {
     const g = new THREE.Group(); model.add(g);
-    g.position.set(X(352) + dx * 0.98, 0.28, -1.9 + dz * 0.98); g.scale.setScalar(1.12);
+    g.position.set(X(352) + dx * 0.95, 0.22, -1.9 + dz * 0.95); g.scale.setScalar(1.05);
     mesh(new THREE.LatheGeometry(capProfile, 32), capMat, g);
     const symMat = new THREE.MeshStandardMaterial({ map: symbolTexture(name, col), transparent: true, emissive: new THREE.Color(col), emissiveMap: symbolTexture(name, col), emissiveIntensity: 0.25 });
     const sym = new THREE.Mesh(new THREE.CircleGeometry(0.3, 32), symMat); sym.rotation.x = -Math.PI / 2; sym.position.y = 0.305; g.add(sym);
@@ -260,7 +268,7 @@ export function createDS4(container) {
     const w = container.clientWidth || 400, h = container.clientHeight || 300;
     renderer.setSize(w, h, false); el.style.width = "100%"; el.style.height = "100%";
     camera.aspect = w / h;
-    camera.position.z = w / h < 1.2 ? 22.5 : 18.5; // step back on narrow screens
+    camera.position.z = w / h < 1.2 ? 23.5 : 19.5; // step back on narrow screens
     camera.updateProjectionMatrix();
   };
   new ResizeObserver(fit).observe(container); fit();
@@ -281,8 +289,8 @@ export function createDS4(container) {
     // sticks lean the way they're pushed, and sink when clicked
     sticks.L.rotation.set(cur.ly * 0.38, 0, -cur.lx * 0.38); sticks.L.position.y = -0.25 - p("L3") * 0.15;
     sticks.R.rotation.set(cur.ry * 0.38, 0, -cur.rx * 0.38); sticks.R.position.y = -0.25 - p("R3") * 0.15;
-    for (const [name, f] of Object.entries(face)) { const v = p(name); f.g.position.y = 0.28 - v * 0.14; f.symMat.emissiveIntensity = 0.25 + v * 2.4; }
-    for (const [name, m] of Object.entries(dpad)) m.position.y = 0.5 - p(name) * 0.1;
+    for (const [name, f] of Object.entries(face)) { const v = p(name); f.g.position.y = 0.22 - v * 0.14; f.symMat.emissiveIntensity = 0.25 + v * 2.4; }
+    for (const [name, m] of Object.entries(dpad)) m.position.y = 0.42 - p(name) * 0.1;
     ps.position.y = 0.08 - p("PS") * 0.06; share.position.y = 0.08 - p("share") * 0.06; options.position.y = 0.08 - p("options") * 0.06;
     pad.position.y = 0.12 - p("pad") * 0.05;
     bumpers.L.position.y = -0.1 - p("L1") * 0.12; bumpers.R.position.y = -0.1 - p("R1") * 0.12;

@@ -270,7 +270,7 @@
   }
 
   /* the brick: front = the screen side, top end = motor ports, bottom end = sensor ports */
-  .brick { --W: 212px; --H: 296px; --D: 100px; width: var(--W); height: var(--H); position: relative; transform-style: preserve-3d;
+  .brick { --W: 212px; --H: 333px; --D: 134px; width: var(--W); height: var(--H); position: relative; transform-style: preserve-3d;
     transform: rotateX(var(--rx, 24deg)) rotateY(var(--ry, -26deg)); }
   .brick.intro { animation: arrive 1.2s cubic-bezier(.2,.8,.2,1) both; }
   @keyframes arrive { from { transform: rotateX(40deg) rotateY(-80deg) scale(.9); opacity: 0; } }
@@ -297,7 +297,6 @@
   .meter b { font-size: 9px; } .meter .num { text-align: right; font-weight: 700; }
   .cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; height: 6px; }
   .cells i { background: #9fae97; opacity: .35; } .cells i.on { background: var(--lcd-ink); opacity: 1; } .cells i.mid { box-shadow: -1px 0 0 var(--lcd-ink); }
-  .trace { position: absolute; left: 50%; top: 41%; height: 9%; width: 2px; margin-left: -1px; background: #2b3033; }
   .backkey { position: absolute; left: 8%; top: 44.5%; width: 17%; height: 6%; background: linear-gradient(180deg, #bfc3c4, var(--ev3-grey-2)); clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); border-radius: 2px; }
   .cluster { position: absolute; left: 50%; top: 50%; width: 64%; height: 27%; transform: translateX(-50%); }
   .cluster .glow { position: absolute; inset: -4px; clip-path: var(--shape); background: #8e9496; transition: background .3s; }
@@ -847,7 +846,6 @@
                   <div class="meters" id="meters"></div>
                   <div class="lcd-foot"><span id="lcdArm">SAFE</span><span id="lcdBatt"></span></div>
                 </div></div></div>
-                <div class="trace"></div>
                 <div class="backkey"></div>
                 <div class="cluster"><div class="glow" id="ledRing"></div><div class="keys"></div>
                   <div class="k up"></div><div class="k down"></div><div class="k left"></div><div class="k right"></div><div class="k mid"></div></div>
@@ -1189,9 +1187,10 @@ setMeters({});
   apply();
   // the brick and its scene shrink with the card on small screens
   new ResizeObserver(() => {
-    const w = scene.clientWidth || 700;
+    const w = scene.clientWidth || 700, h = (scene.clientHeight || 760) - 44;
     scene.style.setProperty("--sw", w + "px");
-    brick.style.scale = Math.max(0.5, Math.min(1, w / 720)).toFixed(3);
+    // fit the brick plus what hangs off both ends (motors above, sensors below)
+    brick.style.scale = Math.max(0.45, Math.min(1, w / 720, h / 880)).toFixed(3);
   }).observe(scene);
 })();
 
@@ -1204,7 +1203,7 @@ function currentPorts() {
 function portView(p, cp) {
   const d = cp.ports && cp.ports[p], role = roleOf(p), roleName = role;
   const isMotorPort = !p.startsWith("S");
-  if (!d) return { cls: "", dev: "Not checked yet", note: roleName || "", warn: false };
+  if (!d) return { cls: "", dev: "", note: roleName || "", warn: false };
   if (d.kind === "busy") return { cls: "busy", dev: d.label, note: roleName || "", warn: false };
   if (!d.connected) {
     const needed = isMotorPort && !!role;
@@ -1218,7 +1217,7 @@ function sensorClass(label) {
   return /Touch/.test(label) ? "touch" : /Color/.test(label) ? "color" : /Ultrasonic|Infrared/.test(label) ? "eyes" : /Gyro/.test(label) ? "gyro" : "generic";
 }
 function deviceHTML(p, v, live, cp) {
-  if (v.cls !== "on") return `<div class="ptag ${v.warn ? "warn" : ""}"><b>${p.replace("S", "")} · ${esc(v.dev)}</b>${v.warn ? "Needs a motor" : ""}</div>`;
+  if (v.cls !== "on") return `<div class="ptag ${v.warn ? "warn" : ""}"><b>${p.replace("S", "")}${v.dev ? " · " + esc(v.dev) : ""}</b>${v.warn ? "Needs a motor" : ""}</div>`;
   const role = roleOf(p);
   const spd = live ? Math.round(live.speed / 6) : null;
   const label = `<div class="dlabel" style="${p.startsWith("S") ? "top" : "bottom"}: calc(100% + 10px)">${esc(v.label)}${role ? `<small>${role.replace(/ \(.*\)/, "")}</small>` : ""}${v.kind === "motor" ? '<small data-rpm>0 rpm</small><em data-stall hidden>stalled</em>' : ""}</div>`;
