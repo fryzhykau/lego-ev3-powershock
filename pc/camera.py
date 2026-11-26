@@ -7,6 +7,7 @@ import http.client
 import json
 import os
 import re
+import socket
 import threading
 import time
 
@@ -20,6 +21,29 @@ MAX_FRAME = 8 * 1024 * 1024
 
 class CameraError(Exception):
     pass
+
+
+def open_socket(host, port, timeout):
+    """Like socket.create_connection, but IPv4 addresses first. The Pi's streamer listens on IPv4,
+    and a .local name also resolves to an IPv6 address: on Windows each refused IPv6 attempt costs
+    about 2 seconds before IPv4 is tried."""
+    err = None
+    infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+    for fam, kind, proto, _, addr in sorted(infos, key=lambda a: a[0] != socket.AF_INET):
+        s = socket.socket(fam, kind, proto)
+        s.settimeout(timeout)
+        try:
+            s.connect(addr)
+            return s
+        except OSError as e:
+            s.close()
+            err = e
+    raise err or OSError(f"no address for {host}")
+
+
+class _Connection(http.client.HTTPConnection):
+    def connect(self):
+        self.sock = open_socket(self.host, self.port, self.timeout)
 
 
 def read_parts(f):
@@ -106,7 +130,7 @@ class Camera:
             host, port, key = self.host, self.port, self.key
         if host is None:
             raise CameraError("No camera set up yet.")
-        conn = http.client.HTTPConnection(host, port, timeout=timeout)
+        conn = _Connection(host, port, timeout=timeout)
         try:
             conn.request("GET", path, headers={"X-PowerShock-Key": key})
             resp = conn.getresponse()

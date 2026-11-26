@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from http.server import ThreadingHTTPServer
 
@@ -180,6 +181,14 @@ class CameraTest(unittest.TestCase):
         self.addCleanup(lambda: [self.cam.streams.release() for _ in range(camera.MAX_STREAMS)])
         with self.assertRaises(camera.CameraError):
             next(self.cam.frames(threading.Event()))
+
+    def test_name_with_ipv6_too_connects_quickly(self):
+        # "localhost" also resolves to ::1, where nothing listens: on Windows trying that first took ~2 s
+        self.cam.set("localhost", self.pi.port, KEY)
+        t = time.monotonic()
+        st = self.cam.status(max_age=0)
+        self.assertTrue(st["reachable"], st)
+        self.assertLess(time.monotonic() - t, 1.0)
 
     def test_forget(self):
         self.cam.set("127.0.0.1", self.pi.port, KEY)
