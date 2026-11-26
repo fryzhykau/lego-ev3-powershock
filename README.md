@@ -77,6 +77,8 @@ The menu has the pages you use while driving, then the setup and a tool:
 - **Setup:** connect the brick and the camera, put PowerShock on the brick, and check the brick.
 - **Gearing:** a gear calculator.
 
+It looks like a car's instrument cluster at night: a dark cabin, with the 3D brick, controller, map and camera in lit wells, and the EV3's own status-light colours for what's live. **Day look**, at the bottom of the menu, switches to a light version, and the console remembers your choice.
+
 ### Camera
 
 Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video when you switch its 3D view from **Brick** to **Camera**, so you can drive from the robot's point of view.
@@ -116,7 +118,7 @@ What to expect from the sensors that come with EV3 sets:
 - **Ultrasonic:** up to about 1.5 m, with a narrower beam.
 - **Drift:** each wheel slip adds an error, so the map drifts. **Clear map** starts again from where the robot is.
 
-![The Map page: the robot from behind, the infrared beam hitting a box, walls seen so far, blue floor tape and the path driven](docs/screenshots/map.png)
+![The Map page: the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
 
 ### Driving
 

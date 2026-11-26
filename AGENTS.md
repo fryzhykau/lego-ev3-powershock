@@ -112,6 +112,11 @@ The repository is public. Before every commit:
    - **Responsive:** check narrow widths (≤ 860 px).
    - **Accessibility:** keep keyboard access, focus outlines, `aria-label`s and `prefers-reduced-motion`.
    - **Performance:** the page polls every 250 ms. Don't rewrite large `innerHTML` blocks when nothing changed (use `setHTML`).
+   - **Colours:**
+     - The page has two looks, night (the default) and day.
+     - Use the CSS variables in `:root`, never a hard-coded colour. On a strong fill (`--panel`), text is `--on-panel`.
+     - Check both looks; the menu's **Day look** button switches them.
+     - The 3D views draw on transparent canvases. The map reads its floor colours from the CSS variables.
 6. **Docs:** update `README.md` and `docs/TROUBLESHOOTING.md` when behaviour or setup changes.
 7. **Changelog:** add a line under `## [Unreleased]` in `CHANGELOG.md` for anything a user would notice (Added / Changed / Fixed / Security / Removed).
 8. **Journey:** when a new idea is tried, or something fails or succeeds in an instructive way, add it to `docs/JOURNEY.md` (stages, what worked and what didn't). No personal data.

@@ -29,9 +29,25 @@ export function createMap(container) {
   // floor with a 20 cm grid and a mark where the map started
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: 0xe9ecec, roughness: 1 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  const grid = new THREE.GridHelper(800, 40, 0xc3cacd, 0xd6dbdd); grid.position.y = 0.05; scene.add(grid);
+  let grid = null;
   const start = new THREE.Mesh(new THREE.RingGeometry(5, 6.5, 32), new THREE.MeshBasicMaterial({ color: 0x8a949a }));
   start.rotation.x = -Math.PI / 2; start.position.y = 0.1; scene.add(start);
+  // The page's look (night or day) sets the floor, grid and fog, from its CSS variables.
+  let night = false;
+  function setTheme() {
+    const css = getComputedStyle(document.documentElement);
+    const c = (name, fallback) => new THREE.Color((css.getPropertyValue(name) || "").trim() || fallback);
+    night = document.documentElement.dataset.theme !== "day";
+    floor.material.color.copy(c("--map-floor", "#e9ecec"));
+    scene.fog.color.copy(c("--map-floor", "#e9ecec"));
+    start.material.color.copy(c("--map-start", "#8a949a"));
+    if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+    grid = new THREE.GridHelper(800, 40, c("--map-grid-1", "#c3cacd"), c("--map-grid-2", "#d6dbdd"));
+    grid.position.y = 0.05; scene.add(grid);
+    if (beamMat) { beamMat.blending = night ? THREE.AdditiveBlending : THREE.NormalBlending; beamMat.needsUpdate = true; } // a beam of light at night
+  }
+  let beamMat = null;
+  setTheme();
 
   // obstacles: one block per grid cell, darker the surer the map is
   const cellGeo = new THREE.BoxGeometry(1, 1, 1); cellGeo.translate(0, 0.5, 0);
@@ -51,7 +67,7 @@ export function createMap(container) {
   const brick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), grey); brick.castShadow = true; robot.add(brick);
   const wheels = [0, 1, 2, 3].map(() => { const w = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28), black); w.rotation.x = Math.PI / 2; w.castShadow = true; robot.add(w); return w; });
   const eye = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 5), new THREE.MeshStandardMaterial({ color: 0x23272a })); robot.add(eye);
-  const beamMat = new THREE.MeshBasicMaterial({ color: 0xd1242f, transparent: true, opacity: 0.22, depthWrite: false });
+  beamMat = new THREE.MeshBasicMaterial({ color: 0xd1242f, transparent: true, opacity: 0.22, depthWrite: false }); setTheme();
   const beamGeo = new THREE.ConeGeometry(1, 1, 24, 1, true); beamGeo.translate(0, -0.5, 0); beamGeo.rotateZ(Math.PI / 2);
   const beam = new THREE.Mesh(beamGeo, beamMat); robot.add(beam);
   const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd1242f })); robot.add(dot);
@@ -110,6 +126,7 @@ export function createMap(container) {
   requestAnimationFrame(frame);
 
   return {
+    setTheme,
     setView(v) { view = v; },
     update(s) {
       if (!s) return;
@@ -127,7 +144,9 @@ export function createMap(container) {
         const sure = Math.min(1, (v - 0.6) / 2.4);
         tmp.position.set(i * c, 0, -j * c); tmp.scale.set(c, 4 + sure * 6, c); tmp.updateMatrix();
         cells.setMatrixAt(n, tmp.matrix);
-        cells.setColorAt(n, col.setRGB(0.55 - sure * 0.33, 0.6 - sure * 0.34, 0.63 - sure * 0.33));
+        // surer walls stand out more: darker on a light floor, brighter on a dark one
+        if (night) cells.setColorAt(n, col.setRGB(0.36 + sure * 0.5, 0.42 + sure * 0.48, 0.48 + sure * 0.46));
+        else cells.setColorAt(n, col.setRGB(0.55 - sure * 0.33, 0.6 - sure * 0.34, 0.63 - sure * 0.33));
       });
       cells.count = list.length; cells.instanceMatrix.needsUpdate = true; if (cells.instanceColor) cells.instanceColor.needsUpdate = true;
       // floor colours
@@ -149,7 +168,7 @@ export function createMap(container) {
         const spread = e.kind === "us" ? 0.26 : 0.36; // half-angle of the beam, roughly
         beam.position.set(size.eyeAhead / 10, wr + 3, 0); beam.rotation.y = a;
         beam.scale.set(Math.max(1, e.dist), Math.max(1, e.dist * Math.tan(spread)), Math.max(1, e.dist * Math.tan(spread)));
-        beamMat.color.setHex(e.hit ? 0xd1242f : 0x2f9e57); beamMat.opacity = e.hit ? 0.2 : 0.06;
+        beamMat.color.setHex(e.hit ? 0xd1242f : 0x2f9e57); beamMat.opacity = (e.hit ? 0.2 : 0.06) * (night ? 2.2 : 1);
         dot.visible = e.hit;
         dot.position.set(size.eyeAhead / 10 + Math.cos(a) * e.dist, wr + 3, -Math.sin(a) * e.dist);
       }

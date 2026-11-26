@@ -152,6 +152,22 @@ What didn't, at first:
 - **Scroll position:** one long Setup page meant other pages opened half-way down, as each page kept the last scroll position. A new page now opens at its top.
 - **Private details in screenshots:** the new Setup screenshot showed the brick's Bluetooth address and the camera's host name. Both were replaced with placeholders, found by their pixels.
 
+**A new look: "an instrument cluster at night."** The owner asked for something that feels supernatural and modern.
+- **The idea:** a driving console should look like a car's dashboard after dark.
+  - **Light shows state:** unlit is idle, backlit is selected, glowing is live.
+  - **Status colours:** taken from the EV3's own status light.
+  - **The one bold move:** the 3D models and the camera sit in lit wells, like a car configurator's turntable.
+  - **Type:** Bahnschrift, Windows' built-in DIN, so nothing needs downloading.
+- **What made it cheap:**
+  - **Colour tokens:** most colours already went through about a dozen of them, so a new look was mostly new values.
+  - **Transparent canvases:** the 3D views draw on them, so their backdrops are plain CSS.
+  - **The old look stayed** as **Day look**.
+- **What broke, and was caught by looking:**
+  - **Invisible text:** "strong fill plus white text" was hard-coded in many places, and the strong fill turned light at night. The brick's port labels and other text vanished.
+  - **The map:** walls drawn darker the surer they were disappeared on a dark floor. The red beam became a muddy blob, so at night it's drawn as light.
+  - **Swatches:** dark controller colour swatches vanished on dark panels.
+  - **The screenshot redaction** assumed dark text on white. It now samples the tile's own colour.
+
 ## Stage 8: safety and security
 
 **Before driving:**

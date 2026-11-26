@@ -57,6 +57,14 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Fresh pictures only:** each start waits for a new picture, never one left from an earlier run, which could be from another camera.
 
 ### Changed
+- **A new look: an instrument cluster at night,** and the old look kept as **Day look**:
+  - **Cabin and panels:** a dark blue-graphite cabin, with panels drawn as hairline edges rather than shadows.
+  - **Lit wells:** the 3D brick, controller, gears, Pi, map and camera sit in lit wells.
+  - **Light shows state:** selected items are backlit, and live things glow in the EV3's status-light colours (green, amber, red).
+  - **Stop motors:** the button glows red while the motors are on. It stays still if you've asked your system for less motion.
+  - **Headings and readouts** use Bahnschrift, the DIN lettering of road signs and dashboards, built into Windows.
+  - **The map** draws the infrared beam as light at night, and walls it's sure of grow brighter.
+  - **Switching looks:** **Day look** at the bottom of the menu switches, and the choice is remembered.
 - **A simpler menu: 6 pages instead of 8,** with nothing removed:
   - **Setup** brings together Connection, Program and Brick, in the order you use them: Connect (Bluetooth, WiFi, Practice, Camera), Program on the brick, Brick. Status bar items jump to their section, and old links (`#connection`, `#program`, `#brick`) still work.
   - **Controls is now Driving**, so it isn't confused with Controller.
