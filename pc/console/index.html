@@ -1,0 +1,2323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerShock</title>
+<style>
+  /* Colours taken from the EV3 itself: white body, light-grey frame, dark screen frame,
+     the red motor hubs. Red also means stop; green means working. */
+  :root {
+    --room: #e7eaea; --face: #fff; --soft: #f2f4f4; --rule: #dde1e1;
+    --ink: #1c2124; --muted: #677075;
+    --ev3-white: #f6f7f7; --ev3-grey: #b8bcbd; --ev3-grey-2: #a3a8a9; --ev3-dark: #1e2224; --ev3-key: #c6cacb;
+    --lcd: #c4cfbd; --lcd-ink: #263022; --hub: #c9301f;
+    --go: #2e8a57; --go-soft: #e3f2ea; --warn: #b0650a; --warn-soft: #fbf0e1; --stop: #d1242f; --stop-soft: #fbe6e7;
+    --panel: #343a3e;
+    --r-s: 7px; --r-l: 14px;
+    --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --mono: "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--room); color: var(--ink); font: 14.5px/1.5 var(--ui); font-variant-numeric: tabular-nums; display: grid; grid-template-rows: auto 1fr; }
+  :focus-visible { outline: 2px solid var(--panel); outline-offset: 2px; }
+  button, input { font: inherit; color: inherit; }
+  h2 { font-size: 14.5px; font-weight: 650; margin: 0; }
+  h3 { font-size: 12.5px; font-weight: 650; margin: 0 0 6px; color: var(--muted); }
+  p { margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+
+  /* ---------- status bar ---------- */
+  .statusbar { display: flex; align-items: center; gap: 2px; padding: 6px 10px 6px 16px; background: var(--face); border-bottom: 1px solid var(--rule); min-height: 50px; position: sticky; top: 0; z-index: 30; }
+  .brand { font-weight: 750; font-size: 15px; margin-right: 12px; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand .ver { font-weight: 500; font-size: 11.5px; color: var(--muted); margin-left: 5px; letter-spacing: 0; }
+  .si { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; font-size: 13px; white-space: nowrap; color: var(--muted); border: 0; background: none; border-radius: 8px; }
+  .si b { color: var(--ink); font-weight: 600; }
+  button.si { cursor: pointer; } button.si:hover { background: var(--soft); }
+  .sep { width: 1px; height: 20px; background: var(--rule); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #a9b0b3; flex: none; }
+  .dot.go { background: var(--go); box-shadow: 0 0 0 3px #2e8a5722; } .dot.warn { background: var(--warn); } .dot.bad { background: var(--stop); }
+  .batt { width: 22px; height: 11px; border: 1.5px solid #8a9397; border-radius: 2px; position: relative; }
+  .batt::after { content: ""; position: absolute; right: -4px; top: 2.5px; width: 2px; height: 4px; background: #8a9397; border-radius: 0 1px 1px 0; }
+  .batt i { position: absolute; left: 1px; top: 1px; bottom: 1px; width: 0; border-radius: 1px; background: var(--go); }
+  .grow { flex: 1; }
+  .iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--rule); background: rgba(255,255,255,.85); border-radius: 8px; color: var(--muted); cursor: pointer; padding: 0; }
+  .iconbtn:hover { color: var(--ink); background: #fff; }
+  .iconbtn svg { width: 16px; height: 16px; }
+  /* emergency stop: quiet outline while nothing can move, solid red once motors are on */
+  .stop { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--stop); background: #fff; color: var(--stop); font: inherit; font-weight: 650; font-size: 13.5px;
+    padding: 6px 8px 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+  .stop .sq { width: 10px; height: 10px; border-radius: 2px; background: currentColor; flex: none; }
+  .stop kbd { font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 4px; border: 1px solid currentColor; opacity: .7; }
+  .stop:hover { background: #fdecec; }
+  .stop.live { background: var(--stop); color: #fff; box-shadow: 0 2px 0 #8f1820; }
+  .stop.live:hover { background: #c8222c; }
+  .stop:active { transform: translateY(1px); }
+  @media (max-width: 1100px) { .opt { display: none; } }
+  @media (max-width: 960px) { .hide-m, .hide-m + .sep { display: none; } }
+  .statusbar { overflow: hidden; } .stop { flex: none; }
+  @media (max-width: 760px) { .hide-s, .sep.hide-s { display: none; } }
+
+  /* ---------- shell ---------- */
+  .shell { display: grid; grid-template-columns: 188px 1fr; align-items: start; }
+  nav { background: var(--face); border-right: 1px solid var(--rule); padding: 12px 8px; display: flex; flex-direction: column; gap: 2px;
+    position: sticky; top: 51px; height: calc(100vh - 51px); overflow-y: auto; scrollbar-width: none; z-index: 20; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: var(--muted); text-decoration: none; font-weight: 550; }
+  nav a:hover { background: var(--soft); color: var(--ink); }
+  nav a[aria-current=page] { background: var(--panel); color: #fff; }
+  nav svg { width: 18px; height: 18px; flex: none; }
+  nav .badge { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; }
+  nav .badge.warn { background: var(--warn); } nav .badge.bad { background: var(--stop); }
+  nav .foot { margin-top: auto; padding: 10px 12px; font-size: 12px; color: var(--muted); }
+  .navtoggle { margin-top: 6px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 0; background: none; border-radius: 9px; color: var(--muted); cursor: pointer; font-weight: 550; }
+  .navtoggle:hover { background: var(--soft); color: var(--ink); }
+  .navtoggle svg { width: 18px; height: 18px; transition: transform .2s; }
+  .shell { transition: grid-template-columns .2s; }
+  .shell.collapsed { grid-template-columns: 58px 1fr; }
+  .shell.collapsed nav a span:not(.badge), .shell.collapsed .navtoggle span, .shell.collapsed nav .foot { display: none; }
+  .shell.collapsed nav a { justify-content: center; padding: 10px 0; position: relative; }
+  .shell.collapsed nav .badge { position: absolute; top: 6px; right: 8px; }
+  .shell.collapsed .navtoggle { justify-content: center; padding: 8px 0; }
+  .shell.collapsed .navtoggle svg { transform: rotate(180deg); }
+  @media (max-width: 860px) {
+    .shell.collapsed { grid-template-columns: minmax(0, 1fr); }
+    .navtoggle { display: none; }
+    .shell.collapsed nav a[aria-current=page] span:not(.badge) { display: inline; }
+    .shell.collapsed nav a { padding: 7px 12px; }
+    .shell.collapsed nav .badge { position: static; }
+  }
+  main { overflow-x: clip; padding: 16px; min-width: 0; }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+    nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--rule); padding: 6px 8px; overflow-x: auto; gap: 4px;
+      height: auto; top: 51px; justify-content: space-between; }
+    nav a { flex: none; padding: 8px 10px; }
+    nav a span:not(.badge) { display: none; }
+    nav a[aria-current=page] span:not(.badge) { display: inline; }
+    nav .foot { display: none; }
+  }
+  .page { display: none; } .page.on { display: block; }
+
+  /* ---------- shared ---------- */
+  .card { background: var(--face); border-radius: var(--r-l); padding: 16px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .btn { padding: 7px 13px; border-radius: var(--r-s); border: 1px solid var(--rule); background: var(--face); cursor: pointer; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: #b4bbbe; }
+  .btn.dark { background: var(--panel); border-color: var(--panel); color: #fff; }
+  .btn.go { background: var(--go); border-color: var(--go); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.busy { position: relative; color: transparent !important; }
+  .btn.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #ffffff88; border-top-color: #fff; animation: spin .8s linear infinite; }
+  .btn:not(.dark):not(.go).busy::after { border-color: #0002; border-top-color: var(--ink); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .link { background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; color: var(--ink); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  input[type=text], input[type=password] { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r-s); background: #fbfcfc; }
+  .note { font-size: 13px; min-height: 1.2em; margin-top: 8px; }
+  .note.ok { color: var(--go); } .note.bad { color: var(--stop); }
+  .toggle { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
+  .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .track { width: 34px; height: 19px; border-radius: 999px; background: #c9cfd1; position: relative; flex: none; transition: background .15s; }
+  .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .toggle input:checked + .track { background: var(--go); } .toggle input:checked + .track::after { left: 17px; }
+  .toggle input:focus-visible + .track { outline: 2px solid var(--panel); outline-offset: 2px; }
+  .toggle.arm input:checked + .track { background: var(--stop); }
+  .tabs { display: inline-flex; background: #edf0f0; border-radius: 999px; padding: 3px; }
+  .tabs button { border: 0; background: none; padding: 5px 13px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+  .tabs button[aria-selected=true] { background: var(--face); color: var(--ink); box-shadow: 0 1px 2px #0000001f; }
+  .live { display: inline-flex; align-items: center; gap: 6px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--go); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  pre { margin: 0; padding: 10px; background: var(--soft); border-radius: var(--r-s); font: 12px/1.45 var(--mono); max-height: 260px; overflow: auto; white-space: pre-wrap; }
+
+  .next { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-l); background: var(--face); border-left: 4px solid var(--panel); }
+  .next .btn { padding: 6px 12px; font-size: 13.5px; }
+  .next.go { border-left-color: var(--go); } .next.warn { border-left-color: var(--warn); background: #fffaf3; } .next.bad { border-left-color: var(--stop); background: #fff7f7; }
+  .next .icon { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); font-weight: 700; font-size: 13px; }
+  .next.go .icon { background: var(--go-soft); color: var(--go); } .next.warn .icon { background: var(--warn-soft); color: var(--warn); } .next.bad .icon { background: var(--stop-soft); color: var(--stop); }
+  .next .title { font-weight: 650; } .next .body { color: var(--muted); font-size: 13px; }
+
+  /* ---------- robot page ---------- */
+  /* Robot page: what to do next on top, then controller -> brick -> devices, left to right */
+  .robot { display: grid; gap: 16px; align-items: start;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-areas: "bar bar bar" "ctrl brick dev"; }
+  .robot > .drivebar { grid-area: bar; } .robot > .ctrlcard { grid-area: ctrl; } .robot > .stagecard { grid-area: brick; } .robot > .devcard { grid-area: dev; }
+  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "bar bar" "ctrl brick" "dev brick"; } }
+  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "ctrl" "brick" "dev"; gap: 12px; } }
+  .drivebar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: stretch; }
+  @media (max-width: 860px) { .drivebar { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+  .drivebar .next { height: 100%; box-sizing: border-box; }
+  .drivecard { display: grid; gap: 6px; align-content: center; padding: 10px 14px; }
+  .drivecard .card-head { margin: 0; gap: 16px; }
+  .drivecard .empty, .drivecard #padStatus { margin: 0; font-size: 12.5px; }
+  .ctrlcard { display: grid; gap: 10px; }
+  .ctrlcard .card-head { margin: 0; }
+  .ctrlcard .card-head select { font-size: 12.5px; }
+  .stagecard { padding: 0; overflow: hidden; position: relative; background: radial-gradient(ellipse at 65% 55%, #ffffff 0%, #f2f4f4 55%, #e8ebeb 100%); }
+  .stagecard .scene { background: none; padding-top: 44px; box-sizing: border-box; }
+  .stagebar { position: absolute; left: 14px; right: 14px; top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 2; }
+  .scene { height: clamp(420px, calc(var(--sw, 900px) * 1.08), 760px); perspective: 1700px; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 55%, #ffffff 0%, #f2f4f4 55%, #e8ebeb 100%); }
+  .scene:active { cursor: grabbing; }
+
+  .ds { width: 100%; display: block; transform: rotateX(22deg); transform-origin: 50% 60%; overflow: visible; }
+  .ds .body { fill: url(#dsBody); stroke: #15181a; stroke-width: 1.5; }
+  .ds .depth { fill: #0d0f10; }
+  .ds .part { fill: #2a2f33; stroke: #0f1213; stroke-width: 1; transition: fill .08s; }
+  .ds .part.on { fill: #7d8a92; }
+  .ds .face circle:first-child { fill: #1d2124; stroke: #0f1213; stroke-width: 1; transition: fill .08s; }
+  .ds .face.on circle:first-child { fill: #4a545b; }
+  .ds .sym { fill: none; stroke-width: 2; }
+  .ds .face.on .sym { filter: drop-shadow(0 0 3px currentColor); stroke-width: 2.6; }
+  .ds .trig { fill: #22272a; stroke: #0f1213; }
+  .ds .trigfill { fill: #e0402c; }
+  .ds .pad { fill: #262b2f; stroke: #0f1213; }
+  .ds .light { transition: fill .3s; }
+  .ds .well { fill: #121517; }
+  .ds .stickcap { fill: #33393d; stroke: #0b0d0e; stroke-width: 1.5; }
+  .ds .co { font: 600 11px var(--ui); fill: #7d868a; }
+  .ds .act .co { fill: var(--go); }
+  .ds .lead { stroke: #c6ccce; stroke-width: 1; fill: none; stroke-dasharray: 2 2; }
+  .ds .act .lead { stroke: var(--go); stroke-dasharray: none; }
+  .ds .cobox { fill: #fff; stroke: #d5dadb; }
+  .ds .act .cobox { fill: var(--go-soft); stroke: var(--go); }
+  /* 3D DualShock: the outline extruded into layers, with parts that move */
+  .ds3 { position: relative; height: calc(300px * var(--dss, 1)); perspective: 1200px; cursor: grab; touch-action: none; user-select: none; }
+  .ds3:active { cursor: grabbing; }
+  .dsm { position: absolute; left: 50%; top: 50%; width: 440px; height: 280px; margin: -140px 0 0 -220px; transform-style: preserve-3d;
+    transform: scale(var(--dss, 1)) rotateX(var(--drx, 42deg)) rotateY(var(--dry, 0deg)) rotateZ(var(--drz, 0deg)); }
+  .dsl.face { background: radial-gradient(ellipse at 50% 30%, #41484d, #2a2f33 55%, #1c1f22); }
+  .dsl.bottom { background: #0b0c0d; }
+  .dsp.dstouch.on { transform: translateZ(0.5px); background: #353c41; }
+  .dsp.light { left: 158px; top: 41px; width: 124px; height: 6px; border-radius: 3px; background: #5b6266; transform: translateZ(1.5px); transition: background .3s, box-shadow .3s; }
+  .dsp.small { width: 10px; height: 20px; border-radius: 5px; background: #2c3236; box-shadow: 0 2px 0 #0b0c0d; transform: translateZ(3px); transition: transform .06s; }
+  .dsp.small.on { transform: translateZ(1px); background: #7d8a92; }
+  .dsp.ps { left: 211px; top: 163px; width: 18px; height: 18px; border-radius: 50%; background: #2c3236; box-shadow: 0 2px 0 #0b0c0d; transform: translateZ(3px); }
+  .dsp.ps.on { transform: translateZ(1px); background: #7d8a92; }
+  .dpad { left: 54px; top: 78px; width: 68px; height: 68px; }
+  .dpad .arm { position: absolute; width: 20px; height: 26px; background: linear-gradient(180deg, #3a4146, #262b2f); box-shadow: 0 3px 0 #0b0c0d; transform: translateZ(5px); transition: transform .06s; }
+  .dpad .arm.on { transform: translateZ(1.5px); background: #7d8a92; }
+  .dpad .u { left: 24px; top: 0; clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%); }
+  .dpad .d { left: 24px; bottom: 0; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); }
+  .dpad .l { width: 26px; height: 20px; left: 0; top: 24px; clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%); }
+  .dpad .r { width: 26px; height: 20px; right: 0; top: 24px; clip-path: polygon(30% 0, 100% 0, 100% 100%, 30% 100%, 0 50%); }
+  .face { left: 316px; top: 76px; width: 72px; height: 72px; }
+  .face .fb { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #2e3438, #15181a); box-shadow: 0 3px 0 #08090a; transform: translateZ(6px); display: grid; place-items: center; transition: transform .06s, box-shadow .06s; }
+  .face .fb.on { transform: translateZ(2px); box-shadow: 0 1px 0 #08090a, 0 0 12px var(--c); background: radial-gradient(circle at 40% 35%, #3f474c, #23282b); }
+  .face .fb svg { width: 14px; height: 14px; overflow: visible; }
+  .face .tri { left: 24px; top: 0; --c: #4ad1a0; } .face .cir { right: 0; top: 24px; --c: #ff6b6b; }
+  .face .crs { left: 24px; bottom: 0; --c: #7fb2ff; } .face .sqr { left: 0; top: 24px; --c: #ff8ad8; }
+  .dsstick .top { left: -21px; top: -21px; width: 42px; height: 42px; background: radial-gradient(circle, #2a2f33 45%, #3a4146 47%, #2b3034 62%, #1c1f22); box-shadow: inset 0 0 0 2px #101213; }
+  .dsstick.on .top { background: radial-gradient(circle, #3a4249 45%, #56606a 47%, #3b434a 62%, #262b2f); }
+  .bumper.on { background: #7d8a92; }
+  .ds3gl { position: relative; aspect-ratio: 16 / 9; max-height: 360px; width: 100%; }
+  .ds3gl canvas { border-radius: 10px; }
+  .ds3msg { position: absolute; inset: 0; display: grid; place-items: center; }
+  #dsColor { padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; font-size: 12px; }
+  .dslegend { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .dslegend span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--rule); color: var(--muted); transition: background .1s, color .1s, border-color .1s; }
+  .dslegend span.act { background: var(--go-soft); border-color: var(--go); color: var(--go); }
+  .gets { display: grid; gap: 6px; background: var(--soft); border-radius: 10px; padding: 10px 12px; }
+  .gets h3 { margin: 0 0 2px; }
+  .get { display: grid; grid-template-columns: 92px 1fr 40px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+  .get b { color: var(--ink); font-weight: 650; }
+  .get .bar { position: relative; height: 8px; border-radius: 4px; background: #dfe4e4; }
+  .get .bar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: #aeb5b8; }
+  .get .bar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--go); }
+  .get .val { text-align: right; color: var(--ink); }
+  .get.idle { opacity: .5; }
+  .gets .why { font-size: 12px; color: var(--muted); }
+  .sock.active .hole { box-shadow: 0 0 0 3px #47e08a, 0 0 14px #47e08a; }
+  .stagefoot { position: absolute; left: 14px; right: 14px; bottom: 10px; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  /* small screens */
+  @media (max-width: 760px) {
+    main { padding: 10px; }
+    .card { padding: 12px; }
+    .statusbar { padding: 6px 8px; gap: 0; min-height: 44px; }
+    nav { top: 44px; }
+    .brand { font-size: 14px; margin-right: 6px; }
+    .stop { padding: 6px 10px; } .stop kbd, .stop .long { display: none; }
+
+    .robot .side, .stack { gap: 12px; }
+    .pagehead { flex-wrap: wrap; } .pagehead h1 { font-size: 16px; }
+    .kv { grid-template-columns: 92px 1fr; }
+    .strip { grid-template-columns: 1fr 1fr; }
+    .stat .v { font-size: 18px; } .stat.bat .v { font-size: 24px; }
+    .field { grid-template-columns: 84px 1fr; }
+    .preset { min-width: 0; flex: 1 1 140px; }
+    .gearstage svg { height: 240px; } .gearstage.small svg { height: 150px; }
+    .next .body { font-size: 12.5px; }
+  }
+  @media (max-width: 480px) {
+    #sbArm, #sbRate { display: none; }
+    .brand { font-size: 13.5px; }
+    nav a { padding: 8px 7px; } nav { gap: 2px; padding: 6px 4px; }
+  }
+  @media (max-width: 420px) {
+    nav a span:not(.badge) { display: none !important; } /* icons only; the current page is highlighted */
+    nav a, .shell.collapsed nav a { padding: 8px 9px; }
+    .next { grid-template-columns: auto 1fr; } .next .btn { grid-column: 2; justify-self: start; }
+    .strip { grid-template-columns: 1fr; }
+
+    .sticks { grid-template-columns: 1fr; }
+    .get { grid-template-columns: 78px 1fr 36px; }
+    .outline { grid-template-columns: 1fr 48px; } .outline > span:first-child { display: none; }
+    .tbtns button { padding: 4px 7px; }
+  }
+
+  /* the brick: front = the screen side, top end = motor ports, bottom end = sensor ports */
+  .brick { --W: 212px; --H: 296px; --D: 100px; width: var(--W); height: var(--H); position: relative; transform-style: preserve-3d;
+    transform: rotateX(var(--rx, 24deg)) rotateY(var(--ry, -26deg)); }
+  .brick.intro { animation: arrive 1.2s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes arrive { from { transform: rotateX(40deg) rotateY(-80deg) scale(.9); opacity: 0; } }
+  .f { position: absolute; transform-style: preserve-3d; }
+  .f.front { inset: 0; transform: translateZ(calc(var(--D) / 2)); border-radius: 16px; background: var(--ev3-grey); padding: 7px; }
+  .f.back { inset: 0; transform: rotateY(180deg) translateZ(calc(var(--D) / 2)); border-radius: 16px; background: var(--ev3-grey-2);
+    background-image: repeating-linear-gradient(90deg, transparent 0 34px, #00000026 34px 40px, transparent 40px 60px); }
+  .f.left, .f.right { width: var(--D); height: calc(var(--H) - 14px); top: 7px; left: calc((var(--W) - var(--D)) / 2); background: var(--ev3-grey-2); border-radius: 10px; }
+  .f.left { transform: rotateY(-90deg) translateZ(calc(var(--W) / 2 - 1px)); }
+  .f.right { transform: rotateY(90deg) translateZ(calc(var(--W) / 2 - 1px)); }
+  .f.top, .f.bottom { width: calc(var(--W) - 14px); height: var(--D); left: 7px; top: calc((var(--H) - var(--D)) / 2); background: var(--ev3-grey); border-radius: 10px; }
+  .f.top { transform: rotateX(90deg) translateZ(calc(var(--H) / 2 - 1px)); }
+  .f.bottom { transform: rotateX(-90deg) translateZ(calc(var(--H) / 2 - 1px)); }
+
+  /* front face */
+  .body-white { position: absolute; inset: 7px; border-radius: 11px; background: linear-gradient(180deg, #ffffff, var(--ev3-white) 70%, #eceeee); }
+  .bezel { position: absolute; left: 7px; right: 7px; top: 7px; height: 41%; border-radius: 11px 11px 6px 6px; background: linear-gradient(180deg, #c5c9ca, var(--ev3-grey)); box-shadow: 0 2px 0 #9fa4a5; }
+  .screen { position: absolute; left: 13%; right: 13%; top: 11%; bottom: 12%; background: var(--ev3-dark); border-radius: 7px; padding: 7px; box-shadow: inset 0 0 0 2px #000; }
+  .lcd { height: 100%; background: var(--lcd); color: var(--lcd-ink); border-radius: 2px; padding: 4px 6px; font-family: var(--mono); font-size: 8.5px; line-height: 1.25; background-image: radial-gradient(#00000012 1px, transparent 1px); background-size: 3px 3px; display: flex; flex-direction: column; }
+  .lcd-top, .lcd-foot { display: flex; justify-content: space-between; }
+  .lcd-top { border-bottom: 1px solid var(--lcd-ink); padding-bottom: 2px; } .lcd-foot { border-top: 1px solid var(--lcd-ink); padding-top: 2px; margin-top: auto; }
+  .meters { display: grid; gap: 3px; padding: 4px 0; }
+  .meter { display: grid; grid-template-columns: 9px 1fr 22px; gap: 4px; align-items: center; }
+  .meter b { font-size: 9px; } .meter .num { text-align: right; font-weight: 700; }
+  .cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; height: 6px; }
+  .cells i { background: #9fae97; opacity: .35; } .cells i.on { background: var(--lcd-ink); opacity: 1; } .cells i.mid { box-shadow: -1px 0 0 var(--lcd-ink); }
+  .trace { position: absolute; left: 50%; top: 41%; height: 9%; width: 2px; margin-left: -1px; background: #2b3033; }
+  .backkey { position: absolute; left: 8%; top: 44.5%; width: 17%; height: 6%; background: linear-gradient(180deg, #bfc3c4, var(--ev3-grey-2)); clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); border-radius: 2px; }
+  .cluster { position: absolute; left: 50%; top: 50%; width: 64%; height: 27%; transform: translateX(-50%); }
+  .cluster .glow { position: absolute; inset: -4px; clip-path: var(--shape); background: #8e9496; transition: background .3s; }
+  .cluster .glow.green { background: #47e08a; filter: drop-shadow(0 0 6px #47e08a); } .cluster .glow.orange { background: #f5a83d; } .cluster .glow.red { background: #ff5b5b; }
+  .cluster .keys { position: absolute; inset: 0; clip-path: var(--shape); background: var(--ev3-key); }
+  .cluster { --shape: polygon(30% 0, 70% 0, 78% 28%, 100% 32%, 100% 68%, 78% 72%, 70% 100%, 30% 100%, 22% 72%, 0 68%, 0 32%, 22% 28%); }
+  .cluster .k { position: absolute; background: linear-gradient(180deg, #d3d7d8, #b9bdbe); box-shadow: inset 0 0 0 1px #9aa0a1; }
+  .cluster .k.up { left: 30%; right: 30%; top: 3%; height: 26%; clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%); }
+  .cluster .k.down { left: 30%; right: 30%; bottom: 3%; height: 26%; clip-path: polygon(0 0, 100% 0, 92% 100%, 8% 100%); }
+  .cluster .k.left { left: 2%; width: 26%; top: 34%; bottom: 34%; border-radius: 999px 6px 6px 999px; }
+  .cluster .k.right { right: 2%; width: 26%; top: 34%; bottom: 34%; border-radius: 6px 999px 999px 6px; }
+  .cluster .k.mid { left: 38%; right: 38%; top: 34%; bottom: 34%; background: linear-gradient(180deg, #5a6064, #3d4245); border-radius: 4px; }
+  .band { position: absolute; left: 7px; right: 7px; bottom: 7px; height: 16%; border-radius: 6px 6px 11px 11px; background: linear-gradient(180deg, #c2c6c7, var(--ev3-grey)); }
+  .band .ev3 { position: absolute; left: 10%; top: 50%; transform: translateY(-50%) skewX(-8deg); color: #f4f5f5; font: 800 25px/1 var(--ui); letter-spacing: 3px; text-shadow: 0 -1px 0 #8f9596; }
+  .lego { position: absolute; right: 9%; top: 50%; width: 26px; height: 26px; margin-top: -13px; background: #d11f1f; border-radius: 3px; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px #ffe34d; }
+  .lego::after { content: "LEGO"; color: #fff; font: 900 7.5px/1 var(--ui); transform: rotate(-12deg); text-shadow: 0 0 1px #000; }
+
+  /* ends: ports */
+  .end { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .end .plate { position: absolute; left: 6%; right: 6%; height: 64%; background: var(--ev3-white); border-radius: 6px; }
+  .f.top .plate { bottom: 8%; } .f.bottom .plate { top: 8%; }
+  .sockrow { position: absolute; left: 8%; right: 8%; display: flex; justify-content: space-between; align-items: center; transform-style: preserve-3d; }
+  .f.top .sockrow { bottom: 18%; height: 44%; } .f.bottom .sockrow { top: 18%; height: 44%; }
+  .sock { width: 36px; height: 100%; position: relative; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .f.top .sock { flex-direction: column-reverse; }
+  .sock .hole { width: 34px; flex: 1; border-radius: 4px; background: #34393c; box-shadow: inset 0 3px 4px #000c; position: relative; }
+  .sock .hole::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 3px; height: 4px; background: repeating-linear-gradient(90deg, #c9a66b 0 2px, transparent 2px 4px); opacity: .8; }
+  .sock .lbl { font: 700 10px/1 var(--ui); color: #f4f5f5; background: var(--ev3-grey-2); border: 1px solid #e3e6e6; border-radius: 3px; padding: 2px 9px; }
+  .sock.on .hole { background: #121517; box-shadow: inset 0 0 0 2px #3c8f63, inset 0 3px 4px #000c; }
+  .pcport { width: 20px; height: 9px; background: #23272a; border-radius: 2px; margin-left: 4px; align-self: center; }
+
+  /* sides */
+  .side-plate { position: absolute; left: 10%; right: 10%; top: 14%; bottom: 14%; background: var(--ev3-white); border-radius: 8px; }
+  .holes { position: absolute; display: grid; grid-template-columns: repeat(3, 11px); gap: 5px; }
+  .holes i { width: 11px; height: 11px; border-radius: 50%; background: #d2d6d6; box-shadow: inset 0 1px 2px #0005; }
+  .usb { position: absolute; left: 50%; top: 42%; width: 30px; height: 13px; margin-left: -15px; background: #202427; border-radius: 2px; transform-style: preserve-3d; }
+  .sd { position: absolute; left: 50%; top: 60%; width: 30px; height: 4px; margin-left: -15px; background: #202427; border-radius: 2px; }
+  .sidelbl { position: absolute; left: 0; right: 0; text-align: center; font: 700 8px/1 var(--ui); color: #a8adae; }
+  .dongle { position: absolute; left: -4px; top: -6px; width: 38px; height: 25px; border-radius: 4px; background: linear-gradient(90deg, #15181a, #2d3337); transform: translateZ(48px); box-shadow: 0 0 0 1px #000; }
+  .dongle::after { content: ""; position: absolute; right: 6px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: #3d8bff; box-shadow: 0 0 9px #3d8bff; }
+  .grille { position: absolute; left: 50%; top: 50%; width: 46px; height: 30px; margin: -15px 0 0 -23px; background: repeating-linear-gradient(180deg, #5b6164 0 2px, transparent 2px 5px); border-radius: 50%; }
+
+  /* things plugged into ports: drawn in a plane facing the viewer, out past the end of the brick */
+  .mount { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; pointer-events: none; }
+  /* Turn the plane to face the viewer (parallel to the screen side), front side out. */
+  .f.top .mount { transform: rotateX(90deg) rotateY(180deg) rotateZ(180deg); }
+  .f.bottom .mount { transform: rotateX(-90deg) rotateY(180deg) rotateZ(180deg); }
+  .cable { position: absolute; left: -4px; width: 8px; border-radius: 4px; background: linear-gradient(90deg, #1b1e20, #3b4246 55%, #1b1e20); }
+  .f.top .cable { bottom: 0; height: var(--len); }
+  .f.bottom .cable { top: 0; height: var(--len); }
+  .device { position: absolute; left: 0; transform-style: preserve-3d; }
+  .f.top .device { bottom: var(--len); } .f.bottom .device { top: var(--len); }
+  .sock { --len: 56px; --tl: 22px; } /* set per port by layoutRow() so neighbours don't overlap */
+  .ptag { position: absolute; left: 0; transform: translateX(-50%); width: max-content; max-width: 120px; text-align: center; padding: 4px 6px; border-radius: 8px; background: #ffffffee; border: 1px dashed #b7bec1; font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+  .ptag b { display: block; font-size: 11px; color: var(--ink); }
+  .ptag.warn { border: 1px solid var(--warn); background: #fff7ec; } .ptag.warn b { color: var(--warn); }
+  .f.top .ptag { bottom: var(--tl, 22px); } .f.bottom .ptag { top: var(--tl, 22px); }
+  .ptag::after { content: ""; position: absolute; left: 50%; width: 0; border-left: 1px dashed #b7bec1; height: var(--tl, 22px); }
+  .f.top .ptag::after { top: 100%; } .f.bottom .ptag::after { bottom: 100%; }
+  .dlabel { position: absolute; left: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--panel); color: #fff; box-shadow: 0 3px 8px #0002; }
+  .dlabel em { font-style: normal; color: #ffb3ad; margin-left: 4px; }
+  .dlabel small { color: #c5ccd0; margin-left: 4px; font-size: 10.5px; }
+
+  /* large motor: white housing, grey body and arm, red hub at the end */
+  .lm { position: absolute; left: -46px; width: 92px; height: 112px; transform: scale(.82); }
+  .f.top .lm { bottom: 0; transform-origin: bottom; } .f.bottom .lm { top: 0; transform-origin: top; }
+  .lm .housing { position: absolute; left: 14px; right: 14px; top: 0; height: 52px; border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, #ffffff, #e8ebeb); box-shadow: inset 0 0 0 1.5px #c4c9ca; }
+  .lm .housing::after { content: ""; position: absolute; right: 9px; top: 12px; width: 18px; height: 26px; background: repeating-linear-gradient(180deg, #b5babb 0 2px, transparent 2px 5px); }
+  .lm .body { position: absolute; left: 6px; right: 6px; top: 44px; height: 30px; border-radius: 6px; background: linear-gradient(180deg, #b0b5b6, #969c9e); }
+  .lm .arm { position: absolute; left: 22px; right: 22px; top: 68px; height: 30px; border-radius: 0 0 6px 6px; background: linear-gradient(180deg, #a8adae, #8f9597); }
+  .hub { position: absolute; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #e04a37, var(--hub) 60%, #92200f); box-shadow: 0 0 0 3px #7d8385, 0 3px 6px #0004; transition: transform .25s linear; }
+  .hub::before, .hub::after { content: ""; position: absolute; left: 50%; top: 50%; background: #6f150a; border-radius: 1px; }
+  .hub::before { width: 46%; height: 12%; transform: translate(-50%, -50%); } .hub::after { width: 12%; height: 46%; transform: translate(-50%, -50%); }
+  .hub i { position: absolute; width: 16%; height: 16%; border-radius: 50%; background: #6f150a; }
+  .hub i:nth-child(1) { left: 42%; top: 10%; } .hub i:nth-child(2) { left: 42%; bottom: 10%; } .hub i:nth-child(3) { top: 42%; left: 10%; } .hub i:nth-child(4) { top: 42%; right: 10%; }
+  .lm .hub { left: 25px; top: 66px; width: 42px; height: 42px; }
+  /* medium motor: white/grey box, red hub on its face */
+  .mm { position: absolute; left: -34px; width: 68px; height: 60px; border-radius: 8px; background: linear-gradient(90deg, #ffffff 0 44%, #b7bcbd 44%); box-shadow: inset 0 0 0 1.5px #c4c9ca; }
+  .f.top .mm { bottom: 0; } .f.bottom .mm { top: 0; }
+  .mm::before { content: ""; position: absolute; left: 8px; top: 12px; width: 16px; height: 32px; background: repeating-linear-gradient(180deg, #c6cacb 0 2px, transparent 2px 5px); }
+  .mm .hub { right: 9px; top: 15px; width: 28px; height: 28px; }
+  .stalled .hub { box-shadow: 0 0 0 3px var(--stop), 0 0 12px var(--stop); }
+  /* sensors */
+  .sn { position: absolute; left: -26px; width: 52px; height: 56px; border-radius: 8px; background: linear-gradient(180deg, #ffffff 0 36%, #a9aeaf 36%); box-shadow: inset 0 0 0 1.5px #c4c9ca; }
+  .f.top .sn { bottom: 0; } .f.bottom .sn { top: 0; }
+  .sn i { position: absolute; left: 50%; top: 62%; transform: translate(-50%, -50%); }
+  .sn.touch i { width: 20px; height: 20px; background: var(--hub); clip-path: polygon(35% 0, 65% 0, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0 65%, 0 35%, 35% 35%); }
+  .sn.color i { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, #6ab0ff 0 25%, #1b1f22 30%); box-shadow: 0 0 0 3px #3b4246; }
+  .sn.eyes { width: 64px; left: -32px; background: linear-gradient(180deg, #ffffff 0 30%, #23272a 30%); }
+  .sn.eyes i { width: 46px; height: 18px; background: radial-gradient(circle at 25% 50%, #e0402c 0 5px, #111 6px 9px, transparent 9px), radial-gradient(circle at 75% 50%, #e0402c 0 5px, #111 6px 9px, transparent 9px); }
+  .sn.gyro i { width: 24px; height: 14px; border: 3px solid var(--hub); border-top-color: transparent; border-radius: 50%; }
+  .sn.generic i { width: 16px; height: 16px; border-radius: 4px; background: #5f686e; }
+
+  .mctl { position: absolute; left: 50%; transform: translateX(-50%) translateZ(6px); display: flex; gap: 3px; pointer-events: auto; white-space: nowrap; }
+  .f.top .mctl { top: calc(100% + 6px); } .f.bottom .mctl { bottom: calc(100% + 6px); }
+  .mctl button { border: 0; background: var(--panel); color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; touch-action: none; user-select: none; box-shadow: 0 2px 6px #0004; }
+  .mctl button:hover { background: #1f2427; }
+  .mctl button.pressed { background: var(--go); }
+
+  /* ports and motors list */
+  .plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .plist li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: var(--r-s); }
+  .plist li:hover { background: var(--soft); }
+  .pbadge { width: 28px; height: 22px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 12px; background: #e3e7e7; color: #59636a; }
+  .plist li.on .pbadge { background: var(--panel); color: #fff; } .plist li.busy .pbadge { background: #8c969a; color: #fff; }
+  .plist .d { font-size: 13.5px; line-height: 1.25; } .plist .r { font-size: 12px; color: var(--muted); }
+  .plist li.warn .r { color: var(--warn); }
+  .plist .v { font-size: 12.5px; text-align: right; color: var(--muted); white-space: nowrap; } .plist .v b { color: var(--ink); }
+  .sock.hl .hole { box-shadow: 0 0 0 3px #f0b429; }
+
+  /* controls page */
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .preset { border: 1px solid var(--rule); background: var(--face); border-radius: 10px; padding: 8px 12px; cursor: pointer; text-align: left; min-width: 170px; }
+  .preset b { display: block; font-size: 13.5px; } .preset span { font-size: 12px; color: var(--muted); }
+  .preset[aria-pressed=true] { border-color: var(--panel); box-shadow: inset 0 0 0 1px var(--panel); }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; align-items: start; }
+  .offrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .offrow:empty { display: none; }
+  .offrow .pcard { flex: 1 1 220px; grid-template-columns: auto 1fr; align-items: center; padding: 10px 12px; }
+  .offrow .pcard .top { gap: 8px; } .offrow .pcard .dev { margin: 0; }
+  .pcard { background: var(--face); border-radius: var(--r-l); padding: 14px; display: grid; gap: 10px; align-content: start; }
+  .pcard.off { opacity: .75; }
+  .pcard .top { display: flex; align-items: center; gap: 10px; }
+  .pcard .top .pbadge { background: var(--panel); color: #fff; }
+  .pcard .dev { font-size: 12.5px; color: var(--muted); } .pcard .dev b { color: var(--ink); font-weight: 600; }
+  .pcard .dev.warn { color: var(--warn); }
+  .field { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: center; font-size: 13px; }
+  .field > span:first-child { color: var(--muted); }
+  .field select, .field input[type=number] { padding: 5px 7px; border: 1px solid var(--rule); border-radius: 6px; background: #fbfcfc; font: inherit; min-width: 0; }
+  .field input[type=range] { width: 100%; accent-color: var(--panel); }
+  .field .rv { display: grid; grid-template-columns: 1fr 48px; gap: 8px; align-items: center; }
+  .field .rv output { text-align: right; font-size: 12.5px; }
+  .outbar { position: relative; height: 8px; border-radius: 4px; background: #e3e7e7; }
+  .outbar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: #aeb5b8; }
+  .outbar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--go); }
+  .outline { display: grid; grid-template-columns: 92px 1fr 52px; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+  .outline output { text-align: right; color: var(--ink); }
+  .globals { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 24px; }
+  .savestate { font-size: 12.5px; color: var(--muted); }
+  .help { font-size: 12.5px; color: var(--muted); }
+
+  /* controller page */
+  .trouble { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 10px; font-size: 13px; }
+  .trouble summary { cursor: pointer; font-weight: 600; }
+  .trouble ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); display: grid; gap: 6px; } .trouble b { color: var(--ink); font-weight: 600; }
+  /* controller state: what it's doing and the one thing to do next */
+  .padstate { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px 18px; align-items: center; }
+  @media (max-width: 560px) { .padstate { grid-template-columns: 84px minmax(0, 1fr); } .padstate .ps-act { grid-column: 1 / -1; } }
+  .ps-art { width: 100%; height: auto; display: block; }
+  .ps-art .body { fill: #e9eded; stroke: #b9c1c4; stroke-width: 1.2; } .ps-art .pad { fill: #d7dddf; } .ps-art .stick { fill: #9aa3a7; }
+  .ps-art .dpad rect, .ps-art .face circle { fill: #9aa3a7; } .ps-art .psb { fill: #6d777b; } .ps-art .bar { fill: #c6cdd0; }
+  .ps-art .ring { fill: none; stroke-width: 2; opacity: 0; }
+  .padstate.ready .ps-art .bar { fill: #3d7bff; } .padstate.ready .ps-art .body { stroke: var(--go); }
+  .padstate.asleep .ps-art .psb { fill: var(--warn); } .padstate.asleep .ring-ps { stroke: var(--warn); opacity: 1; animation: psring 1.6s ease-out infinite; transform-origin: 60px 40px; }
+  .padstate.press .ps-art .bar { fill: #3d7bff; } .padstate.press .ps-art .cross { fill: var(--warn); } .padstate.press .ring-x { stroke: var(--warn); opacity: 1; animation: psring 1.6s ease-out infinite; transform-origin: 98px 37px; }
+  @keyframes psring { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.7); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .padstate .ring { animation: none !important; } }
+  .ps-title { font-weight: 650; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .ps-title .dot { flex: none; } .padstate.ready .ps-title .dot { background: var(--go); } .padstate:not(.ready) .ps-title .dot { background: var(--warn); }
+  .ps-body { font-size: 13px; color: var(--muted); margin-top: 2px; } .ps-body b { color: var(--ink); font-weight: 600; }
+  .ps-tips { margin: 6px 0 0; padding-left: 16px; font-size: 12.5px; color: var(--muted); display: grid; gap: 2px; }
+  .ps-act .link { font-size: 13px; color: var(--muted); }
+  #pairCard .padstate:not(.hidden) + #pairHead:not(.hidden) { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  /* this controller: one header line, details below */
+  .chead { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; align-items: center; padding: 4px 0 12px; }
+  .cbatt { display: flex; align-items: center; gap: 10px; }
+  .cbatt .batt { width: 40px; height: 19px; border-width: 2px; border-radius: 4px; }
+  .cbatt .batt::after { right: -6px; top: 5px; width: 3px; height: 6px; }
+  .cbatt .batt i { left: 2px; top: 2px; bottom: 2px; border-radius: 2px; }
+  .cbatt b { font-size: 24px; line-height: 1; font-weight: 700; }
+  .chead .cm { display: grid; gap: 1px; min-width: 0; } .chead .cm b { font-weight: 650; } .chead .cm span { font-size: 12.5px; color: var(--muted); }
+  .batt.low i { background: var(--warn) !important; } .batt.crit i { background: var(--stop) !important; }
+  .batt .bolt { position: absolute; inset: -3px 0 0; text-align: center; font-size: 11px; line-height: 1; color: #fff; text-shadow: 0 0 2px #000; }
+  .gpwait { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--soft); margin-top: 10px; }
+  .gpwait .dot { background: var(--warn); }
+  #gpDetails { margin-top: 10px; font-size: 13px; } #gpDetails summary { cursor: pointer; color: var(--muted); } #gpDetails .kv { margin-top: 6px; }
+  /* status bar: the controller's own battery */
+  .pad-ico { width: 18px; height: 18px; flex: none; color: var(--muted); }
+  #sbPadItem.go .pad-ico { color: var(--go); } #sbPadItem.warn .pad-ico { color: var(--warn); }
+  #sbPadBatt { width: 18px; height: 9px; } #sbPadBatt::after { top: 1.5px; height: 3px; }
+  @media (max-width: 960px) { #sbPadItem #sbPad { display: none; } }
+  @media (max-width: 520px) { #sbArmItem, #sbPadPct { display: none !important; } #sbPadItem { gap: 5px; padding: 4px 6px; } }
+  .pairdone > span:not(.dot) { flex: 1 1 0; min-width: 0; }
+  /* stick calibration and feel */
+  .feel { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px 16px; align-items: center; margin-top: 12px; }
+  .feel .fields { display: grid; gap: 8px; }
+  .feel svg { width: 110px; height: 110px; background: var(--soft); border-radius: 8px; }
+  .feel svg .ax { stroke: var(--rule); stroke-width: .6; } .feel svg .crv { fill: none; stroke: var(--panel); stroke-width: 2; }
+  .feel svg .dzb { fill: #dfe4e5; } .feel svg .dot { fill: var(--go); }
+  .calbox { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--go-soft); font-size: 13.5px; display: grid; gap: 8px; }
+  .calbox .bar { height: 6px; border-radius: 3px; background: rgba(0,0,0,.08); overflow: hidden; } .calbox .bar i { display: block; height: 100%; width: 0; background: var(--go); transition: width .1s linear; }
+  .calrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+  .calrow .help { flex: 1 1 200px; }
+  .nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .nudge .grp { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
+  .nudge .grp button { border: 0; background: var(--face); padding: 5px 9px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .nudge .grp button + button { border-left: 1px solid var(--rule); }
+  .nudge .grp button:hover { background: var(--soft); }
+  /* controller page: pairing until a controller shows up, then one line on top */
+  .cgrid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start;
+    grid-template-areas: "pair info" "pair sticks"; }
+  .cgrid.paired { grid-template-areas: "pair pair" "info sticks"; }
+  #pairCard { grid-area: pair; } #ctrlInfo { grid-area: info; } #sticksCard { grid-area: sticks; }
+  @media (max-width: 1000px) { .cgrid, .cgrid.paired { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pair" "info" "sticks"; } }
+  #ctrlInfo .kv + .kv, #ctrlInfo #hidBody:not(:empty) + .kv { margin-top: 10px; }
+  #ctrlInfo .foot { font-size: 12px; color: var(--muted); margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); }
+  /* brick page */
+  .bgrid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+  @media (max-width: 1000px) { .bgrid { grid-template-columns: minmax(0, 1fr); } }
+  .portcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 4px 24px; }
+  .portcols h3 { margin: 0 0 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .prow { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--rule); }
+  .prow .pbadge { width: 24px; height: 24px; font-size: 12px; }
+  .prow.off .pbadge { background: var(--soft); color: var(--muted); }
+  .prow .t { font-weight: 600; font-size: 13.5px; } .prow .t span { font-weight: 400; color: var(--muted); }
+  .prow.off .t { font-weight: 400; color: var(--muted); }
+  .prow .sl { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+  .prow .now { font-size: 12.5px; color: var(--muted); white-space: nowrap; text-align: right; } .prow .now b { color: var(--ink); }
+  .about .dsec + .dsec { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .about h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+  .battshell.low i { background: var(--warn); } .battshell.crit i { background: var(--stop); }
+  .battshell .bolt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: #fff; text-shadow: 0 0 3px #000; }
+  .sticks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .drift { display: grid; justify-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .drift .pad2 { width: 110px; height: 110px; border-radius: 50%; background: var(--soft); border: 1px solid var(--rule); position: relative; }
+  .drift .pad2 .dz { position: absolute; border-radius: 50%; border: 1px dashed #aeb5b8; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .drift .pad2 .pt { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--panel); left: 50%; top: 50%; }
+
+  /* gearing page */
+  @media (max-width: 1100px) { .ggrid { grid-template-columns: minmax(0, 1fr); } }
+  .gearstage { background: radial-gradient(ellipse at 50% 45%, #fff, #eef1f1 75%); border-radius: 12px; overflow: hidden; min-height: 120px; }
+  /* 3D views keep their shape and shrink with the card */
+  #gearMain { aspect-ratio: 4 / 3; max-height: 380px; }
+  .ex .gearstage { aspect-ratio: 16 / 10; }
+  #partsheet3d { aspect-ratio: 4 / 1; min-height: 110px; }
+  .partlabels { position: relative; height: 34px; margin-top: 4px; }
+  .partlabels { height: 46px; }
+  .partlabels span { position: absolute; transform: translateX(-50%); font-size: 11.5px; font-weight: 650; text-align: center; width: 78px; line-height: 1.2; }
+  .partlabels span small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .gearstage svg { display: block; width: 100%; height: 330px; transform: rotateX(40deg) translateY(-4%); transform-origin: 50% 50%; }
+  .gearstage.small svg { height: 180px; transform: rotateX(38deg); }
+  .gear .body { fill: url(#gLight); stroke: #7d8387; stroke-width: 1; fill-rule: evenodd; }
+  .gear.dark .body { fill: url(#gDark); stroke: #3f4244; }
+  .gear .side { fill: #7b8186; fill-rule: evenodd; } .gear.dark .side { fill: #3a3d3f; }
+  .gear .bevel { fill: none; stroke: #00000030; stroke-width: 3; }
+  .gear .shine { fill: none; stroke: #ffffff60; stroke-width: 1.2; }
+  .gear .axle { fill: #2b3033; } .gear.drive .axle { fill: #c9302c; }
+  .gear .worm-body { fill: url(#gDark); stroke: #3f4244; }
+  .gear .worm-ridge { fill: none; stroke: #2e3133; stroke-width: 3.2; stroke-linecap: round; }
+  .gear .rim { fill: none; stroke: #ffffff70; stroke-width: 1; }
+  .gear .side { fill: #6f7579; }
+  .gear .hole { fill: #2b3033; }
+
+  .gearlbl { font: 600 13px var(--ui); fill: var(--ink); }
+  .gearlbl.sub { font-weight: 400; font-size: 11.5px; fill: var(--muted); }
+  .gform { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; margin: 12px 0; }
+  .gform label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+  .gform select { padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: #fbfcfc; font: inherit; color: var(--ink); }
+  .gnums { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .gnum { background: var(--soft); border-radius: 10px; padding: 10px 12px; }
+  .gnum .k { font-size: 12px; color: var(--muted); } .gnum .v { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .gnum .v small { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+  .gnotes { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .gnotes li + li { margin-top: 3px; }
+  .gnotes .warn { color: var(--warn); }
+  .examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin-top: 16px; }
+  .ex { background: var(--face); border-radius: var(--r-l); overflow: hidden; display: grid; }
+  .ex .exbody { padding: 12px 14px 14px; display: grid; gap: 6px; }
+  .ex h3 { margin: 0; color: var(--ink); font-size: 14px; }
+  .ex .tagline { font-size: 12.5px; color: var(--muted); }
+  .ex .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ex .chip { font-size: 12px; background: var(--soft); border-radius: 999px; padding: 2px 9px; }
+  .ex .chip.fast { background: #e6f0ff; color: #1f5fbf; } .ex .chip.strong { background: #fff1e0; color: #a35b00; }
+  .ex .btn { justify-self: start; }
+
+  /* devices + tests */
+  .devrow { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; padding: 8px 0; align-items: center; }
+  .devrow .live { font-size: 12.5px; color: var(--muted); text-align: right; white-space: nowrap; } .devrow .live b { color: var(--ink); }
+  .devrow + .devrow { border-top: 1px solid var(--rule); }
+  .devrow .pbadge { background: var(--panel); color: #fff; margin-top: 1px; }
+  .devrow .d { font-weight: 600; font-size: 13.5px; } .devrow .d span { font-weight: 400; color: var(--muted); }
+  .devrow .r { font-size: 12.5px; color: var(--muted); } .devrow .r b { color: var(--ink); }
+  .tbtns { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tbtns .grp { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
+  .tbtns button { border: 0; background: var(--face); padding: 4px 9px; font-size: 12.5px; cursor: pointer; user-select: none; touch-action: none; min-width: 34px; }
+  .tbtns .grp button + button { border-left: 1px solid var(--rule); }
+  .tbtns button:hover:not(:disabled) { background: var(--soft); }
+  .tbtns button.hold { font-size: 15px; line-height: 1; padding: 3px 10px; }
+  .tbtns button.pressed { background: var(--panel); border-color: var(--panel); color: #fff; }
+  .tbtns button:disabled { opacity: .45; cursor: default; }
+  .speedseg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
+  .speedseg button { border: 0; background: none; padding: 3px 9px; font-size: 12px; cursor: pointer; color: var(--muted); outline-offset: -2px; }
+  .speedseg button + button { border-left: 1px solid var(--rule); }
+  .speedseg button[aria-pressed=true] { background: var(--panel); color: #fff; }
+  .emptyline { font-size: 12.5px; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--rule); }
+  .emptyline .warn { color: var(--warn); display: block; margin-top: 2px; }
+  .devnote { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .wifi-ico { width: 14px; height: 11px; flex: none; }
+
+  /* drive */
+  .empty { padding: 2px; margin: 0; color: var(--muted); font-size: 13px; }
+  .pad { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .stick { width: 100px; height: 100px; border-radius: 50%; background: var(--soft); border: 1px solid var(--rule); position: relative; }
+  .stick::before { content: ""; position: absolute; inset: 46%; border-radius: 50%; border: 1px dashed #b7bec1; }
+  .stick .knob { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; left: 50%; top: 50%; border-radius: 50%; background: var(--panel); }
+  .triggers { display: grid; gap: 6px; margin-top: 12px; }
+  .trigger .fill { height: 6px; border-radius: 3px; background: #e6eaea; overflow: hidden; }
+  .trigger .fill i { display: block; height: 100%; width: 0; background: var(--panel); }
+  .btns span.on { background: var(--panel); color: #fff; } .btns span.stop-key.on { background: var(--stop); }
+  .keys2 { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; color: var(--muted); }
+  kbd { display: inline-block; min-width: 20px; padding: 0 4px; margin-right: 2px; text-align: center; font: 11.5px/19px var(--ui); color: var(--ink); background: var(--soft); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; }
+
+  /* pages: shared layout */
+  .pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
+  .pagehead h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 960px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  .section + .section { border-top: 1px solid var(--rule); margin-top: 14px; padding-top: 14px; }
+  .section h3 { margin-bottom: 8px; }
+
+  .tri { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+  .dsec h3 { display: flex; align-items: center; gap: 4px; }
+
+  /* controls page: layout + speed on top, then the four motor ports in brick order */
+  .ctltop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  @media (max-width: 1000px) { .ctltop { grid-template-columns: minmax(0, 1fr); } }
+  .ctltop .presets .preset { flex: 1 1 170px; min-width: 0; }
+  .ctltop .globals { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 24px; }
+  .ctltop .card-head { margin-bottom: 8px; }
+  #page-controls .pgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 1250px) { #page-controls .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { #page-controls .pgrid { grid-template-columns: minmax(0, 1fr); } }
+  #page-controls .pcard.off { opacity: 1; background: transparent; border: 1.5px dashed var(--rule); }
+  #page-controls .pcard.off .top .pbadge { background: var(--soft); color: var(--muted); }
+  #page-controls .pcard.off { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; }
+  @media (max-width: 640px) { #fitBtn { flex: 1 1 100%; } }
+  .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .files li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 10px; background: var(--soft); border-radius: 8px; }
+  .files .fn { font-weight: 600; font-size: 13.5px; } .files .fn .muted { font-weight: 450; font-size: 12px; margin-left: 4px; } .files .fd { grid-column: 1; font-size: 12px; color: var(--muted); }
+  .files .pill { grid-row: 1 / span 2; grid-column: 2; }
+
+  /* connection tiles */
+  .conntiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .ctile { background: var(--face); border-radius: var(--r-l); padding: 14px 16px; display: grid; gap: 8px; align-content: start; border: 2px solid transparent; }
+  .ctile.active { border-color: var(--go); }
+  .ctile .ct-head { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+  .ctile .ct-head svg { width: 20px; height: 20px; flex: none; color: var(--muted); }
+  .ctile.active .ct-head svg { color: var(--go); }
+  .ctile .ct-head .pill { margin-left: auto; }
+  .ctile .ct-body { font-size: 13px; color: var(--muted); display: grid; gap: 2px; min-height: 38px; }
+  .ctile .ct-body b { color: var(--ink); font-weight: 600; }
+  .ctile .btn { justify-self: start; }
+
+  /* setup panel: one flow at a time, opened from a tile */
+  #progNote:empty { display: none; }
+  .ct-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+  .ct-acts .link { font-size: 13px; color: var(--muted); }
+  .ct-acts .link:hover { color: var(--ink); }
+  .setup { max-width: 760px; }
+  .setup .card-head .link { margin-left: auto; font-size: 13px; }
+  .pairdone .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--go); }
+  .pairdone .link { font-size: 13px; color: var(--muted); }
+  /* gearing */
+  .rulestrip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 18px; padding: 12px 16px; margin-bottom: 16px; }
+  @media (max-width: 1100px) { .rulestrip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .rulestrip { grid-template-columns: minmax(0, 1fr); } }
+  .rulestrip div { font-size: 12.5px; color: var(--muted); line-height: 1.4; } .rulestrip b { color: var(--ink); display: block; font-size: 13px; }
+  .calc { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .calc { grid-template-columns: minmax(0, 1fr); } }
+  .calc .gform { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 0 14px; }
+  .calc .gform label:first-child { grid-column: 1 / -1; }
+  .sechead { display: flex; align-items: baseline; gap: 10px; margin: 22px 2px 0; } .sechead h2 { font-size: 16px; margin: 0; }
+
+  /* summary strip */
+  .strip { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); background: var(--face); border-radius: var(--r-l); margin-bottom: 16px; overflow: hidden; }
+  .stat { padding: 14px 16px; min-width: 0; }
+  .stat + .stat { border-left: 1px solid var(--rule); }
+  .stat .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .stat .v { font-size: 22px; font-weight: 700; line-height: 1.2; margin-top: 2px; white-space: nowrap; }
+  .stat .v small { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .stat .s { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .meterbar { height: 6px; border-radius: 3px; background: #e3e7e7; overflow: hidden; margin-top: 8px; }
+  .meterbar i { display: block; height: 100%; background: var(--panel); border-radius: 3px; }
+  .stat.bat { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: center; }
+  .stat.bat .v { font-size: 28px; }
+  .stat.bat .cellbar { grid-column: 1 / -1; }
+  @media (max-width: 1100px) { .strip { grid-template-columns: 1fr 1fr; } .stat.bat { grid-column: 1 / -1; } .stat + .stat { border-left: 0; border-top: 1px solid var(--rule); } }
+
+  /* key/value list */
+  .kv { margin: 0; display: grid; grid-template-columns: 110px 1fr; font-size: 13.5px; }
+  .kv dt, .kv dd { margin: 0; padding: 5px 0; border-bottom: 1px solid #eef1f1; }
+  .kv dt { color: var(--muted); } .kv dd { overflow-wrap: anywhere; }
+  .kv dt:last-of-type, .kv dd:last-of-type { border-bottom: 0; }
+  .pill { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 12px; background: var(--soft); color: var(--muted); margin-left: 6px; }
+  .pill.go { background: var(--go-soft); color: var(--go); } .pill.warn { background: var(--warn-soft); color: var(--warn); }
+
+  /* motor rows */
+  .mrow .pbadge { background: var(--panel); color: #fff; margin-top: 2px; }
+  .mrow .t { font-weight: 600; } .mrow .t span { font-weight: 400; color: var(--muted); }
+  .mrow .now { text-align: right; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .mrow .now b { font-size: 18px; color: var(--ink); display: block; line-height: 1.1; }
+
+  /* practice bar, program header */
+  .bar-card .muted { flex: 1; min-width: 240px; }
+  .proghead { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .proghead .prog { flex: 1; min-width: 260px; }
+
+  /* brick page */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+  .fact .big { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .battery { display: grid; gap: 8px; }
+  .cellbar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; height: 14px; }
+  .cellbar i { border-radius: 2px; background: #d6dcdc; }
+  .battery.good .cellbar i.on { background: var(--go); } .battery.low .cellbar i.on { background: var(--warn); } .battery.crit .cellbar i.on { background: var(--stop); }
+  .battery.good .verdict { color: var(--go); } .battery.low .verdict { color: var(--warn); } .battery.crit .verdict { color: var(--stop); }
+  .specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .specs .fact { background: var(--soft); }
+
+  /* connection */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .steps li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+  .tick { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #c9cfd1; margin-top: 1px; position: relative; }
+  .steps li.done .tick { border-color: var(--go); background: var(--go); }
+  .steps li.done .tick::after { content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .steps li.now .tick { border-color: var(--panel); }
+  .steps .what { font-weight: 600; } .steps .how { color: var(--muted); font-size: 13px; } .steps .btn { margin-top: 6px; }
+  .nets, .devices { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; max-height: 300px; overflow: auto; }
+  .nets button, .devices button { width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 7px 10px; text-align: left; background: var(--soft); border: 1px solid transparent; border-radius: var(--r-s); cursor: pointer; }
+  .nets button:hover, .devices button:hover { border-color: var(--rule); }
+  .nets button[aria-pressed=true] { border-color: var(--panel); background: #fff; }
+  .nets .sec { font-size: 12px; color: var(--muted); }
+  .bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .bars i { width: 4px; background: #c9cfd1; border-radius: 1px; } .bars i.on { background: var(--panel); }
+
+  /* program */
+  .prog { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+  .prog .pdot { width: 12px; height: 12px; border-radius: 50%; background: #c9cfd1; }
+  .prog .pdot.on { background: var(--go); box-shadow: 0 0 0 4px var(--go-soft); } .prog .pdot.warn { background: var(--warn); }
+</style>
+</head>
+<body>
+<header class="statusbar">
+  <div class="brand">PowerShock<span class="ver" id="appVer" title="PowerShock version on this laptop"></span></div>
+  <button class="si" data-go="connection" title="Connection"><span class="dot" id="sbLinkDot"></span><span id="sbLink">Not connected</span></button>
+  <span class="sep hide-s"></span>
+  <button class="si" data-go="brick" title="Brick battery"><span class="batt" id="sbBattIcon"><i></i></span><b id="sbBatt">–</b></button>
+  <span class="sep hide-s"></span>
+  <button class="si hide-m" data-go="connection" title="Brick WiFi"><svg class="wifi-ico" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg><span id="sbWifi">WiFi unknown</span></button>
+  <span class="sep hide-s"></span>
+  <button class="si hide-m" data-go="program" title="PowerShock program"><span class="dot" id="sbProgDot"></span><span id="sbProg">Program unknown</span></button>
+  <span class="sep hide-s"></span>
+  <button class="si" data-go="controller" title="Controller" id="sbPadItem"><svg class="pad-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b></button>
+  <span class="sep"></span>
+  <span class="si" id="sbArmItem"><span class="dot" id="sbArmDot"></span><span id="sbArm">Motors off</span><span class="opt" id="sbRate"></span></span>
+  <div class="grow"></div>
+  <button id="stopBtn" class="stop" title="Stops every motor at once, including test runs. Keyboard: Space or Esc." aria-label="Stop all motors"><span class="sq"></span><span>Stop<span class="long"> motors</span></span><kbd>Space</kbd></button>
+</header>
+
+<div class="shell">
+  <nav>
+    <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
+    <a href="#brick" data-page="brick" title="Brick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4M6 10v4M9 10v4M12 10v4"/></svg><span>Brick</span><span class="badge" id="navBrick"></span></a>
+    <a href="#controls" data-page="controls" title="Controls: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Controls</span></a>
+    <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
+    <a href="#gearing" data-page="gearing" title="Gearing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="9" r="3"/><path d="M8 3v2M8 13v2M2 9h2M12 9h2M3.8 4.8l1.4 1.4M10.8 11.8l1.4 1.4M3.8 13.2l1.4-1.4M10.8 6.2l1.4-1.4"/><circle cx="17" cy="16" r="2.2"/><path d="M17 12v1.5M17 18.5V20M13 16h1.5M19.5 16H21"/></svg><span>Gearing</span></a>
+    <a href="#connection" data-page="connection" title="Connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg><span>Connection</span><span class="badge" id="navConn"></span></a>
+    <a href="#program" data-page="program" title="Program"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg><span>Program</span><span class="badge" id="navProg"></span></a>
+    <div class="foot">leJOS EV3 · DualShock 4</div>
+    <button class="navtoggle" id="navToggle" title="Collapse the menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6l-6 6 6 6"/></svg><span>Collapse</span></button>
+  </nav>
+
+  <main>
+    <!-- ================= ROBOT ================= -->
+    <section class="page" id="page-robot">
+      <div class="robot">
+        <div class="drivebar">
+          <div id="next" class="next">
+            <div class="icon" id="nextIcon">1</div>
+            <div><div class="title" id="nextTitle">Looking for the brick…</div><div class="body" id="nextBody"></div></div>
+            <button id="nextBtn" class="btn dark hidden"></button>
+          </div>
+          <div class="card drivecard">
+            <div class="card-head">
+              <div class="tabs" role="tablist" id="srcTabs">
+                <button role="tab" data-src="pad" aria-selected="true">Controller</button>
+                <button role="tab" data-src="manual" aria-selected="false">Keyboard</button>
+              </div>
+              <label class="toggle arm"><input id="armToggle" type="checkbox"><span class="track"></span><span>Motors on</span></label>
+            </div>
+            <div id="padView">
+              <p id="padEmpty" class="empty">No controller yet: connect it, then press any button. <a class="link" href="#controller">How?</a></p>
+              <div id="padLive" class="hidden"><p class="muted" id="padStatus"></p></div>
+            </div>
+            <div id="manualView" class="hidden">
+              <div class="keys2">
+                <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> left stick</span><span class="muted" id="mapName"></span>
+                <span><kbd>↑</kbd><kbd>↓</kbd> right stick</span><span><kbd>Q</kbd><kbd>E</kbd> right stick ←→</span>
+                <span><kbd>Shift</kbd> R2</span><span><kbd>Ctrl</kbd> L2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card ctrlcard" aria-label="DualShock 4: what you press and what it does">
+          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><select id="dsColor" title="Controller colour" aria-label="Controller colour" style="margin-left:auto"></select></div>
+            <div class="ds3gl" id="ds3" aria-label="DualShock 4 in 3D. Drag to turn it; double-click to reset."><p class="muted ds3msg" id="ds3msg">Loading the 3D controller…</p></div>
+            <div class="dslegend">
+              <span id="coL"><span id="coLtext">Left stick</span></span>
+              <span id="coR"><span id="coRtext">Right stick</span></span>
+              <span id="coR2"><span id="coR2text">R2</span></span>
+              <span id="coX">✕ · stop</span>
+              <span id="coOpt">Options · motors off</span>
+            </div>
+            <div class="gets">
+              <h3>What the brick gets</h3>
+              <div id="getRows"></div>
+              <div class="why" id="getWhy"></div>
+            </div>
+        </div>
+
+        <div class="card stagecard">
+          <div class="stagebar"><span class="muted" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
+          <div class="scene" id="scene" aria-label="The EV3 brick with what's plugged into each port. Drag to turn it.">
+            <div class="brick intro" id="brick">
+              <div class="f back"></div>
+              <div class="f left">
+                <div class="side-plate">
+                  <div class="holes" style="left:8px;top:8px"><i></i><i></i><i></i></div>
+                  <div class="holes" style="right:8px;bottom:8px"><i></i><i></i><i></i></div>
+                  <div class="usb" id="usb"><div class="dongle hidden" id="dongle" title="WiFi dongle"></div></div><div class="sidelbl" style="top:49%">USB</div>
+                  <div class="sd"></div><div class="sidelbl" style="top:64%">SD</div>
+                </div>
+              </div>
+              <div class="f right">
+                <div class="side-plate">
+                  <div class="holes" style="left:8px;top:8px"><i></i><i></i><i></i></div>
+                  <div class="holes" style="right:8px;bottom:8px"><i></i><i></i><i></i></div>
+                  <div class="grille"></div>
+                </div>
+              </div>
+              <div class="f top"><div class="end"><div class="plate"></div><div class="sockrow" id="motorRow"></div></div></div>
+              <div class="f bottom"><div class="end"><div class="plate"></div><div class="sockrow" id="sensorRow"></div></div></div>
+              <div class="f front">
+                <div class="body-white"></div>
+                <div class="bezel"><div class="screen"><div class="lcd">
+                  <div class="lcd-top"><span id="lcdHost">EV3</span><span id="lcdRate"></span></div>
+                  <div class="meters" id="meters"></div>
+                  <div class="lcd-foot"><span id="lcdArm">SAFE</span><span id="lcdBatt"></span></div>
+                </div></div></div>
+                <div class="trace"></div>
+                <div class="backkey"></div>
+                <div class="cluster"><div class="glow" id="ledRing"></div><div class="keys"></div>
+                  <div class="k up"></div><div class="k down"></div><div class="k left"></div><div class="k right"></div><div class="k mid"></div></div>
+                <div class="band"><span class="ev3">EV3</span><span class="lego"></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="stagefoot"><span>Drag to turn the brick. Motor hubs turn with the real motors.</span><span id="stageWho"></span></div>
+        </div>
+
+        <div class="card devcard">
+          <div class="card-head"><h2>Devices</h2>
+              <span class="row" style="gap:6px"><span class="muted" style="font-size:12.5px">Speed</span><span class="speedseg" id="speedSeg" title="How fast the test buttons run a motor"><button data-s="25" aria-pressed="false">25%</button><button data-s="50" aria-pressed="true">50%</button><button data-s="100" aria-pressed="false">100%</button></span></span>
+          </div>
+            <div id="devList"></div>
+            <div class="emptyline" id="emptyLine"></div>
+            <p class="devnote" id="devNote"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BRICK ================= -->
+    <section class="page" id="page-brick">
+      <div class="pagehead"><h1>Brick</h1><span class="muted" id="brickAge"></span></div>
+      <div class="strip" id="strip"><div class="stat"><div class="k">Brick</div><div class="s">Connect over Bluetooth or WiFi to see the battery, versions and settings.</div></div></div>
+      <div class="bgrid">
+        <div class="card">
+          <div class="card-head"><h2>Ports</h2><span class="muted" id="portsSrc">What's plugged in, with LEGO's specs</span></div>
+          <div class="portcols" id="specs"></div>
+        </div>
+        <div class="card about" id="details"><p class="muted">Connect to the brick to see its software, Bluetooth and WiFi.</p></div>
+      </div>
+    </section>
+
+    <!-- ================= CONTROLS ================= -->
+    <section class="page" id="page-controls">
+      <div class="pagehead"><h1>Controls</h1><span class="savestate" id="mapSaved"></span></div>
+      <div class="ctltop">
+        <div class="card">
+          <div class="card-head"><h2>Start from</h2></div>
+          <div class="presets" id="presets">
+            <button class="preset" data-preset="tank"><b>Tank</b><span>Left stick drives B and C like a tank</span></button>
+            <button class="preset" data-preset="car"><b>Car</b><span>Left stick steers, right stick is the throttle</span></button>
+            <button class="btn" id="fitBtn" title="Assign roles from what's plugged in">Fit to my motors</button>
+          </div>
+          <p class="help" id="fitNote" style="margin-top:8px">Pick a layout, then fine-tune each port below. Changes apply at once and are saved.</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Speed and driving</h2></div>
+          <div class="globals" id="globals"></div>
+        </div>
+      </div>
+      <div class="sechead"><h2>Motor ports</h2><span class="muted">In the same order as on the brick</span></div>
+      <div class="pgrid" id="pgrid" style="margin-top:10px"></div>
+      <div class="offrow hidden" id="offrow"></div>
+    </section>
+
+    <!-- ================= CONTROLLER ================= -->
+    <section class="page" id="page-controller">
+      <div class="pagehead"><h1>Controller</h1><span class="muted" id="ctrlSub"></span></div>
+      <div class="cgrid" id="cgrid">
+          <div class="card" id="pairCard">
+            <div class="padstate hidden" id="padState">
+              <svg class="ps-art" viewBox="0 0 120 72" aria-hidden="true"><path class="body" d="M30 10h60a16 16 0 0 1 15.6 12.4l6.6 29a10 10 0 0 1-17.4 8.6L86 50H34l-8.8 10a10 10 0 0 1-17.4-8.6l6.6-29A16 16 0 0 1 30 10z"/><rect class="pad" x="44" y="14" width="32" height="17" rx="3"/><circle class="stick" cx="44" cy="42" r="6"/><circle class="stick" cx="76" cy="42" r="6"/><g class="dpad"><rect x="20" y="27" width="4" height="12" rx="1"/><rect x="16" y="31" width="12" height="4" rx="1"/></g><g class="face"><circle cx="98" cy="27" r="2.6"/><circle cx="93" cy="32" r="2.6"/><circle cx="103" cy="32" r="2.6"/><circle class="cross" cx="98" cy="37" r="2.6"/></g><circle class="ring ring-ps" cx="60" cy="40" r="7"/><circle class="ring ring-x" cx="98" cy="37" r="6"/><circle class="psb" cx="60" cy="40" r="3.4"/><rect class="bar" x="46" y="9" width="28" height="3" rx="1.5"/></svg>
+              <div><div class="ps-title"><span class="dot"></span><span id="psTitle"></span></div><div class="ps-body" id="psBody"></div><ul class="ps-tips hidden" id="psTips"></ul></div>
+              <div class="ps-act"><button class="link" id="pairShow">Pairing steps</button></div>
+            </div>
+            <div class="card-head" id="pairHead"><h2>Connect the controller</h2>
+              <div class="tabs" role="tablist" id="pairTabs"><button role="tab" data-t="bt" aria-selected="true">Bluetooth</button><button role="tab" data-t="usb" aria-selected="false">USB cable</button><button role="tab" data-t="ev3" aria-selected="false">Straight to the EV3</button></div></div>
+            <div id="pairBody">
+            <div id="pair-bt" data-pt="bt">
+              <p class="help" style="margin-bottom:8px">Wireless, to this laptop. The laptop reads the controller and drives the brick. You do this once; after that, pressing PS reconnects it.</p>
+              <ol class="steps">
+                <li class="now"><span class="tick"></span><div><div class="what">Start with the controller off</div><div class="how">If the light bar is lit, hold <b>PS</b> (the round button in the middle) for about 10 seconds until it goes dark. Is a PS4 nearby and on? Switch it off first, or the controller goes back to it.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Put it in pairing mode</div><div class="how">Hold <b>Share</b> (the small button left of the touchpad) and <b>PS</b> together for 3–5 seconds. Let go when the light bar <b>flashes white in quick double blinks</b>. A slow single pulse isn't pairing mode; try again. It keeps flashing for about a minute.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Open Bluetooth on this laptop</div><div class="how">Start → Settings → <b>Bluetooth &amp; devices</b>. Check Bluetooth is On, then <b>Add device</b> → <b>Bluetooth</b>. <a class="link" href="ms-settings:bluetooth">Open Bluetooth settings</a></div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Pick “Wireless Controller”</div><div class="how">That's the DualShock 4's name in Windows. If it asks for a PIN, type <b>0000</b>. Wait for “Your device is ready to go”: the light bar stops flashing and stays lit.</div></div></li>
+                <li class="now pairseen"><span class="tick"></span><div><div class="what">Press any button on the controller, with this page open</div><div class="how">Browsers only see a controller after a button press. This step ticks itself when it works, and the status bar says DualShock 4.</div></div></li>
+              </ol>
+            </div>
+            <div id="pair-usb" data-pt="usb" class="hidden">
+              <p class="help" style="margin-bottom:8px">The quickest way, and it charges the controller too. Nothing to pair.</p>
+              <ol class="steps">
+                <li class="now"><span class="tick"></span><div><div class="what">Plug it in</div><div class="how">Use a <b>micro-USB cable that carries data</b>; some phone-charging cables only carry power. The socket is on the top edge of the controller, between L1 and R1.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Press PS</div><div class="how">The light bar turns on. The first time, Windows sets it up by itself in a few seconds.</div></div></li>
+                <li class="now pairseen"><span class="tick"></span><div><div class="what">Press any button on the controller, with this page open</div><div class="how">Browsers only see a controller after a button press. This step ticks itself when it works, and the status bar says DualShock 4.</div></div></li>
+              </ol>
+            </div>
+            <details class="trouble" id="pairTrouble">
+              <summary>If it doesn't work</summary>
+              <ul>
+                <li><b>“Wireless Controller” isn't in the list.</b> Pairing mode has timed out: hold Share + PS again until the double blinks, then look again.</li>
+                <li><b>It was paired before but won't connect.</b> In Bluetooth &amp; devices, open the ⋯ menu next to Wireless Controller → Remove device, then pair again from step 1.</li>
+                <li><b>It keeps going back to a PS4.</b> A controller reconnects to the last thing it paired with. Pair it with the laptop again.</li>
+                <li><b>Connected in Windows, but this page shows nothing.</b> Press a button while this page is open, and use Chrome or Edge.</li>
+                <li><b>Still stuck?</b> Reset it: push a straightened paper clip into the small hole on the back, next to L2, for 5 seconds. Then pair again.</li>
+              </ul>
+            </details>
+            <div id="pair-ev3" class="hidden">
+              <p class="help" style="margin-bottom:8px">Experimental: no laptop needed while driving, but untested, and some controllers refuse it. Uses the <b>powershock-bt.jar</b> program.</p>
+              <ol class="steps">
+                <li class="now"><span class="tick"></span><div><div class="what">Find the controller's address</div><div class="how">Pair it with Windows once (other tab), then Device Manager → Bluetooth → Wireless Controller → Properties → Details → <b>Bluetooth device address</b>. Put it in <code>DS4_MAC</code> in <code>DS4Drive.java</code> and upload.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Remove it from Windows</div><div class="how">Otherwise it connects to the laptop instead of the brick.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Start powershock-bt.jar on the brick</div><div class="how">Bluetooth must be on in the leJOS menu. The screen shows <b>Share+PS to pair</b>.</div></div></li>
+                <li class="now"><span class="tick"></span><div><div class="what">Hold Share + PS</div><div class="how">Every time, until the brick screen says <b>Connected!</b>. An error with a number (errno) means the controller refused; stay with the laptop route.</div></div></li>
+              </ol>
+            </div>
+            </div>
+          </div>
+          <div class="card" id="ctrlInfo">
+            <div class="card-head"><h2>This controller</h2><button class="btn" id="hidBtn">Read battery and firmware</button></div>
+            <div id="hidBody"></div>
+            <div id="fwBody"></div>
+            <div class="gpwait hidden" id="gpWait"><span class="dot"></span><span>This page hasn't seen the controller since it opened. <b>Press any button on it</b> to use the sticks here.</span></div>
+            <details id="gpDetails" class="hidden"><summary>What the browser sees</summary><dl class="kv" id="gpInfo"></dl></details>
+            <p class="foot">Battery, model and firmware are read through Windows every 2 minutes. Sony only updates DualShock 4 firmware through a PS4 or PS5; PowerShock works with any version.</p>
+          </div>
+          <div class="card" id="sticksCard">
+            <div class="card-head"><h2>Sticks</h2><span class="muted" id="driftNote">Let go of the sticks</span></div>
+            <div class="sticks">
+              <div class="drift"><div class="pad2" id="driftL"><div class="dz" id="dzL"></div><div class="pt"></div></div><span id="driftLv">Left –</span></div>
+              <div class="drift"><div class="pad2" id="driftR"><div class="dz" id="dzR"></div><div class="pt"></div></div><span id="driftRv">Right –</span></div>
+            </div>
+            <div class="calbox hidden" id="calBox"><div id="calStep"></div><div class="bar"><i id="calBar"></i></div></div>
+            <div class="feel">
+              <div class="fields">
+                <label class="field"><span>Dead zone</span><span class="rv"><input type="range" id="stDz" min="0" max="30" step="1" value="8"><output id="stDzV">8%</output></span></label>
+                <label class="field"><span>Response</span><span class="rv"><input type="range" id="stCurve" min="0" max="100" step="5" value="0"><output id="stCurveV">linear</output></span></label>
+                <p class="help">Dead zone: how far a stick moves before anything happens. Response: higher is gentler near the centre, for fine steering; full tilt is always 100%.</p>
+              </div>
+              <svg id="stGraph" viewBox="-5 -5 110 110" aria-label="Stick response: stick position across, output up"><line class="ax" x1="0" y1="100" x2="100" y2="100"/><line class="ax" x1="0" y1="0" x2="0" y2="100"/><rect class="dzb" id="stGraphDz" x="0" y="0" width="0" height="100"/><path class="crv" id="stGraphCrv"/><circle class="dot" id="stGraphDot" r="3.5" cx="0" cy="100"/></svg>
+            </div>
+            <div class="calrow"><button class="btn dark" id="calBtn">Calibrate</button><button class="link" id="calReset">Reset to defaults</button><span class="help" id="calInfo"></span></div>
+          </div>
+      </div>
+    </section>
+
+    <!-- ================= GEARING ================= -->
+    <section class="page" id="page-gearing">
+      <div class="pagehead"><h1>Gearing</h1><span class="muted">Trade speed for strength with standard LEGO gears</span></div>
+      <div class="card rulestrip">
+        <div><b>Small drives big: slower, stronger</b>12 turning 36: the output turns 3× slower with about 3× the force. For lifting, climbing, arms.</div>
+        <div><b>Big drives small: faster, weaker</b>36 turning 12: 3× faster, about ⅓ of the force. For fast cars on flat ground.</div>
+        <div><b>Speed × force stays the same</b>Gears can't add power. Each pair loses about 10% to friction; a worm gear much more.</div>
+        <div><b>Spacing = (teeth + teeth) ÷ 16 studs</b>12 + 36 = 3, 8 + 24 = 2, 24 + 40 = 4. Half studs (20 + 36 = 3.5) need offset holes.</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Try a combination</h2><span class="muted" id="gMotorNote"></span></div>
+        <div class="calc">
+          <div>
+            <div class="gearstage" id="gearMain"></div>
+            <p class="help" style="margin-top:6px">Red axle: the motor. Drag to turn the view, double-click to reset.</p>
+          </div>
+          <div>
+            <div class="gform">
+              <label>Motor<select id="gMotor"><option value="large">Large motor</option><option value="medium">Medium motor</option></select></label>
+              <label>Motor gear<select id="g1"></select></label>
+              <label>Meshes with<select id="g2"></select></label>
+              <label>Second stage<select id="g3"><option value="0">None</option></select></label>
+              <label>Meshes with<select id="g4"></select></label>
+            </div>
+            <div class="gnums" id="gNums"></div>
+            <ul class="gnotes" id="gNotes"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="sechead"><h2>Ready-made combinations</h2><span class="muted">Each one opens in the calculator above</span></div>
+      <div class="examples" id="examples" style="margin-top:10px"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>The gears</h2><span class="muted">Standard LEGO Technic gears, to scale with each other</span></div>
+        <div class="gearstage" id="partsheet3d"></div>
+        <div class="partlabels" id="partlabels"></div>
+      </div>
+    </section>
+
+    <!-- ================= CONNECTION ================= -->
+    <section class="page" id="page-connection">
+      <div class="pagehead"><h1>Connection</h1><span class="muted">How this laptop talks to the brick</span></div>
+      <div class="conntiles">
+        <div class="ctile" id="tileBt">
+          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>Bluetooth<span class="pill" id="btPill">…</span></div>
+          <div class="ct-body" id="btBody">Checking…</div>
+          <div class="ct-acts"><button class="btn" id="useBt">Use Bluetooth</button><button class="link" data-panel="bt" id="btSetupBtn">Pairing steps</button></div>
+        </div>
+        <div class="ctile" id="tileWifi">
+          <div class="ct-head"><svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg>WiFi<span class="pill" id="wifiPill">…</span></div>
+          <div class="ct-body" id="wifiBody">Checking…</div>
+          <div class="ct-acts"><button class="btn" id="useWifi">Use WiFi</button><button class="link" data-panel="net" id="netSetupBtn">Change network</button><button class="link" data-panel="addr">Enter address</button></div>
+        </div>
+        <div class="ctile" id="tilePractice">
+          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
+          <div class="ct-body">A pretend EV3 on this laptop: two large motors, a medium motor and a touch sensor.</div>
+          <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
+        </div>
+      </div>
+      <div class="card setup hidden" id="setupPanel">
+        <div data-sub="bt">
+          <div class="card-head"><h2>Bluetooth setup</h2><span class="muted">Works without WiFi</span><button class="link" data-close>Close</button></div>
+          <ol class="steps">
+            <li id="btPair"><span class="tick"></span><div><div class="what">Pair with the EV3</div><div class="how" id="btPairHow">Checking…</div></div></li>
+            <li id="btLink"><span class="tick"></span><div><div class="what">Join the brick's network</div><div class="how" id="btLinkHow">Pairing alone doesn't connect.</div><button id="btOpen" class="btn hidden">Open Devices and Printers</button></div></li>
+            <li id="btReady"><span class="tick"></span><div><div class="what">Talk to the brick</div><div class="how" id="btReadyHow">The brick answers at 10.0.1.1.</div></div></li>
+          </ol>
+        </div>
+        <div data-sub="addr" class="hidden">
+          <div class="card-head"><h2>Connect by address</h2><span class="muted">The address the brick shows under 10.0.1.1</span><button class="link" data-close>Close</button></div>
+          <div class="row"><input id="host" type="text" placeholder="e.g. 192.168.1.40" spellcheck="false" aria-label="Brick address"><button id="useHostBtn" class="btn dark">Connect</button><button id="scanBtn" class="link">Find it for me</button></div>
+          <ul id="found" class="devices"></ul>
+          <p class="note" id="wifiNote"></p>
+        </div>
+        <div data-sub="net" class="hidden">
+          <div class="card-head"><h2>Choose the brick's WiFi network</h2><span class="muted" id="wifiSummary"></span><button class="link" data-close>Close</button></div>
+          <p class="help">Needs the Bluetooth link. The password is turned into a key here and never stored or shown.</p>
+          <div class="row" style="margin-top:10px"><button id="netScanBtn" class="btn">Look for networks</button></div>
+          <ul id="nets" class="nets"></ul>
+          <div id="joinBox" class="hidden" style="margin-top:10px"><div class="row"><input id="wifiPass" type="password" placeholder="Password for the network" autocomplete="off"><button id="joinBtn" class="btn go">Join</button></div></div>
+          <p class="note" id="joinNote"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PROGRAM ================= -->
+    <section class="page" id="page-program">
+      <div class="pagehead"><h1>Program</h1><span class="muted">PowerShock runs on the brick and listens for driving commands</span></div>
+      <div class="card proghead">
+        <div class="prog"><span class="pdot" id="progDot"></span><div><div id="progTitle" style="font-weight:650">Unknown</div><div class="muted" id="progBody">Connect to the brick to see.</div></div></div>
+        <div class="row">
+          <button id="runBtn" class="btn go" disabled>Start</button>
+          <button id="stopProgBtn" class="btn" disabled>Stop</button>
+          <button id="uploadBtn" class="btn" disabled>Upload latest build</button>
+        </div>
+      </div>
+      <p class="note" id="progNote" style="margin:-8px 4px 12px"></p>
+      <div class="tri">
+        <div class="card">
+          <div class="card-head"><h2>PowerShock files</h2><span class="muted">On the brick vs. this laptop</span></div>
+          <ul class="files" id="progFiles"><li><span class="fn">–</span><span class="fd">Connect to the brick to see.</span></li></ul>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Programs on the brick</h2><span class="muted">Starting takes about 30 s</span></div>
+          <ul class="plist" id="progList"><li><span></span><span class="muted">Connect to the brick to see.</span></li></ul>
+        </div>
+        <div class="card hidden" id="buildCard">
+          <div class="card-head"><h2>Build log</h2></div>
+          <pre id="buildLog">Nothing built in this session yet.</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const headers = { "X-PowerShock": "1" };  // the console only answers its own page
+  const r = await fetch(path, body === undefined ? { headers } : { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const S = { src: "pad", armed: false, keys: new Set(), link: null, fake: null, bt: null, brick: null, pinnedHost: localStorage.getItem("ev3host") || "" };
+const setNote = (id, text, kind) => { $(id).textContent = text || ""; $(id).className = "note " + (kind || ""); };
+const setHTML = (el, html) => { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
+async function busy(btn, fn) { btn.classList.add("busy"); btn.disabled = true; try { return await fn(); } finally { btn.classList.remove("busy"); btn.disabled = false; } }
+const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 10 ? "just now" : s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`; };
+
+// ---------- pages ----------
+function showPage() {
+  const page = (location.hash || "#robot").slice(1);
+  document.querySelectorAll(".page").forEach((p) => p.classList.toggle("on", p.id === "page-" + page));
+  document.querySelectorAll("nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+}
+addEventListener("hashchange", showPage); showPage();
+const shell = document.querySelector(".shell");
+shell.classList.toggle("collapsed", localStorage.getItem("navCollapsed") === "1");
+$("navToggle").addEventListener("click", () => {
+  const c = !shell.classList.contains("collapsed");
+  shell.classList.toggle("collapsed", c); localStorage.setItem("navCollapsed", c ? "1" : "0");
+  $("navToggle").title = c ? "Expand the menu" : "Collapse the menu";
+});
+document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = b.dataset.go; }));
+
+// ---------- roles and specs ----------
+const MOTOR_PORTS = ["A", "B", "C", "D"], SENSOR_PORTS = ["S1", "S2", "S3", "S4"];
+const AXIS_NAME = { LX: "left stick ←→", LY: "left stick ↑↓", RX: "right stick ←→", RY: "right stick ↑↓", L2: "L2", R2: "R2", "R2-L2": "R2 / L2 (gas / brake)", none: "nothing" };
+function currentMapping() { return (S.link && S.link.mapping) || null; }
+// What PowerShock does with a port, in words, or null if the mapping leaves it alone.
+function roleOf(p) {
+  const m = currentMapping(), c = m && m.ports && m.ports[p];
+  if (!c || c.mode === "off") return null;
+  if (c.mode === "drive") return c.side === "left" ? "Left drive" : "Right drive";
+  if (c.mode === "position") return `Steering (${AXIS_NAME[c.input]})`;
+  return `Speed (${AXIS_NAME[c.input]})`;
+}
+const SPECS = {
+  "Large motor": { rpm: "160–170", torque: "20 N·cm", stall: "40 N·cm", weight: "76 g", note: "Drive wheels and heavy lifting" },
+  "Medium motor": { rpm: "240–250", torque: "8 N·cm", stall: "12 N·cm", weight: "36 g", note: "Fast, light jobs: arms and grabbers" },
+};
+
+// ---------- brick ----------
+$("motorRow").innerHTML = MOTOR_PORTS.map((p) => `<div class="sock" data-p="${p}"><span class="hole"></span><span class="lbl">${p}</span><div class="mount"></div></div>`).join("") + '<span class="pcport" title="PC (mini USB)"></span>';
+$("sensorRow").innerHTML = SENSOR_PORTS.map((p) => `<div class="sock" data-p="${p}"><span class="hole"></span><span class="lbl">${p.slice(1)}</span><div class="mount"></div></div>`).join("");
+$("meters").innerHTML = ["A", "B", "C", "D"].map((p) => `<div class="meter"><b>${p}</b><div class="cells">${"<i></i>".repeat(20)}</div><span class="num">0</span></div>`).join("");
+const meters = [...document.querySelectorAll(".meter")];
+// sending: {A: ["s", pct] | ["p", deg, speed] | null, ...}
+function outPct(p, v) {
+  if (!v) return 0;
+  if (v[0] === "s") return v[1];
+  const c = currentMapping() && currentMapping().ports[p];
+  return c && c.range ? Math.round(v[1] / c.range * 100) : 0;
+}
+function outText(v) { return !v ? "–" : v[0] === "s" ? (v[1] > 0 ? "+" : "") + v[1] : v[1] + "°"; }
+function setMeters(sending) {
+  const ps = ["A", "B", "C", "D"];
+  meters.forEach((m, i) => {
+    const p = ps[i], v = sending && sending[p], pct = outPct(p, v), n = Math.round(Math.abs(pct) / 10);
+    m.querySelector(".num").textContent = outText(v);
+    [...m.querySelectorAll(".cells i")].forEach((c, k) => {
+      const on = pct > 0 ? k >= 10 && k < 10 + n : pct < 0 ? k < 10 && k >= 10 - n : false;
+      c.className = (on ? "on" : "") + (k === 10 ? " mid" : "");
+    });
+  });
+}
+setMeters({});
+(() => {
+  const brick = $("brick"), scene = $("scene");
+  const HOME = { rx: 24, ry: -26 };
+  let rx = HOME.rx, ry = HOME.ry, drag = null;
+  const apply = () => { brick.style.setProperty("--rx", rx + "deg"); brick.style.setProperty("--ry", ry + "deg"); };
+  const reset = () => { rx = HOME.rx; ry = HOME.ry; apply(); };
+  brick.addEventListener("animationend", () => brick.classList.remove("intro"));
+  scene.addEventListener("pointerdown", (e) => { if (e.target.closest(".mctl")) return; drag = { x: e.clientX, y: e.clientY, rx, ry }; scene.setPointerCapture(e.pointerId); });
+  scene.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    ry = Math.max(-110, Math.min(110, drag.ry + (e.clientX - drag.x) * 0.4));
+    rx = Math.max(-80, Math.min(80, drag.rx - (e.clientY - drag.y) * 0.3)); apply();
+  });
+  scene.addEventListener("pointerup", () => drag = null);
+  scene.addEventListener("dblclick", reset); $("resetView").addEventListener("click", reset);
+  apply();
+  // the brick and its scene shrink with the card on small screens
+  new ResizeObserver(() => {
+    const w = scene.clientWidth || 700;
+    scene.style.setProperty("--sw", w + "px");
+    brick.style.scale = Math.max(0.5, Math.min(1, w / 720)).toFixed(3);
+  }).observe(scene);
+})();
+
+// ---------- ports: live from the receiver, else the periodic check ----------
+function currentPorts() {
+  const t = S.link && S.link.telemetry;
+  if (t) return { ports: t.ports, motors: t.motors || {}, live: true };
+  return { ports: (S.brick || {}).ports, motors: {}, live: false };
+}
+function portView(p, cp) {
+  const d = cp.ports && cp.ports[p], role = roleOf(p), roleName = role;
+  const isMotorPort = !p.startsWith("S");
+  if (!d) return { cls: "", dev: "Not checked yet", note: roleName || "", warn: false };
+  if (d.kind === "busy") return { cls: "busy", dev: d.label, note: roleName || "", warn: false };
+  if (!d.connected) {
+    const needed = isMotorPort && !!role;
+    return { cls: "", dev: "Empty", note: needed ? `${roleName}: plug a motor in here` : "Nothing plugged in", warn: needed };
+  }
+  let note = roleName || "Not used by PowerShock";
+  if (isMotorPort && d.kind !== "motor") note = "Not a motor";
+  return { cls: "on", dev: d.label, note, warn: false, kind: d.kind, label: d.label };
+}
+function sensorClass(label) {
+  return /Touch/.test(label) ? "touch" : /Color/.test(label) ? "color" : /Ultrasonic|Infrared/.test(label) ? "eyes" : /Gyro/.test(label) ? "gyro" : "generic";
+}
+function deviceHTML(p, v, live, cp) {
+  if (v.cls !== "on") return `<div class="ptag ${v.warn ? "warn" : ""}"><b>${p.replace("S", "")} · ${esc(v.dev)}</b>${v.warn ? "Needs a motor" : ""}</div>`;
+  const role = roleOf(p);
+  const spd = live ? Math.round(live.speed / 6) : null;
+  const label = `<div class="dlabel" style="${p.startsWith("S") ? "top" : "bottom"}: calc(100% + 10px)">${esc(v.label)}${role ? `<small>${role.replace(/ \(.*\)/, "")}</small>` : ""}${v.kind === "motor" ? '<small data-rpm>0 rpm</small><em data-stall hidden>stalled</em>' : ""}</div>`;
+  const ctl = v.kind === "motor" && S.link && S.link.connected && S.link.telemetry
+    ? `<div class="mctl" data-port="${p}"><button data-dir="-1" title="Hold to run backwards">⟲</button><button data-dir="1" title="Hold to run forwards">⟳</button><button data-deg="-90">−90°</button><button data-deg="90">+90°</button></div>` : "";
+  const hub = `<div class="hub" style="transform: rotate(${live ? live.tacho : 0}deg)"><i></i><i></i><i></i><i></i></div>`;
+  let body;
+  if (v.kind === "motor" && /Medium/.test(v.label)) body = `<div class="mm">${hub}${label}${ctl}</div>`;
+  else if (v.kind === "motor") body = `<div class="lm"><div class="housing"></div><div class="body"></div><div class="arm"></div>${hub}${label}${ctl}</div>`;
+  else body = `<div class="sn ${sensorClass(v.label)}"><i></i>${label}</div>`;
+  return `<div class="cable"></div><div class="device">${body}</div>`;
+}
+// Things hanging off neighbouring ports alternate between a near and a far distance.
+function layoutRow(list, cp) {
+  let prevLevel = 1;
+  list.forEach((p) => {
+    const v = portView(p, cp), el = document.querySelector(`.sock[data-p="${p}"]`);
+    const level = 1 - prevLevel;
+    prevLevel = level;
+    el.style.setProperty("--len", level ? "168px" : "40px");
+    el.style.setProperty("--tl", level ? "150px" : "22px");
+  });
+}
+function drawPorts() {
+  const cp = currentPorts(), m = cp.motors || {};
+  document.querySelectorAll(".sock").forEach((el) => {
+    const p = el.dataset.p, v = portView(p, cp), live = m[p];
+    el.classList.toggle("on", v.cls === "on");
+    const mount = el.querySelector(".mount");
+    // Re-render the device only when its shape changes; turn the hub in place so it animates.
+    const key = `${v.cls}|${v.dev}|${v.note}|${v.warn}|${!!(S.link && S.link.connected && S.link.telemetry)}`;
+    if (mount.dataset.key !== key) { mount.innerHTML = deviceHTML(p, v, live, cp); mount.dataset.key = key; }
+    const hub = mount.querySelector(".hub");
+    if (hub && live) hub.style.transform = `rotate(${live.tacho}deg)`;
+    const rpm = mount.querySelector("[data-rpm]");
+    if (rpm) rpm.textContent = `${live ? Math.round(live.speed / 6) : 0} rpm`;
+    const stall = mount.querySelector("[data-stall]");
+    if (stall) stall.hidden = !(live && live.stalled);
+    const body = mount.querySelector(".lm, .mm");
+    if (body) body.classList.toggle("stalled", !!(live && live.stalled));
+  });
+  layoutRow(MOTOR_PORTS, cp); layoutRow(SENSOR_PORTS, cp);
+  drawDevices(cp);
+  const b = S.brick || {};
+  const src = cp.live ? '<span class="live">Live from the brick</span>'
+    : S.fake && S.fake.running ? "Practice brick" : !brickHost() ? "Not connected"
+    : b.portsBusy ? "Checking the ports…" : b.portsAt ? `Checked ${ago(b.portsAt * 1000)}; live once PowerShock runs` : "Checking the ports…";
+  $("portsNote").innerHTML = src;
+  const warn = [...MOTOR_PORTS].some((p) => portView(p, cp).warn);
+  if ($("mapName")) $("mapName").textContent = currentMapping() ? `Layout: ${currentMapping().name}` : "";
+  $("navRobot").className = "badge " + (warn ? "warn" : "");
+}
+// ---------- devices: test each motor on its own ----------
+S.testSpeed = 50;
+$("speedSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.testSpeed = +b.dataset.s; drawDevices(currentPorts());
+  document.querySelectorAll("#speedSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+function drawDevices(cp) {
+  const m = cp.motors || {};
+  const all = [...MOTOR_PORTS, ...SENSOR_PORTS];
+  const present = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected);
+  const canTest = !!(S.link && S.link.connected && S.link.telemetry);
+  // rebuild only when the set of devices changes, so held buttons keep working
+  const shape = present.map((p) => p + cp.ports[p].label + roleOf(p)).join("|") + "|" + canTest;
+  const list = $("devList");
+  if (list.dataset.shape !== shape) {
+    list.dataset.shape = shape;
+    list.innerHTML = present.length ? present.map((p) => {
+      const d = cp.ports[p], role = roleOf(p), motor = d.kind === "motor";
+      const dis = canTest ? "" : "disabled";
+      return `<div class="devrow" data-p="${p}"><span class="pbadge">${p.replace("S", "")}</span>
+        <div class="d">${esc(d.label)} <span>· ${role ? esc(role.replace(/ \(.*\)/, "")) : motor ? "not in your controls" : "sensor"}</span></div>
+        <div class="live" data-live>${motor ? "–" : "no readings yet"}</div>
+        ${motor ? `<div class="tbtns">
+          <span class="grp"><button class="hold" data-dir="-1" ${dis} title="Hold to run backwards">⟲</button><button class="hold" data-dir="1" ${dis} title="Hold to run forwards">⟳</button></span>
+          <span class="grp"><button data-deg="-90" ${dis} title="Turn back 90°">−90°</button><button data-deg="90" ${dis} title="Turn 90°">+90°</button></span>
+          <span class="grp"><button data-deg="-360" ${dis} title="One full turn back">−360°</button><button data-deg="360" ${dis} title="One full turn">+360°</button></span>
+          <span class="grp"><button data-stop ${dis} title="Stop this motor">■</button></span></div>` : ""}</div>`;
+    }).join("") : `<p class="muted">Nothing plugged in yet. Devices appear here the moment you plug them in.</p>`;
+  }
+  list.querySelectorAll(".devrow").forEach((row) => {
+    const live = m[row.dataset.p], el = row.querySelector("[data-live]");
+    if (live && el) el.innerHTML = `<b>${Math.round(live.speed / 6)}</b> rpm · ${live.tacho}°${live.stalled ? ' · <span style="color:var(--stop)">stalled</span>' : ""}`;
+  });
+  const empty = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected === false).map((p) => p.replace("S", ""));
+  const need = MOTOR_PORTS.filter((p) => roleOf(p) && cp.ports && cp.ports[p] && cp.ports[p].connected === false);
+  $("emptyLine").innerHTML = !cp.ports ? "" : (empty.length ? `Empty: ${empty.join(", ")}` : "Every port is in use")
+    + (need.length ? `<span class="warn">Your controls use ${need.join(" and ")}, but nothing is plugged in there.</span>` : "");
+  $("devNote").textContent = !cp.ports ? "Connect to the brick to see what's plugged in."
+    : canTest ? `Hold ⟲ ⟳ to run; turns are exact. Speed ${S.testSpeed}% of top. Space stops all.`
+    : "Start PowerShock and connect to test motors from here.";
+}
+function sendTest(port, action, value) {
+  return api("/api/test", { port, action, value: value || 0, speed: S.testSpeed });
+}
+let holding = null;
+const portOfButton = (b) => (b.closest("[data-port]") || b.closest(".devrow")).dataset.port || b.closest(".devrow").dataset.p;
+function testDown(e) {
+  const b = e.target.closest("button"); if (!b || b.disabled || !b.dataset.dir) return;
+  e.preventDefault(); e.stopPropagation();
+  release();
+  b.classList.add("pressed");
+  const port = portOfButton(b), pct = +b.dataset.dir * S.testSpeed;
+  sendTest(port, "run", pct);
+  holding = { b, port, timer: setInterval(() => sendTest(port, "run", pct), 150) };
+}
+function testClick(e) {
+  const b = e.target.closest("button"); if (!b || b.disabled || b.dataset.dir) return;
+  if (b.dataset.deg === undefined && b.dataset.stop === undefined) return;
+  const port = portOfButton(b);
+  if (b.dataset.stop !== undefined) sendTest(port, "stop"); else sendTest(port, "rotate", +b.dataset.deg);
+}
+function release() { if (!holding) return; clearInterval(holding.timer); holding.b.classList.remove("pressed"); sendTest(holding.port, "stop"); holding = null; }
+for (const box of [$("devList"), $("scene")]) {
+  box.addEventListener("pointerdown", testDown);
+  box.addEventListener("click", testClick);
+}
+// Releasing anywhere (or leaving the window) ends a hold, even if the button was redrawn.
+addEventListener("pointerup", release); addEventListener("pointercancel", release); addEventListener("blur", release);
+document.addEventListener("mouseover", (e) => {
+  const li = e.target.closest(".devrow");
+  document.querySelectorAll(".sock").forEach((x) => x.classList.toggle("hl", !!li && x.dataset.p === li.dataset.p));
+});
+
+// ---------- controls page ----------
+S.mapDraft = null;
+let presets = {};
+api("/api/mapping").then((r) => { presets = r.presets || {}; S.mapDraft = r.mapping; drawControls(true); });
+const AXIS_OPTS = ["LX", "LY", "RX", "RY", "R2-L2", "R2", "L2"];
+const sel = (key, value, opts) => `<select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === value ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+const axisSel = (key, value, withNone) => sel(key, value, [...AXIS_OPTS, ...(withNone ? ["none"] : [])].map((a) => [a, AXIS_NAME[a]]));
+const range = (key, value, min, max, step, unit) => `<span class="rv"><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${value}"><output>${value}${unit}</output></span>`;
+function portCard(p, c, cp) {
+  const d = cp.ports && cp.ports[p];
+  const dev = !d ? "Not checked yet" : d.connected ? `<b>${esc(d.label)}</b> plugged in` : "Nothing plugged in";
+  const warn = c.mode !== "off" && d && d.connected === false;
+  const modeSel = sel(`${p}.mode`, c.mode, [["off", "Not used"], ["drive", "Two-wheel drive"], ["speed", "Speed (run)"], ["position", "Steering (angle)"]]);
+  let f = "";
+  if (c.mode === "drive") f = `<label class="field"><span>Side</span>${sel(`${p}.side`, c.side, [["left", "Left wheel"], ["right", "Right wheel"]])}</label>
+      <label class="field"><span>Top speed</span>${range(`${p}.max`, c.max, 0, 100, 5, "%")}</label>`;
+  if (c.mode === "speed") f = `<label class="field"><span>Controlled by</span>${axisSel(`${p}.input`, c.input)}</label>
+      <label class="field"><span>Top speed</span>${range(`${p}.max`, c.max, 0, 100, 5, "%")}</label>`;
+  if (c.mode === "position") f = `<label class="field"><span>Controlled by</span>${axisSel(`${p}.input`, c.input)}</label>
+      <label class="field"><span>Turns up to</span>${range(`${p}.range`, c.range, 5, 180, 5, "°")}</label>
+      <label class="field"><span>Turn speed</span>${range(`${p}.speed`, c.speed, 5, 100, 5, "%")}</label>`;
+  if (c.mode !== "off") f += `<label class="field"><span>Smoothing</span>${range(`${p}.smooth`, c.smooth, 0, 2, 0.1, " s")}</label>
+      <label class="field"><span>Direction</span><span><label class="toggle"><input type="checkbox" data-k="${p}.invert" ${c.invert ? "checked" : ""}><span class="track"></span><span>Reversed</span></label></span></label>
+      <div class="outline"><span>Now sending</span><span class="outbar"><i data-out="${p}"></i></span><output data-outv="${p}">–</output></div>`;
+  if (c.mode === "position") f += `<div class="field" style="align-items:start"><span>Centre</span><div style="display:grid;gap:6px">
+      <div class="nudge"><span class="grp"><button data-nudge="${p}:-5" title="Turn 5° back">◀ 5°</button><button data-nudge="${p}:-1" title="Turn 1° back">◀ 1°</button></span><span class="grp"><button data-nudge="${p}:1" title="Turn 1° on">1° ▶</button><button data-nudge="${p}:5" title="Turn 5° on">5° ▶</button></span></div>
+      <div class="nudge"><button class="btn" data-zero="${p}">Set centre here</button><button class="btn" data-home="${p}" title="Turn back to the saved centre">Go to 0°</button></div>
+      <span class="help">Nudge until the wheels point straight, then Set centre here.</span></div></div>`;
+  return `<div class="pcard ${c.mode === "off" ? "off" : ""}" data-p="${p}"><div class="top"><span class="pbadge">${p}</span>${modeSel}</div>
+    <div class="dev ${warn ? "warn" : ""}">${dev}${warn ? ": plug a motor in to use this" : ""}</div>${f}</div>`;
+}
+function drawControls(force) {
+  const m = S.mapDraft; if (!m) return;
+  const cp = currentPorts();
+  const shape = JSON.stringify(m) + "|" + MOTOR_PORTS.map((p) => cp.ports && cp.ports[p] ? cp.ports[p].label : "").join(",");
+  if (force || $("pgrid").dataset.shape !== shape) {
+    $("pgrid").dataset.shape = shape;
+    $("pgrid").innerHTML = MOTOR_PORTS.map((p) => portCard(p, m.ports[p], cp)).join("");
+    const usesDrive = MOTOR_PORTS.some((p) => m.ports[p].mode === "drive");
+    $("globals").innerHTML = `
+      <label class="field"><span>Normal speed</span>${range("speed.base", m.speed.base, 10, 100, 5, "%")}</label>
+      <label class="field"><span>Speed boost</span>${axisSel("speed.boost", m.speed.boost, true)}</label>
+      ${usesDrive ? `<label class="field"><span>Throttle</span>${axisSel("drive.throttle", m.drive.throttle)}</label>
+      <label class="field"><span>Steering</span>${axisSel("drive.steer", m.drive.steer)}</label>
+      <label class="field"><span>Turn sharpness</span>${range("drive.turn", m.drive.turn, 0, 100, 5, "%")}</label>` : '<p class="help">Throttle and steering show up here once a port uses two-wheel drive.</p>'}`;
+    document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === m.name));
+  }
+  // live output on each card
+  const sent = (S.link && S.link.sending) || {};
+  MOTOR_PORTS.forEach((p) => {
+    const bar = document.querySelector(`[data-out="${p}"]`); if (!bar) return;
+    const pct = outPct(p, sent[p]), w = Math.abs(pct) / 2;
+    bar.style.left = (pct >= 0 ? 50 : 50 - w) + "%"; bar.style.width = w + "%";
+    document.querySelector(`[data-outv="${p}"]`).textContent = outText(sent[p]);
+  });
+}
+let saveTimer = null;
+function saveMapping() {
+  $("mapSaved").textContent = "Saving…";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const sent = JSON.stringify(S.mapDraft);
+    try {
+      const r = await api("/api/mapping", { mapping: S.mapDraft });
+      if (!r.ok) { $("mapSaved").textContent = "Not saved: " + r.error; return; }
+      if (JSON.stringify(S.mapDraft) === sent) S.mapDraft = r.mapping;  // else a newer save is coming
+      $("mapSaved").textContent = "Saved";
+    } catch (e) { $("mapSaved").textContent = "Not saved: the console isn't answering"; }
+  }, 250);
+}
+const MODE_DEFAULTS = {
+  off: { mode: "off" },
+  drive: { mode: "drive", side: "left", invert: false, max: 100, smooth: 0.3 },
+  speed: { mode: "speed", input: "RY", invert: false, max: 100, smooth: 0.5 },
+  position: { mode: "position", input: "LX", invert: false, range: 45, speed: 60, smooth: 0.3 },
+};
+function onControlChange(e) {
+  const el = e.target, key = el.dataset && el.dataset.k; if (!key || !S.mapDraft) return;
+  const [a, b] = key.split("."), m = S.mapDraft;
+  const val = el.type === "checkbox" ? el.checked : el.type === "range" ? +el.value : el.value;
+  if (el.type === "range") el.nextElementSibling.textContent = el.value + (b === "range" ? "°" : b === "smooth" ? " s" : "%");
+  if (b === "mode") m.ports[a] = { ...MODE_DEFAULTS[val], ...(val === "drive" ? { side: a === "C" ? "right" : "left" } : {}) };
+  else if (MOTOR_PORTS.includes(a)) m.ports[a][b] = val;
+  else m[a][b] = val;
+  m.name = "custom";
+  if (e.type === "change") drawControls(true);
+  saveMapping();
+}
+$("pgrid").addEventListener("input", onControlChange); $("pgrid").addEventListener("change", onControlChange);
+$("offrow").addEventListener("change", onControlChange);
+$("globals").addEventListener("input", onControlChange); $("globals").addEventListener("change", onControlChange);
+$("pgrid").addEventListener("click", async (e) => {
+  const n = e.target.closest("[data-nudge]"), h = e.target.closest("[data-home]");
+  if (n || h) {
+    const port = (n || h).dataset[n ? "nudge" : "home"].split(":")[0];
+    const live = S.link && S.link.telemetry && S.link.telemetry.motors && S.link.telemetry.motors[port];
+    if (!live) { $("fitNote").textContent = "Connect to PowerShock first to move the motor."; return; }
+    const deg = n ? +n.dataset.nudge.split(":")[1] : -live.tacho;
+    if (deg) await api("/api/test", { port, action: "rotate", value: deg, speed: 20 });
+    $("fitNote").textContent = n ? `Port ${port}: turned ${deg > 0 ? "+" : ""}${deg}°, now at ${live.tacho + deg}°.` : `Port ${port}: back at 0°.`;
+    return;
+  }
+  const b = e.target.closest("[data-zero]"); if (!b) return;
+  const r = await api("/api/test", { port: b.dataset.zero, action: "zero" });
+  $("fitNote").textContent = r.ok ? `Port ${b.dataset.zero}: centre set to where the motor is now.` : "Connect to PowerShock first to set the centre.";
+});
+$("presets").addEventListener("click", (e) => {
+  const b = e.target.closest(".preset"); if (!b || !presets[b.dataset.preset]) return;
+  S.mapDraft = { ...JSON.parse(JSON.stringify(presets[b.dataset.preset])), sticks: S.mapDraft && S.mapDraft.sticks };
+  drawControls(true); saveMapping(); $("fitNote").textContent = "";
+});
+// Fit the chosen layout to what's actually plugged in.
+$("fitBtn").addEventListener("click", () => {
+  const cp = currentPorts(); if (!cp.ports) { $("fitNote").textContent = "Connect to the brick first so I can see the motors."; return; }
+  const motors = MOTOR_PORTS.filter((p) => cp.ports[p] && cp.ports[p].kind === "motor");
+  const large = motors.filter((p) => /Large/.test(cp.ports[p].label)), medium = motors.filter((p) => /Medium/.test(cp.ports[p].label));
+  const isCar = S.mapDraft && S.mapDraft.name === "car";
+  const m = JSON.parse(JSON.stringify(presets[isCar ? "car" : "tank"]));
+  MOTOR_PORTS.forEach((p) => { m.ports[p] = { mode: "off" }; });
+  const notes = [];
+  if (isCar) {
+    const steer = medium[0] || motors.find((p) => !large.slice(0, 2).includes(p)) || null;
+    const drives = motors.filter((p) => p !== steer);
+    if (steer) { m.ports[steer] = { ...presets.car.ports.D }; notes.push(`${steer} steers`); }
+    drives.forEach((p) => { m.ports[p] = { ...presets.car.ports.B }; });
+    if (drives.length) notes.push(`${drives.join(" + ")} drive`);
+  } else {
+    const drives = (large.length >= 2 ? large : motors).slice(0, 2);
+    if (drives[0]) { m.ports[drives[0]] = { ...presets.tank.ports.B }; notes.push(`${drives[0]} left wheel`); }
+    if (drives[1]) { m.ports[drives[1]] = { ...presets.tank.ports.C }; notes.push(`${drives[1]} right wheel`); }
+    const extra = motors.find((p) => !drives.includes(p));
+    if (extra) { m.ports[extra] = { ...presets.tank.ports.A }; notes.push(`${extra} on the right stick`); }
+  }
+  m.name = isCar ? "car" : "tank";
+  m.sticks = S.mapDraft && S.mapDraft.sticks; S.mapDraft = m; drawControls(true); saveMapping();
+  $("fitNote").textContent = motors.length ? `Fitted ${isCar ? "Car" : "Tank"} to your motors: ${notes.join(", ")}.` : "No motors plugged in yet.";
+});
+
+// ---------- controller page (WebHID for battery / model / firmware) ----------
+$("pairShow").addEventListener("click", () => { S.pairOpen = !S.pairOpen; drawController(); });
+$("pairTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#pairTabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
+  ["bt", "usb", "ev3"].forEach((t) => $("pair-" + t).classList.toggle("hidden", b.dataset.t !== t));
+  $("pairTrouble").classList.toggle("hidden", b.dataset.t === "ev3");
+});
+const DS_MODELS = { 0x05c4: "DualShock 4, first version (CUH-ZCT1)", 0x09cc: "DualShock 4, second version (CUH-ZCT2, light bar shows through the touchpad)", 0x0ba0: "Sony wireless adapter for DualShock 4", 0x0ce6: "DualSense", 0x0df2: "DualSense Edge" };
+S.hid = null;
+const hidSupported = !!navigator.hid;
+async function hidOpen(dev) {
+  if (!dev.opened) await dev.open();
+  S.hid = { dev, model: DS_MODELS[dev.productId] || dev.productName, pid: dev.productId, link: null, level: null, charging: false, cable: false, fw: null, at: 0 };
+  dev.addEventListener("inputreport", (e) => {
+    const d = e.data, h = S.hid; if (!h) return;
+    let b = null;
+    if (e.reportId === 0x01 && d.byteLength >= 30) { b = d.getUint8(29); h.link = "USB cable"; }
+    else if (e.reportId === 0x11 && d.byteLength >= 32) { b = d.getUint8(31); h.link = "Bluetooth"; }
+    else { h.link = h.link || "Bluetooth"; return; }
+    h.cable = !!(b & 0x10); h.level = b & 0x0f; h.at = Date.now();
+    // On cable the level runs 0..11 (11 = full); on battery 0..10. Each step is about 10%.
+    h.charging = h.cable && h.level < 11;
+  });
+  // Over Bluetooth the controller sends a short report without the battery until
+  // asked for its calibration data; that switches it to the full report.
+  try { await dev.receiveFeatureReport(0x02); } catch (e) {}
+  try {
+    const f = await dev.receiveFeatureReport(0xa3);
+    const o = f.getUint8(0) === 0xa3 ? 1 : 0;
+    const txt = (a, n) => { let t = ""; for (let i = 0; i < n && a + i < f.byteLength; i++) { const c = f.getUint8(a + i); if (c) t += String.fromCharCode(c); } return t.trim(); };
+    const u16 = (a) => a + 1 < f.byteLength ? f.getUint8(a) | (f.getUint8(a + 1) << 8) : null;
+    S.hid.fw = { date: txt(o, 16), time: txt(o + 16, 16), hw: u16(o + 34), fw: u16(o + 40) };
+  } catch (e) { S.hid.fw = { error: "This controller didn't share its firmware details." }; }
+  drawController();
+}
+// Battery / model / firmware via the console server, which opens the controller through Windows.
+async function readDs4(quiet) {
+  if (S.ds4Busy) return; S.ds4Busy = true;
+  if (!quiet) $("hidBtn").textContent = "Reading…";
+  try {
+    const r = await api("/api/ds4");
+    if (r.ok) {
+      S.hid = { model: r.model, pid: r.pid, link: r.link, level: r.level ?? null, cable: !!r.cable, charging: !!r.charging, fw: r.fw || { error: "This controller didn't share its firmware details." }, at: Date.now(), server: true };
+      drawController(); return true;
+    }
+    if (!quiet) $("hidBody").innerHTML = `<p class="note bad">${esc(r.error)}</p>`;
+  } catch (e) { if (!quiet) $("hidBody").innerHTML = `<p class="note bad">Couldn't reach the console server.</p>`; }
+  finally { S.ds4Busy = false; $("hidBtn").textContent = "Refresh"; }
+  return false;
+}
+// read once when a controller shows up, then every 2 minutes while this page is open
+setInterval(() => { if (!S.armed && S.bt && (S.bt.pads || []).length && (!S.hid || Date.now() - S.hid.at > 120000)) readDs4(true); }, 5000);
+$("hidBtn").addEventListener("click", async () => {
+  if (await readDs4(false)) return;
+  if (!hidSupported) { $("hidBody").innerHTML = `<p class="note bad">This browser can't read controller details. Open <b>http://127.0.0.1:8765</b> in Chrome or Edge.</p>`; return; }
+  try {
+    const [dev] = await navigator.hid.requestDevice({ filters: [{ vendorId: 0x054c }] });
+    if (dev) await hidOpen(dev);
+    else $("hidBody").innerHTML = `<p class="note bad">No controller was chosen. If no list popped up, this browser doesn't offer one: open <b>http://127.0.0.1:8765/#controller</b> in Chrome or Edge, click the button there, pick <b>Wireless Controller</b> and press Connect.</p>`;
+  } catch (e) { $("hidBody").innerHTML = `<p class="note bad">Couldn't open the controller: ${esc(e.message)}</p>`; }
+});
+if (hidSupported) navigator.hid.getDevices().then((ds) => { const d = ds.find((x) => x.vendorId === 0x054c); if (d) hidOpen(d).catch(() => {}); });
+// ---------- stick calibration and feel (same maths as pc/mapping.py: stick()) ----------
+const STICK_DEFAULT = { deadzone: 8, curve: 0, offset: { lx: 0, ly: 0, rx: 0, ry: 0 }, span: { lx: [-1, 1], ly: [-1, 1], rx: [-1, 1], ry: [-1, 1] } };
+const STICK_AXES = ["lx", "ly", "rx", "ry"];
+const sticksCfg = () => (S.mapDraft && S.mapDraft.sticks) || STICK_DEFAULT;
+function stickOut(axis, raw, pad = true) {
+  const s = sticksCfg(); let v = Math.max(-1, Math.min(1, raw));
+  if (pad) {
+    const o = s.offset[axis] || 0, [lo, hi] = s.span[axis] || [-1, 1];
+    v -= o; v = v > 0 ? v / (hi - o) : v < 0 ? v / (o - lo) : 0; v = Math.max(-1, Math.min(1, v));
+  }
+  const dz = s.deadzone / 100, a = Math.abs(v); if (a <= dz) return 0;
+  let t = (a - dz) / (1 - dz); const k = s.curve / 100; t = (1 - k) * t + k * t * t * t;
+  return v > 0 ? t : -t;
+}
+function drawFeel(gp) {
+  const s = sticksCfg();
+  if (document.activeElement !== $("stDz")) $("stDz").value = s.deadzone;
+  if (document.activeElement !== $("stCurve")) $("stCurve").value = s.curve;
+  $("stDzV").textContent = Math.round(s.deadzone) + "%";
+  $("stCurveV").textContent = s.curve ? (s.curve < 40 ? "a little gentle" : s.curve < 75 ? "gentle" : "very gentle") : "linear";
+  const pts = []; for (let i = 0; i <= 50; i++) { const x = i / 50; const o = stickOut("lx", x, false); pts.push(`${(x * 100).toFixed(1)},${(100 - o * 100).toFixed(1)}`); }
+  $("stGraphCrv").setAttribute("d", "M" + pts.join(" L"));
+  $("stGraphDz").setAttribute("width", s.deadzone);
+  // the dot follows whichever stick axis is pushed furthest
+  let raw = 0, ax = "lx"; if (gp) STICK_AXES.forEach((a, i) => { const v = gp.axes[i] - (s.offset[a] || 0); if (Math.abs(v) > Math.abs(raw)) { raw = v; ax = a; } });
+  const out = gp ? Math.abs(stickOut(ax, gp.axes[STICK_AXES.indexOf(ax)])) : 0;
+  $("stGraphDot").setAttribute("cx", Math.min(100, Math.abs(raw) * 100)); $("stGraphDot").setAttribute("cy", 100 - out * 100);
+  const calibrated = STICK_AXES.some((a) => s.offset[a] || s.span[a][0] !== -1 || s.span[a][1] !== 1);
+  if (!S.cal && !S.calMsg) $("calInfo").textContent = calibrated ? `Calibrated: rest at L ${s.offset.lx.toFixed(2)}, ${s.offset.ly.toFixed(2)} · R ${s.offset.rx.toFixed(2)}, ${s.offset.ry.toFixed(2)}` : "Not calibrated yet: takes about 10 seconds.";
+}
+function setSticks(fn) {
+  if (!S.mapDraft) return;
+  S.mapDraft.sticks = JSON.parse(JSON.stringify(S.mapDraft.sticks || STICK_DEFAULT)); fn(S.mapDraft.sticks); S.calMsg = null;
+  saveMapping(); drawFeel(padNow());
+}
+const padNow = () => [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean) || null;
+$("stDz").addEventListener("input", (e) => setSticks((s) => { s.deadzone = +e.target.value; }));
+$("stCurve").addEventListener("input", (e) => setSticks((s) => { s.curve = +e.target.value; }));
+$("calReset").addEventListener("click", () => setSticks((s) => Object.assign(s, JSON.parse(JSON.stringify(STICK_DEFAULT)))));
+// Get ready, then two steps: hands off (where do the sticks rest?), then circles (how far does each reach?).
+// Step 1 waits for the sticks to be still: if one moves, step 1 just starts over.
+$("calBtn").addEventListener("click", () => {
+  if (S.cal) return;
+  if (!padNow()) { S.calMsg = "Press any button on the controller first, so this page can see it."; $("calInfo").textContent = S.calMsg; return; }
+  const READY_MS = 2000, REST_MS = 2000, ROLL_MS = 7000;
+  const lo = { lx: 0, ly: 0, rx: 0, ry: 0 }, hi = { lx: 0, ly: 0, rx: 0, ry: 0 };
+  let phase = "ready", phaseAt = performance.now(), rest = null, restarts = 0;
+  S.cal = true; S.calMsg = null; $("calBox").classList.remove("hidden"); $("calBtn").disabled = true; $("calInfo").textContent = "";
+  const finish = (msg) => { S.cal = false; S.calMsg = msg; $("calBox").classList.add("hidden"); $("calBtn").disabled = false; $("calInfo").textContent = msg; };
+  const tick = () => {
+    const gp = padNow(), now = performance.now(), t = now - phaseAt;
+    if (!gp) return finish("The controller went away. Press a button on it and try again.");
+    const ax = STICK_AXES.map((a, i) => gp.axes[i]);
+    if (phase === "ready") {
+      $("calStep").innerHTML = `<b>Let go of both sticks</b> and put the controller down. Starting in ${Math.ceil((READY_MS - t) / 1000)}…`;
+      $("calBar").style.width = (t / READY_MS * 100) + "%";
+      if (t >= READY_MS) { phase = "rest"; phaseAt = now; rest = STICK_AXES.map(() => []); }
+    } else if (phase === "rest") {
+      // a stick far from where step 1 started, or pushed well off centre, means hands are still on it
+      const moved = rest[0].length && ax.some((v, i) => Math.abs(v - rest[i][0]) > 0.06 || Math.abs(v) > 0.3);
+      if (moved) {
+        if (++restarts > 200) return finish("The sticks never stayed still. Put the controller down and try again.");
+        phaseAt = now; rest = STICK_AXES.map(() => []);
+        $("calStep").innerHTML = "<b>Step 1 of 2: hands off the sticks</b>. A stick is still moving; waiting for it to settle…";
+      } else {
+        ax.forEach((v, i) => rest[i].push(v));
+        $("calStep").innerHTML = "<b>Step 1 of 2: hands off the sticks</b>. Measuring where they rest…";
+      }
+      $("calBar").style.width = (Math.min(t, REST_MS) / REST_MS * 100) + "%";
+      if (t >= REST_MS && rest[0].length > 10) { phase = "roll"; phaseAt = now; }
+    } else {
+      $("calStep").innerHTML = "<b>Step 2 of 2: roll both sticks slowly round their edges</b>, pushed all the way, two or three full circles.";
+      STICK_AXES.forEach((a, i) => { lo[a] = Math.min(lo[a], ax[i]); hi[a] = Math.max(hi[a], ax[i]); });
+      $("calBar").style.width = (t / ROLL_MS * 100) + "%";
+      if (t >= ROLL_MS) {
+        const off = {}, span = {}, short = [];
+        STICK_AXES.forEach((a, i) => {
+          const v = rest[i].slice().sort((x, y) => x - y);
+          off[a] = Math.round(v[v.length >> 1] * 1000) / 1000;
+          if (hi[a] < 0.7 || lo[a] > -0.7) short.push(a.toUpperCase());
+          span[a] = [Math.min(-0.7, Math.round(lo[a] * 1000) / 1000), Math.max(0.7, Math.round(hi[a] * 1000) / 1000)];
+        });
+        setSticks((s) => { s.offset = off; s.span = span; });
+        const f = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
+        return finish((short.length ? `Saved, but ${short.join(", ")} didn't reach far one way: run it again, rolling all the way round. ` : "Saved. ")
+          + `Rest: left ${f(off.lx)}, ${f(off.ly)} · right ${f(off.rx)}, ${f(off.ry)}. Reach: left ${lo.lx.toFixed(2)} to ${hi.lx.toFixed(2)}, right ${lo.rx.toFixed(2)} to ${hi.rx.toFixed(2)}.`);
+      }
+    }
+    setTimeout(tick, 20);
+  };
+  setTimeout(tick, 20);
+});
+// Where the controller stands, from the page's view and Windows' view:
+//   ready     the page reads it
+//   press     Windows has it, but this page hasn't seen a button press since it opened
+//   asleep    paired with this laptop but not connected (turned itself off, or out of range)
+//   unpaired  Windows has never paired one
+function padStatus(gp) {
+  const b = S.bt || {}, win = (b.pads || [])[0];
+  if (gp) return { state: "ready", via: (win && win.via) || (S.hid && S.hid.link) || "" };
+  if (win) return { state: "press", win };
+  if (b.padPaired || S.padLost) return { state: "asleep" };
+  if (b.loading || !S.bt) return { state: "checking" };
+  return { state: "unpaired" };
+}
+window.addEventListener("gamepaddisconnected", () => {
+  S.padLost = Date.now();
+  if (S.armed && S.src === "pad") { setArmed(false); S.disarmWhy = "Motors switched off: the controller disconnected."; }
+});
+window.addEventListener("gamepadconnected", () => { S.padLost = 0; });
+function drawPadState(st) {
+  const el = $("padState"), b = padBattery();
+  el.classList.toggle("hidden", st.state === "unpaired" || st.state === "checking");
+  el.className = "padstate " + st.state + (st.state === "unpaired" || st.state === "checking" ? " hidden" : "");
+  const T = {
+    ready: ["DualShock 4 is ready", `Connected${st.via ? " over " + esc(st.via) : ""}${b ? ` · battery ${b.pct}%` : ""}. Move a stick and watch the Sticks card.`],
+    press: ["Press any button on the controller", `It's connected to Windows over ${esc(st.win ? st.win.via : "Bluetooth")}, but a browser only lets a page use a controller after a button press. <b>✕</b> is fine.`],
+    asleep: ["The controller is asleep", "<b>Press the PS button once</b>: the small round button in the middle, between the sticks. The light bar comes on and it reconnects to this laptop by itself in a few seconds."],
+  }[st.state];
+  if (!T) return;
+  const key = st.state + T[1];
+  if (el.dataset.key === key) return; el.dataset.key = key;
+  $("psTitle").textContent = T[0]; $("psBody").innerHTML = T[1];
+  const tips = st.state === "asleep" ? [
+    "It turns itself off after a while without use, or when Bluetooth drops. That's normal.",
+    "Light bar flashes, then goes dark? It's trying another device it knows (a PS4 nearby?) or the battery is flat: plug it into USB, or switch the PS4 off.",
+    "Still nothing after 10 seconds? Open Pairing steps and pair it again.",
+  ] : [];
+  $("psTips").classList.toggle("hidden", !tips.length); $("psTips").innerHTML = tips.map((t) => `<li>${t}</li>`).join("");
+}
+function drawController() {
+  const h = S.hid;
+  if (h) {
+    const pct = h.level == null ? null : Math.min(100, Math.round(h.level / (h.cable ? 11 : 10) * 100));
+    const cls = pct == null ? "" : pct <= 15 ? "crit" : pct <= 35 ? "low" : "";
+    const b = padBattery(), hex = (n) => n != null ? "0x" + n.toString(16).toUpperCase().padStart(4, "0") : "?";
+    const [name, ver] = (h.model || "Sony controller").split(", ");
+    setHTML($("hidBody"), `<div class="chead">
+      <div class="cbatt"><span class="batt ${b ? b.cls : ""}"><i style="width:${b ? b.pct * 0.34 : 0}px"></i>${h.charging ? '<span class="bolt">⚡</span>' : ""}</span><b>${b ? b.pct + "%" : "–"}</b></div>
+      <div class="cm"><b>${esc(name)}${ver ? ` <span>· ${esc(ver)}</span>` : ""}</b>
+        <span>${esc(h.link || "")} · ${!b ? "battery not reported" : h.cable ? (h.charging ? "charging over USB" : "on USB, full") : b.pct <= 15 ? "on battery, charge it soon" : "on battery"}</span></div></div>`);
+    const fw = h.fw;
+    setHTML($("fwBody"), `<dl class="kv"><dt>Firmware</dt><dd>${!fw ? "reading…" : fw.error ? esc(fw.error) : `${hex(fw.fw)} <span class="muted">· built ${esc(fw.date)}</span>`}</dd>
+      ${fw && !fw.error ? `<dt>Hardware</dt><dd>${hex(fw.hw)}</dd>` : ""}<dt>Product ID</dt><dd>054C:${h.pid.toString(16).toUpperCase().padStart(4, "0")}</dd></dl>`);
+    $("ctrlSub").textContent = "";
+    $("navCtrl").className = "badge " + (pct != null && pct <= 15 && !h.cable ? "bad" : "");
+  }
+  // live from the Gamepad API
+  const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean);
+  const st = padStatus(gp), winPad = st.state === "press" ? st.win : null;
+  const showPair = st.state === "unpaired" || S.pairOpen;
+  drawPadState(st);
+  $("cgrid").classList.toggle("paired", !showPair);
+  document.querySelectorAll(".pairseen").forEach((li) => { li.className = (gp ? "done" : "now") + " pairseen"; });
+  $("pairHead").classList.toggle("hidden", !showPair); $("pairBody").classList.toggle("hidden", !showPair);
+  $("pairShow").textContent = S.pairOpen ? "Hide pairing steps" : "Pairing steps";
+  $("gpWait").classList.toggle("hidden", !!gp || !S.hid || !!winPad); $("gpDetails").classList.toggle("hidden", !gp);
+  setHTML($("gpInfo"), gp ? `<dt>Name</dt><dd>${esc(gp.id)}</dd><dt>Layout</dt><dd>${gp.mapping === "standard" ? "Standard (buttons in the usual places)" : "Non-standard"}</dd><dt>Buttons</dt><dd>${gp.buttons.length}</dd><dt>Axes</dt><dd>${gp.axes.length}</dd><dt>Rumble</dt><dd>${gp.vibrationActuator ? "Supported" : "Not available here"}</dd>` : "<dt>Controller</dt><dd>None yet. Press any button on it.</dd>");
+  const sc = sticksCfg(), dzr = sc.deadzone / 100;
+  const place = (pad, x, y, lbl, id, ax, ay) => {
+    const pt = $(pad).querySelector(".pt"); pt.style.left = 50 + x * 45 + "%"; pt.style.top = 50 + y * 45 + "%";
+    const dz = $(id); dz.style.width = dz.style.height = dzr * 90 + "%";
+    dz.style.left = 50 + (sc.offset[ax] || 0) * 45 + "%"; dz.style.top = 50 + (sc.offset[ay] || 0) * 45 + "%";
+    const ox = stickOut(ax, x), oy = stickOut(ay, y), out = Math.hypot(ox, oy);
+    $(lbl).textContent = `${lbl === "driftLv" ? "Left" : "Right"} ${x.toFixed(2)}, ${y.toFixed(2)}` + (gp ? ` → ${Math.round(Math.min(1, out) * 100)}%` : "");
+    return { raw: Math.hypot(x, y), out };
+  };
+  const rl = place("driftL", gp ? gp.axes[0] : 0, gp ? gp.axes[1] : 0, "driftLv", "dzL", "lx", "ly");
+  const rr = place("driftR", gp ? gp.axes[2] : 0, gp ? gp.axes[3] : 0, "driftRv", "dzR", "rx", "ry");
+  $("driftNote").textContent = !gp ? "No controller" : Math.max(rl.raw, rr.raw) > 0.3 ? "Sticks moving" : Math.max(rl.out, rr.out) > 0 ? "A stick at rest still sends something: raise the dead zone or calibrate" : "At rest both sticks send 0";
+  drawFeel(gp);
+}
+// controller battery in the status bar, next to the brick's
+function padBattery() {
+  const h = S.hid; if (!h || h.level == null) return null;
+  const pct = Math.min(100, Math.round(h.level / (h.cable ? 11 : 10) * 100));
+  return { pct, cls: pct <= 15 && !h.cable ? "crit" : pct <= 35 && !h.cable ? "low" : "", charging: h.charging, cable: h.cable };
+}
+setInterval(() => {
+  if (location.hash === "#controller") drawController();
+  const b = padBattery(), fresh = b && Date.now() - S.hid.at < 300000;
+  $("sbPadBatt").classList.toggle("hidden", !fresh); $("sbPadPct").classList.toggle("hidden", !fresh);
+  if (fresh) {
+    $("sbPadBatt").className = "batt " + b.cls; $("sbPadBatt").querySelector("i").style.width = b.pct * 0.13 + "px";
+    $("sbPadPct").textContent = (b.charging ? "⚡" : "") + b.pct + "%";
+    $("sbPadItem").title = `Controller battery ${b.pct}%${b.charging ? ", charging" : b.cable ? ", on USB" : ""}`;
+  }
+}, 500);
+
+// ---------- gearing page ----------
+const GEARS = {
+  8: { name: "8 tooth (light grey)", note: "small and weak under load" },
+  12: { name: "12 tooth double bevel (dark grey)", note: "" },
+  16: { name: "16 tooth (light grey)", note: "" },
+  20: { name: "20 tooth double bevel (light grey)", note: "" },
+  24: { name: "24 tooth (light grey, 4 holes)", note: "" },
+  36: { name: "36 tooth double bevel (dark grey)", note: "" },
+  40: { name: "40 tooth (light grey, 12 holes)", note: "" },
+  1: { name: "Worm gear (dark grey)", note: "one tooth per turn; can't be turned backwards" },
+};
+const MOTOR = { large: { rpm: 170, torque: 20, label: "Large motor" }, medium: { rpm: 250, torque: 8, label: "Medium motor" } };
+const fill = (id, opts, val, withNone) => { $(id).innerHTML = (withNone ? '<option value="0">None</option>' : "") + opts.map((t) => `<option value="${t}" ${+t === +val ? "selected" : ""}>${GEARS[t].name}</option>`).join(""); };
+fill("g1", [8, 12, 16, 20, 24, 36, 40, 1], 12); fill("g2", [8, 12, 16, 20, 24, 36, 40], 36);
+fill("g3", [8, 12, 16, 20, 24, 36, 40], 0, true); fill("g4", [8, 12, 16, 20, 24, 36, 40], 36);
+// Speed of each gear relative to the motor; meshing gears turn opposite ways.
+function trainSpeeds(t1, t2, t3, t4) {
+  const s2 = -(t1 === 1 ? 1 / t2 : t1 / t2);
+  const s4 = t3 ? -s2 * (t3 === 1 ? 1 / t4 : t3 / t4) : null;
+  return { g1: 1, g2: s2, g3: t3 ? s2 : null, g4: s4 };
+}
+function trainResult(t1, t2, t3, t4, motor) {
+  const sp = trainSpeeds(t1, t2, t3, t4), out = Math.abs(t3 ? sp.g4 : sp.g2);
+  const stages = [[t1, t2], ...(t3 ? [[t3, t4]] : [])];
+  let eff = 1; stages.forEach(([a]) => { eff *= a === 1 ? 0.45 : 0.9; });
+  const m = MOTOR[motor];
+  return { factor: out, rpm: m.rpm * out, torque: m.torque / out * eff, eff, stages, worm: stages.some(([a]) => a === 1), m };
+}
+const fmtFactor = (f) => f >= 1 ? `${+f.toFixed(2)}× faster` : `${+(1 / f).toFixed(2)}× slower`;
+function studs(a, b) { if (a === 1) return null; return (a + b) / 16; }
+function drawGearCalc() {
+  const t1 = +$("g1").value, t2 = +$("g2").value, t3 = +$("g3").value, t4 = +$("g4").value, motor = $("gMotor").value;
+  $("g4").disabled = !t3;
+  S.gearTrain = [t1, t2, t3, t3 ? t4 : 0];
+  if (window.Gears3D) window.Gears3D.main.set(S.gearTrain);
+  const r = trainResult(t1, t2, t3, t4, motor);
+  setHTML($("gNums"), `
+    <div class="gnum"><div class="k">Output speed</div><div class="v">${Math.round(r.rpm)} <small>rpm</small></div></div>
+    <div class="gnum"><div class="k">Output force</div><div class="v">${r.torque.toFixed(1)} <small>N·cm</small></div></div>
+    <div class="gnum"><div class="k">Compared with the motor</div><div class="v" style="font-size:17px">${fmtFactor(r.factor)}</div></div>
+    <div class="gnum"><div class="k">Friction loss</div><div class="v">${Math.round((1 - r.eff) * 100)}<small>%</small></div></div>`);
+  const notes = [];
+  notes.push(`${r.m.label}: about ${r.m.rpm} rpm and ${r.m.torque} N·cm (LEGO figures, fresh batteries).`);
+  r.stages.forEach(([a, b], i) => {
+    const sd = studs(a, b);
+    if (a === 1) notes.push(`Stage ${i + 1}: worm drives ${b}T = ${b}:1. It locks: the output can't turn the motor back, so arms stay up without power.`);
+    else notes.push(`Stage ${i + 1}: ${a}T → ${b}T, axles ${sd} stud${sd === 1 ? "" : "s"} apart${sd % 1 ? ' <span class="warn">(half stud: use offset holes or a diagonal)</span>' : ""}.`);
+  });
+  if ([t1, t2, t3, t4].includes(8) && r.torque > 25) notes.push('<span class="warn">8-tooth gears can skip or crack under this much force; use 12 teeth or more.</span>');
+  if (r.factor > 2.5) notes.push('<span class="warn">Geared up a lot: the motor may stall on carpet or slopes. Watch for "stalled" on the Robot page.</span>');
+  if (r.rpm < 10) notes.push("Very slow but very strong: good for lifts and cranes.");
+  $("gNotes").innerHTML = notes.map((n) => `<li>${n}</li>`).join("");
+  const cp = currentPorts(), here = MOTOR_PORTS.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].kind === "motor").map((p) => `${cp.ports[p].label} on ${p}`);
+  $("gMotorNote").textContent = here.length ? `On your brick: ${here.join(", ")}` : "";
+}
+["gMotor", "g1", "g2", "g3", "g4"].forEach((id) => $(id).addEventListener("change", drawGearCalc));
+const EXAMPLES = [
+  { t: [36, 12, 0, 0], m: "large", title: "Fast racer", tag: "Big gear drives small: 3× the speed", use: "Flat floors, lightweight cars. Expect stalls on carpet." },
+  { t: [12, 36, 0, 0], m: "large", title: "Strong crawler", tag: "Small gear drives big: 3× the force", use: "Climbing, pushing, heavy robots." },
+  { t: [12, 36, 12, 36], m: "large", title: "Lifting arm (two stages)", tag: "Two 1:3 stages = 9× slower and stronger", use: "Cranes and arms. Compound gears share one axle." },
+  { t: [1, 24, 0, 0], m: "medium", title: "Self-locking steering", tag: "Worm gear 24:1, holds its position", use: "Steering, grabbers, arms that must not fall when power is off." },
+  { t: [8, 40, 0, 0], m: "large", title: "Winch", tag: "8T → 40T: 5× slower, strong", use: "Pulling a string or cable. 8T is fine here: low speed, steady load." },
+  { t: [24, 8, 0, 0], m: "medium", title: "Spinner", tag: "24T → 8T: 3× faster", use: "Fans, flywheels, propellers: light loads only." },
+];
+$("examples").innerHTML = EXAMPLES.map((e, i) => {
+  const r = trainResult(...e.t, e.m);
+  return `<div class="ex"><div class="gearstage small" data-ex="${i}"></div>
+    <div class="exbody"><h3>${e.title}</h3><div class="tagline">${e.tag}</div>
+    <div class="chips"><span class="chip ${r.factor >= 1 ? "fast" : "strong"}">${fmtFactor(r.factor)}</span><span class="chip">${Math.round(r.rpm)} rpm</span><span class="chip">${r.torque.toFixed(1)} N·cm</span><span class="chip">${MOTOR[e.m].label}</span></div>
+    <div class="tagline">${e.use}</div>
+    <button class="btn" data-load="${i}">Open in the calculator</button></div></div>`;
+}).join("");
+
+$("examples").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-load]"); if (!b) return;
+  const e = EXAMPLES[+b.dataset.load];
+  $("gMotor").value = e.m; $("g1").value = e.t[0]; $("g2").value = e.t[1]; $("g3").value = e.t[2]; if (e.t[2]) $("g4").value = e.t[3];
+  drawGearCalc(); document.querySelector("#page-gearing").scrollIntoView({ behavior: "smooth" });
+});
+drawGearCalc();
+// ---------- brick page ----------
+const mb = (kb) => kb == null ? "?" : (kb / 1024 >= 1024 ? (kb / 1048576).toFixed(1) + " GB" : Math.round(kb / 1024) + " MB");
+const javaName = (j) => { const m = /ejre1\.(\d+)\.0_(\d+)/.exec(j || ""); return m ? `Java ${m[1]} update ${m[2]}` : (j || "?"); };
+function batteryView(v) {
+  if (v == null) return null;
+  const level = Math.max(0, Math.min(10, Math.round((v - 6.0) / 3.0 * 10)));
+  if (v >= 7.5) return { cls: "good", level, verdict: "Good" };
+  if (v >= 6.8) return { cls: "low", level, verdict: "Getting low. Motors will be slower." };
+  return { cls: "crit", level, verdict: "Very low. The brick may switch off when Bluetooth or WiFi starts." };
+}
+function currentBattery() {
+  const t = S.link && S.link.telemetry;
+  if (t) return { ...t.battery, live: true };
+  const m = S.brick && S.brick.details && S.brick.details.menu;
+  return m && m.battery && m.battery.volts != null ? m.battery : null;
+}
+function drawFacts() {
+  const d = S.brick && S.brick.details;
+  const bat = currentBattery(), bv = batteryView(bat && bat.volts);
+  $("sbBatt").textContent = bat ? bat.volts.toFixed(1) + " V" : "–";
+  const icon = $("sbBattIcon").querySelector("i");
+  icon.style.width = bv ? bv.level * 1.6 + "px" : "0"; icon.style.background = bv ? (bv.cls === "good" ? "var(--go)" : bv.cls === "low" ? "var(--warn)" : "var(--stop)") : "";
+  $("lcdBatt").textContent = bat ? bat.volts.toFixed(1) + "V" : "";
+  const wf = d && d.ok && d.wifi;
+  $("sbWifi").innerHTML = !wf ? "WiFi –" : !wf.present ? "No WiFi dongle" : wf.ip ? `<b>${esc(wf.ssid)}</b> <span class="opt">${esc(wf.ip)}</span>` : "WiFi off";
+  $("navBrick").className = "badge " + (bv ? (bv.cls === "crit" ? "bad" : bv.cls === "low" ? "warn" : "") : "");
+  drawSpecs();
+  if (!d) return setHTML($("strip"), `<div class="stat"><div class="k">Brick</div><div class="s">${brickHost() ? "Reading the brick…" : "Connect over Bluetooth or WiFi to see the battery, versions and settings."}</div></div>`);
+  if (!d.ok) {
+    const since = S.aboutAt ? new Date(S.aboutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+    setHTML($("strip"), `<div class="stat"><div class="k">Brick</div><div class="v" style="font-size:18px">Not answering</div><div class="s">It may be switched off, still starting, or out of WiFi range.${since ? ` Last seen at ${since}.` : ""}</div><div class="s" style="opacity:.75">${esc(d.error)}</div></div>`);
+    if (S.aboutHTML) setHTML($("details"), `<p class="note" style="margin:0 0 10px">Last known details${since ? ` (${since})` : ""}:</p><div style="opacity:.5">${S.aboutHTML}</div>`);
+    $("brickAge").textContent = "Not answering";
+    return;
+  }
+  const m = d.menu && d.menu.ok ? d.menu : {};
+  const w = d.wifi || {}, bt = d.bluetooth || {};
+  const up = d.uptimeS ? (d.uptimeS > 3600 ? `${(d.uptimeS / 3600).toFixed(1)} h` : `${Math.round(d.uptimeS / 60)} min`) : "?";
+  const pct = (free, total) => total ? Math.round((1 - free / total) * 100) : 0;
+  setHTML($("strip"), `
+    <div class="stat bat battery ${bv ? bv.cls : ""}">
+      <div><div class="k">Battery${bat && bat.live ? ' <span class="live"></span>' : ""}</div><div class="v">${bat ? bat.volts.toFixed(2) + " V" : "…"}</div></div>
+      <div><div class="verdict">${bv ? bv.verdict : ""}</div><div class="s">${bat ? `Brick ${(bat.batteryAmps * 1000).toFixed(0)} mA · motors ${(bat.motorAmps * 1000).toFixed(0)} mA` : ""}</div><div class="s">Fresh AAs ≈ 9 V · switched off at ≈ 6 V</div></div>
+      <div class="cellbar">${Array.from({ length: 10 }, (_, k) => `<i class="${bv && k < bv.level ? "on" : ""}"></i>`).join("")}</div>
+    </div>
+    <div class="stat"><div class="k">Memory</div><div class="v">${mb(d.memFreeKb)} <small>free</small></div><div class="meterbar"><i style="width:${pct(d.memFreeKb, d.memTotalKb)}%"></i></div><div class="s">of ${mb(d.memTotalKb)}</div></div>
+    <div class="stat"><div class="k">SD card</div><div class="v">${mb(d.diskFreeKb)} <small>free</small></div><div class="meterbar"><i style="width:${pct(d.diskFreeKb, d.diskTotalKb)}%"></i></div><div class="s">of ${mb(d.diskTotalKb)}</div></div>
+    <div class="stat"><div class="k">On for</div><div class="v">${up}</div><div class="s">since the last start</div></div>
+    <div class="stat"><div class="k">leJOS</div><div class="v">${esc(m.version || "?")}</div><div class="s">${esc(javaName(d.java))}</div></div>`);
+  const wifiState = !w.present ? '<span class="pill warn">no dongle</span>' : w.ip ? '<span class="pill go">connected</span>' : '<span class="pill">not connected</span>';
+  S.aboutAt = Date.now();
+  setHTML($("details"), S.aboutHTML = `
+    <div class="dsec"><h3>Software</h3><dl class="kv">
+      <dt>leJOS</dt><dd>${esc(m.version || "?")} <span class="muted">(menu ${esc(m.menuVersion || "?")})</span></dd>
+      <dt>Java</dt><dd>${esc(javaName(d.java))}</dd><dt>Linux</dt><dd>${esc(d.kernel || "?")}</dd><dt>Name</dt><dd>${esc(m.name || d.name || "?")}</dd></dl></div>
+    <div class="dsec"><h3>Bluetooth <span class="pill ${bt.up ? "go" : ""}">${bt.up ? "on" : "off"}</span></h3><dl class="kv">
+      <dt>Address</dt><dd>${esc(bt.ip || "?")}</dd><dt>Device</dt><dd>${esc(bt.mac || "?")}</dd>
+      <dt>Connected</dt><dd>${bt.clients ? `${bt.clients} computer${bt.clients > 1 ? "s" : ""}` : "none"}</dd></dl></div>
+    <div class="dsec"><h3>WiFi ${wifiState}</h3><dl class="kv">
+      ${w.ip ? `<dt>Network</dt><dd>${esc(w.ssid)}</dd><dt>Address</dt><dd>${esc(w.ip)}</dd>` : `<dt>Set up for</dt><dd>${esc(w.saved || "nothing yet")} · <a class="link" href="#connection">change</a></dd>`}
+      <dt>Dongle</dt><dd>${esc(w.dongle ? w.dongle.replace(/ Rev:\d+/, "") + " (Netgear WNA1100)" : "none")}</dd></dl></div>`);
+  $("brickAge").textContent = S.brick.busy ? "Updating…" : "Updates every few seconds";
+  $("dongle").classList.toggle("hidden", !w.present);
+}
+function drawSpecs() {
+  const cp = currentPorts(), m = cp.motors || {};
+  if (!cp.ports) { $("portsSrc").textContent = ""; return setHTML($("specs"), '<p class="muted">Connect to the brick to see what is plugged in.</p>'); }
+  $("portsSrc").textContent = cp.live ? "Live from PowerShock" : "Checked every minute";
+  if (S.link && S.link.want && !S.link.connected && !(S.brick && S.brick.details && S.brick.details.ok)) $("portsSrc").textContent = "Brick not answering; last known";
+  const row = (p) => {
+    const d = cp.ports[p] || {}, name = p.replace("S", "");
+    if (!d.connected) return `<div class="prow off"><span class="pbadge">${name}</span><div class="t">${d.kind === "busy" ? "In use by a program" : "Empty"}</div><span></span></div>`;
+    const role = roleOf(p), sp = d.kind === "motor" ? SPECS[d.label] : null, live = m[p];
+    const roleTxt = d.kind === "motor" ? (role ? role.replace(/ \(.*\)/, "") : "not in your controls") : "sensor";
+    return `<div class="prow"><span class="pbadge">${name}</span><div class="t">${esc(d.label)} <span>· ${esc(roleTxt)}</span></div>
+      <div class="now">${live ? `<b>${Math.round(live.speed / 6)}</b> rpm · ${live.tacho}°${live.stalled ? ' · <span style="color:var(--stop)">stalled</span>' : ""}` : ""}</div>
+      ${sp ? `<div class="sl">${sp.rpm} rpm top · ${sp.torque} running · ${sp.stall} stall · ${sp.weight}. ${esc(sp.note)}.</div>` : ""}</div>`;
+  };
+  setHTML($("specs"), `<div><h3>Motor ports</h3>${MOTOR_PORTS.map(row).join("")}</div><div><h3>Sensor ports</h3>${SENSOR_PORTS.map(row).join("")}</div>`);
+}
+
+// ---------- program page ----------
+function running() { return !!(S.brick && S.brick.details && S.brick.details.receiverListening) || !!(S.link && S.link.telemetry && !(S.fake && S.fake.running)); }
+function drawProgram() {
+  const d = S.brick && S.brick.details, host = brickHost(), run = running();
+  const builds = d && d.builds && d.builds["powershock-wifi.jar"];
+  const mine = S.app && S.app.version, theirs = S.link && S.link.connected && !(S.fake && S.fake.running) ? (S.link.brickVersion || "old") : null;
+  const verTxt = theirs === "old" ? "a version from before 0.7.0" : theirs ? "version " + theirs : "";
+  let dot = "", title = "Unknown", body = "Connect to the brick to see.";
+  if (d && d.ok) {
+    if (!builds || !builds.onBrick) { dot = "warn"; title = "Not on the brick yet"; body = "Upload it once; it stays on the brick."; }
+    else if (!builds.current) { dot = "warn"; title = run ? "Running an older version" : "An older version is on the brick"; body = `${run && verTxt ? "The brick runs " + verTxt + ". " : ""}Upload the latest build${builds.version ? " (" + builds.version + ")" : ""}, then start it again.`; }
+    else if (run && theirs && theirs !== mine) { dot = "warn"; title = "Running an older version"; body = `The brick runs ${verTxt}; this laptop has ${mine}. Stop it and start it again.`; }
+    else if (run) { dot = "on"; title = "Running"; body = (theirs ? `Version ${theirs}. ` : "") + "Listening for driving commands on port 5000."; }
+    else { title = "Ready, not running"; body = "Start it here."; }
+  }
+  if (S.fake && S.fake.running) { dot = "on"; title = "Practice brick"; body = "PowerShock isn't needed in Practice mode."; }
+  $("progDot").className = "pdot " + dot; $("progTitle").textContent = title; $("progBody").textContent = body;
+  $("runBtn").disabled = !d || !d.ok || run || !(builds && builds.onBrick);
+  $("stopProgBtn").disabled = !d || !d.ok || !run;
+  $("uploadBtn").disabled = !host;
+  $("ledRing").className = "glow " + (run || (S.fake && S.fake.running) ? "green" : d && d.ok ? "orange" : "");
+  $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : "");
+  $("sbProg").textContent = S.fake && S.fake.running ? "Practice" : d && d.ok ? (run ? "PowerShock running" : builds && builds.onBrick ? "PowerShock stopped" : "Not uploaded") : "Program unknown";
+  $("navProg").className = "badge " + (dot === "warn" ? "warn" : "");
+  // PowerShock's own files: is the brick's copy the same as the latest build here?
+  if (d && d.ok && d.builds) {
+    const what = { "powershock-wifi.jar": "Receiver: drives the motors from this console", "powershock-bt.jar": "Direct Bluetooth driver (experimental)", "powershock-ports.jar": "One-off port check" };
+    setHTML($("progFiles"), Object.entries(d.builds).map(([f, b]) => {
+      const [cls, txt] = !b.built ? ["", "not built"] : !b.onBrick ? ["warn", "not on brick"] : b.current ? ["go", "up to date"] : ["warn", "older version"];
+      return `<li><span class="fn">${esc(f)}${b.version ? ` <span class="muted">${esc(b.version)}</span>` : ""}</span><span class="pill ${cls}">${txt}</span><span class="fd">${esc(what[f] || "")}</span></li>`;
+    }).join(""));
+  }
+  const progs = d && d.menu && d.menu.programs;
+  if (progs) setHTML($("progList"), progs.filter((p) => p.endsWith(".jar")).map((p) => `<li><span class="pbadge">▤</span><div class="d">${esc(p)}</div><span class="v">${/^powershock-/.test(p) ? "PowerShock" : ""}</span></li>`).join(""));
+}
+$("runBtn").addEventListener("click", () => busy($("runBtn"), async () => {
+  setNote("progNote", "Starting PowerShock. The EV3 takes about 30 seconds to start Java…");
+  const r = await api("/api/brick/run", { host: brickHost() });
+  setNote("progNote", r.ok ? "Started." : r.error, r.ok ? "ok" : "bad");
+  if (r.ok) await connectTo(brickHost());
+  pollBrick();
+}));
+$("stopProgBtn").addEventListener("click", () => busy($("stopProgBtn"), async () => {
+  stopAll(); await api("/api/disconnect", {});
+  const r = await api("/api/brick/stop", { host: brickHost() });
+  setNote("progNote", r.ok ? "Stopped." : r.error, r.ok ? "" : "bad"); pollBrick();
+}));
+$("uploadBtn").addEventListener("click", () => busy($("uploadBtn"), async () => {
+  $("buildCard").classList.remove("hidden"); $("buildLog").textContent = "Building and uploading…";
+  const r = await api("/api/build", { lejosHome: "", host: brickHost() });
+  $("buildLog").textContent = r.log;
+  setNote("progNote", r.ok ? "Uploaded. Start (or restart) PowerShock to use it." : "Upload failed. See the build log.", r.ok ? "ok" : "bad");
+  pollBrick();
+}));
+
+// ---------- next step ----------
+let nextAction = null;
+function nextStep(kind, icon, title, body, label, action) {
+  $("next").className = "next " + kind; $("nextIcon").textContent = icon;
+  $("nextTitle").textContent = title; $("nextBody").textContent = body || "";
+  $("nextBtn").className = "btn " + (kind === "go" ? "go" : "dark") + (label ? "" : " hidden");
+  $("nextBtn").textContent = label || ""; nextAction = action || null;
+}
+$("nextBtn").addEventListener("click", () => nextAction && busy($("nextBtn"), nextAction));
+function drawNext() {
+  const L = S.link || {}, bt = S.bt || {}, d = S.brick && S.brick.details;
+  if (S.fake && S.fake.running) {
+    if (!L.connected) return nextStep("", "…", "Connecting to the practice brick", "");
+    if (!S.armed) return nextStep("go", "▶", "Ready to practise", "Turn motors on, then drive with the controller or keyboard.", "Turn motors on", async () => setArmed(true));
+    return nextStep("go", "▶", "Driving the practice brick", "Space or Stop turns motors off.");
+  }
+  if (!brickHost()) {
+    if (bt.bricks && bt.bricks.length && !bt.linkUp) return nextStep("", "2", "Join the brick's Bluetooth network", "In Devices and Printers, right-click EV3, then Connect using, Access point.", "Open Devices and Printers", () => api("/api/bluetooth/open", {}));
+    return nextStep("", "1", "Connect to the brick", "Pair over Bluetooth or enter its WiFi address. Or try Practice mode.", "Open Connection", async () => { location.hash = "connection"; });
+  }
+  if (!d) return nextStep("", "…", "Reading the brick", `Talking to ${brickHost()}.`);
+  if (!d.ok) return nextStep("bad", "!", "Can't reach the brick", d.error);
+  const bat = currentBattery(), volts = bat && bat.volts;
+  if (volts != null && volts < 6.8) return nextStep("bad", "!", `Battery is very low (${volts.toFixed(1)} V)`, "Replace or charge the batteries. Below about 6.5 V the brick switches off.");
+  const build = d.builds && d.builds["powershock-wifi.jar"];
+  if (!build || !build.onBrick || !build.current) return nextStep("", "↑", build && build.onBrick ? "Update PowerShock on the brick" : "Put PowerShock on the brick", "Builds the program and copies it to the brick.", "Upload", async () => $("uploadBtn").click());
+  if (!running()) return nextStep("", "▶", "Start PowerShock on the brick", "Takes about 30 seconds.", "Start", async () => $("runBtn").click());
+  if (!L.connected) return nextStep("", "→", "Connect to PowerShock", `It's running on ${brickHost()}.`, "Connect", () => connectTo(brickHost()));
+  const cp = currentPorts();
+  if (cp.ports) {
+    const missing = MOTOR_PORTS.filter((p) => roleOf(p) && cp.ports[p] && cp.ports[p].connected === false);
+    if (missing.length) return nextStep("warn", "!", `Nothing plugged into ${missing.join(" and ")}`, `Your controls use ${missing.join(" and ")}. Plug motors in there, or change the layout on the Controls page.`, "Open Controls", async () => { location.hash = "controls"; });
+  }
+  if (volts != null && volts < 7.5) return nextStep("warn", "!", `Battery is getting low (${volts.toFixed(1)} V)`, "Motors will be slower. Replace the batteries soon.");
+  if (!S.armed) return nextStep("go", "▶", "Ready to drive", `Connected over ${L.via || "the network"}. Turn motors on when the robot has room to move.`, "Turn motors on", async () => setArmed(true));
+  return nextStep("go", "▶", "Driving", "Space or Stop turns motors off.");
+}
+
+// ---------- connection ----------
+function brickHost() {
+  const L = S.link || {};
+  if (S.fake && S.fake.running) return "";
+  if (L.want && L.host && L.host !== "127.0.0.1") return L.host;
+  if (S.bt && S.bt.linkUp && S.bt.brickAnswers) return "10.0.1.1";
+  return S.pinnedHost && S.pinnedHost !== "127.0.0.1" ? S.pinnedHost : "";
+}
+async function connectTo(h) {
+  const r = await api("/api/connect", { host: h });
+  if (!r.ok) setNote("progNote", r.error && r.error.includes("5000") ? "PowerShock isn't running on the brick. Press Start." : r.error, "bad");
+  return r;
+}
+function step(id, st) { $(id).className = st; }
+function drawBt() {
+  const b = S.bt; if (!b || b.loading) return;
+  if (b.error) { $("btPairHow").textContent = b.error; return; }
+  const brick = (b.bricks || [])[0];
+  if (!b.radio) { step("btPair", "now"); $("btPairHow").textContent = "This laptop's Bluetooth is off. Turn it on in Windows settings."; }
+  else if (!brick) { step("btPair", "now"); $("btPairHow").innerHTML = "On the brick: Bluetooth menu, Visibility on. Then in Windows: Settings, Bluetooth &amp; devices, Add device, EV3. The PIN is 1234."; }
+  else { step("btPair", "done"); $("btPairHow").textContent = `${brick.name} · ${brick.mac}`; }
+  const linked = brick && b.linkUp;
+  step("btLink", linked ? "done" : brick ? "now" : "");
+  $("btOpen").classList.toggle("hidden", !brick || linked);
+  $("btLinkHow").textContent = linked ? `Joined. This laptop is ${(b.ips || []).join(", ")}.` : brick ? "Right-click EV3 in Devices and Printers, then Connect using, Access point." : "Pairing alone doesn't connect.";
+  step("btReady", linked && b.brickAnswers ? "done" : linked ? "now" : "");
+  $("btReadyHow").textContent = linked && b.brickAnswers ? "The brick answers at 10.0.1.1." : linked ? "Waiting for 10.0.1.1 to answer…" : "The brick answers at 10.0.1.1.";
+  $("navConn").className = "badge " + (brickHost() || (S.fake && S.fake.running) ? "" : "warn");
+  const w = S.brick && S.brick.details && S.brick.details.wifi;
+  $("wifiSummary").textContent = !w ? "" : w.ip ? `Brick is on ${w.ssid} at ${w.ip}` : "Brick isn't on WiFi yet";
+}
+$("btOpen").addEventListener("click", () => api("/api/bluetooth/open", {}));
+// Connection tiles: which link is in use, what's ready, and one click to switch.
+function drawConnTiles() {
+  const L = S.link || {}, b = S.bt || {}, practice = !!(S.fake && S.fake.running);
+  let w = S.brick && S.brick.details && S.brick.details.ok && S.brick.details.wifi;
+  // remember the brick's WiFi between readings (switching links re-reads the brick)
+  if (w && w.ip) localStorage.setItem("ev3wifi", JSON.stringify({ ssid: w.ssid, ip: w.ip, present: true }));
+  else if (!w || w.present) { try { w = JSON.parse(localStorage.getItem("ev3wifi")) || w; } catch (e) {} }
+  const brick = (b.bricks || [])[0];
+  const btActive = L.connected && L.via === "Bluetooth", wifiActive = L.connected && L.via === "WiFi";
+  const btReady = !!(b.linkUp && b.brickAnswers);
+  const pill = (id, cls, txt) => { $(id).className = "pill " + cls; $(id).textContent = txt; };
+  $("tileBt").classList.toggle("active", btActive);
+  pill("btPill", btActive ? "go" : btReady ? "" : "warn", btActive ? "in use" : btReady ? "ready" : brick ? "not joined" : "not paired");
+  setHTML($("btBody"), brick ? `<span><b>${esc(brick.name)}</b> · ${esc(brick.mac)}</span><span>${b.linkUp ? `Brick 10.0.1.1 · this laptop ${esc((b.ips || []).join(", "))}` : "Paired, not joined yet"}</span>` : "<span>Not paired with this laptop yet.</span>");
+  $("useBt").disabled = !btReady || btActive; $("useBt").textContent = btActive ? "In use" : "Use Bluetooth";
+  $("tileWifi").classList.toggle("active", wifiActive);
+  const wifiIp = (w && w.ip) || (wifiActive ? L.host : null);
+  pill("wifiPill", wifiActive ? "go" : wifiIp ? "" : "warn", wifiActive ? "in use" : wifiIp ? "ready" : w && !w.present ? "no dongle" : "not set up");
+  setHTML($("wifiBody"), wifiIp ? `<span><b>${esc((w && w.ssid) || "WiFi")}</b></span><span>Brick ${esc(wifiIp)}</span>` : w && !w.present ? "<span>No WiFi dongle in the brick.</span>" : "<span>The brick isn't on WiFi yet.</span>");
+  $("useWifi").disabled = !wifiIp || wifiActive; $("useWifi").textContent = wifiActive ? "In use" : "Use WiFi";
+  $("useWifi").dataset.ip = wifiIp || "";
+  $("tilePractice").classList.toggle("active", practice);
+  pill("practicePill", practice ? "go" : "", practice ? "in use" : "off");
+  // setup lives behind the tile buttons; it only opens by itself when nothing works yet
+  $("btSetupBtn").textContent = btReady ? "Pairing steps" : "Set up";
+  $("netSetupBtn").textContent = wifiIp ? "Change network" : "Set up WiFi";
+  $("netSetupBtn").classList.toggle("hidden", !!(w && !w.present));
+  if (!S.setupSeen && S.bt && !S.bt.loading && S.link) {
+    S.setupSeen = true;
+    if (!L.connected && !practice && !btReady && !wifiIp) openPanel("bt");
+  }
+}
+function openPanel(name) {
+  const panel = $("setupPanel");
+  const same = !panel.classList.contains("hidden") && panel.dataset.open === name;
+  panel.classList.toggle("hidden", same);
+  panel.dataset.open = same ? "" : name;
+  panel.querySelectorAll("[data-sub]").forEach((x) => x.classList.toggle("hidden", x.dataset.sub !== name));
+  if (!same && name === "addr") $("host").focus();
+}
+document.querySelectorAll("#page-connection [data-panel]").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
+$("setupPanel").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) { $("setupPanel").classList.add("hidden"); $("setupPanel").dataset.open = ""; } });
+$("useBt").addEventListener("click", () => busy($("useBt"), async () => { if (S.fake && S.fake.running) await api("/api/fake", { on: false }); S.pinnedHost = "10.0.1.1"; await connectTo("10.0.1.1"); }));
+$("useWifi").addEventListener("click", () => busy($("useWifi"), async () => {
+  const ip = $("useWifi").dataset.ip; if (!ip) return;
+  if (S.fake && S.fake.running) await api("/api/fake", { on: false });
+  S.pinnedHost = ip; localStorage.setItem("ev3host", ip); $("host").value = ip; await connectTo(ip);
+}));
+$("host").value = S.pinnedHost === "127.0.0.1" ? "" : S.pinnedHost;
+$("useHostBtn").addEventListener("click", () => busy($("useHostBtn"), async () => {
+  const h = $("host").value.trim(); if (!h) return setNote("wifiNote", "Enter the address the brick shows under 10.0.1.1.", "bad");
+  S.pinnedHost = h; localStorage.setItem("ev3host", h);
+  const p = await api("/api/probe", { host: h });
+  if (p.receiver) { await connectTo(h); setNote("wifiNote", `Connected to ${h}.`, "ok"); }
+  else if (p.ssh) setNote("wifiNote", `${h} answers. Reading the brick…`, "ok");
+  else setNote("wifiNote", `Nothing answers at ${h}. Check the address and that the brick is on WiFi.`, "bad");
+  pollBrick();
+}));
+$("scanBtn").addEventListener("click", () => busy($("scanBtn"), async () => {
+  setNote("wifiNote", "Looking on your network, about 5 seconds…"); $("found").innerHTML = "";
+  const r = await api("/api/scan", {});
+  const hits = r.found.filter((f) => f.receiver || f.dropbear);
+  setNote("wifiNote", hits.length ? "Pick the address the brick shows on its screen." : "No brick found on your network. Is it on WiFi?", hits.length ? "" : "bad");
+  $("found").innerHTML = hits.map((f) => `<li><button data-h="${esc(f.host)}"><span>${esc(f.host)}</span><span class="muted">${f.receiver ? "PowerShock running" : "possible EV3"}</span><span></span></button></li>`).join("");
+}));
+$("found").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("host").value = b.dataset.h; $("useHostBtn").click(); } });
+let chosenNet = null;
+const bars = (sig) => { const n = sig > -55 ? 4 : sig > -67 ? 3 : sig > -75 ? 2 : 1; return `<span class="bars">${[5, 8, 11, 14].map((h, i) => `<i class="${i < n ? "on" : ""}" style="height:${h}px"></i>`).join("")}</span>`; };
+const secName = { wpa: "WPA2", open: "Open", wep: "WEP (not supported)", enterprise: "Work login (not supported)" };
+$("netScanBtn").addEventListener("click", () => busy($("netScanBtn"), async () => {
+  const h = brickHost(); if (!h) return setNote("joinNote", "Connect over Bluetooth first.", "bad");
+  setNote("joinNote", "The brick is looking for networks…"); $("nets").innerHTML = ""; $("joinBox").classList.add("hidden");
+  const r = await api("/api/wifi/scan", { host: h });
+  if (!r.ok) return setNote("joinNote", r.error, "bad");
+  setNote("joinNote", r.networks.length ? "Networks the brick can see (2.4 GHz only)." : "The brick sees no networks.");
+  $("nets").innerHTML = r.networks.map((n) => `<li><button data-s="${esc(n.ssid)}" data-k="${n.security}" aria-pressed="false" ${n.security === "wep" || n.security === "enterprise" ? "disabled" : ""}><span>${esc(n.ssid)}</span><span class="sec">${secName[n.security]}</span>${bars(n.signal)}</button></li>`).join("");
+}));
+$("nets").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#nets button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  chosenNet = { ssid: b.dataset.s, security: b.dataset.k };
+  $("joinBox").classList.remove("hidden"); $("wifiPass").classList.toggle("hidden", chosenNet.security === "open");
+  $("wifiPass").value = ""; if (chosenNet.security !== "open") $("wifiPass").focus();
+  setNote("joinNote", `Join ${chosenNet.ssid}${chosenNet.security === "open" ? "" : ": enter its password"}.`);
+});
+$("wifiPass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("joinBtn").click(); });
+$("joinBtn").addEventListener("click", () => busy($("joinBtn"), async () => {
+  if (!chosenNet) return;
+  setNote("joinNote", `Joining ${chosenNet.ssid}. This takes up to 30 seconds…`);
+  const r = await api("/api/wifi/join", { host: brickHost(), ssid: chosenNet.ssid, password: chosenNet.security === "open" ? "" : $("wifiPass").value });
+  $("wifiPass").value = "";
+  setNote("joinNote", r.ok ? `Joined. The brick's WiFi address is ${r.ip}. Enter it under WiFi address to drive without Bluetooth.` : r.error, r.ok ? "ok" : "bad");
+  if (r.ok) $("host").value = r.ip;
+  pollBrick();
+}));
+$("fakeToggle").addEventListener("change", async (e) => {
+  setArmed(false);
+  if (e.target.checked) {
+    const r = await api("/api/fake", { on: true });
+    if (!r.ok) { e.target.checked = false; return; }
+    await api("/api/connect", { host: "127.0.0.1" });
+  } else { await api("/api/disconnect", {}); await api("/api/fake", { on: false }); }
+});
+
+// ---------- arming / stop ----------
+function setArmed(on) {
+  if (on) S.disarmWhy = null;
+  S.armed = on; $("armToggle").checked = on; $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
+  $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmDot").className = "dot " + (on ? "bad" : "");
+  $("stopBtn").classList.toggle("live", on);
+  if (!on) api("/api/stop", {});
+  drawNext();
+}
+function stopAll() { setArmed(false); }
+$("armToggle").addEventListener("change", (e) => setArmed(e.target.checked));
+$("stopBtn").addEventListener("click", stopAll);
+$("srcTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.src = b.dataset.src;
+  document.querySelectorAll("#srcTabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
+  $("padView").classList.toggle("hidden", S.src !== "pad"); $("manualView").classList.toggle("hidden", S.src !== "manual");
+  setArmed(false);
+});
+const typing = () => document.activeElement && document.activeElement.tagName === "INPUT" && ["text", "password"].includes(document.activeElement.type);
+addEventListener("keydown", (e) => {
+  if (typing() || e.target.closest && e.target.closest("select")) return;
+  if (e.code === "Space" || e.code === "Escape") { e.preventDefault(); stopAll(); return; }
+  if (S.src === "manual" && e.code.startsWith("Arrow")) e.preventDefault();
+  S.keys.add(e.code);
+});
+addEventListener("keyup", (e) => S.keys.delete(e.code));
+addEventListener("blur", () => { S.keys.clear(); stopAll(); });
+
+// ---------- controller ----------
+const BTN = { cross: 0, circle: 1, square: 2, triangle: 3, L1: 4, R1: 5, L2: 6, R2: 7, share: 8, options: 9, L3: 10, R3: 11, up: 12, down: 13, left: 14, right: 15, PS: 16, pad: 17 };
+let prevOptions = false;
+function readPad() {
+  const pads = [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
+  const gp = pads.find((p) => p.mapping === "standard") || pads[0];
+  if (!gp) return null;
+  const val = (i) => (gp.buttons[i] ? gp.buttons[i].value : 0);
+  const p = { name: gp.id, id: gp.id, lx: gp.axes[0] || 0, ly: gp.axes[1] || 0, rx: gp.axes[2] || 0, ry: gp.axes[3] || 0, l2: val(BTN.L2), r2: val(BTN.R2), btn: {} };
+  for (const k in BTN) p.btn[k] = !!(gp.buttons[BTN[k]] && gp.buttons[BTN[k]].pressed);
+  return p;
+}
+// The input actually being used: the real controller, or the keyboard shown as a controller.
+function inputState() {
+  if (S.src === "pad") { const p = readPad(); return p ? { ...p, source: "pad" } : null; }
+  const k = S.keys, btn = {};
+  for (const n in BTN) btn[n] = false;
+  const ax = (pos, neg) => (k.has(pos) ? 1 : 0) - (k.has(neg) ? 1 : 0);
+  return { name: "Keyboard", lx: ax("KeyD", "KeyA"), ly: ax("KeyS", "KeyW"), rx: ax("KeyE", "KeyQ"), ry: ax("ArrowDown", "ArrowUp"),
+    l2: k.has("ControlLeft") || k.has("ControlRight") ? 1 : 0, r2: k.has("ShiftLeft") || k.has("ShiftRight") ? 1 : 0, btn, source: "keys" };
+}
+const DS_BTN = { dsPad: "pad", dsL1: "L1", dsR1: "R1", dsShare: "share", dsOpt: "options", dsPS: "PS", dsUp: "up", dsDown: "down", dsLeft: "left", dsRight: "right", dsTri: "triangle", dsCir: "circle", dsCross: "cross", dsSq: "square" };
+function drawPad(p) {
+  const real = S.src === "pad";
+  $("padEmpty").classList.toggle("hidden", !real || !!p); $("padLive").classList.toggle("hidden", !real || !p);
+  const isDs4 = p && p.source === "pad" && /wireless controller|dualshock|054c/i.test(p.id || p.name);
+  const pst = padStatus(p && p.source === "pad" ? p : null).state, winPad = !p && pst === "press";
+  $("sbPad").textContent = real ? (p ? (isDs4 ? "DualShock 4" : "Controller") : pst === "press" ? "DualShock 4 · press a button" : pst === "asleep" ? "DualShock 4 · asleep, press PS" : "No controller") : "Keyboard";
+  $("sbPadDot").className = "dot hidden"; $("sbPadItem").className = "si " + (p ? "go" : pst === "press" || pst === "asleep" ? "warn" : "");
+  const emptyMsg = pst === "press" ? "Windows has your DualShock 4. <b>Press any button on it</b> so this page can use it."
+    : pst === "asleep" ? 'Your DualShock 4 is asleep. <b>Press PS</b> (the round button in the middle) to wake it. <a class="link" href="#controller">More</a>'
+    : 'No controller yet: connect it, then press any button. <a class="link" href="#controller">How?</a>';
+  if ($("padEmpty").dataset.msg !== emptyMsg) { $("padEmpty").dataset.msg = emptyMsg; $("padEmpty").innerHTML = emptyMsg; }
+  $("dsName").textContent = p ? (p.source === "keys" ? "Keyboard" : isDs4 ? "DualShock 4" : "Controller") : "No controller";
+  $("dsSource").textContent = p ? (p.source === "keys" ? "shown as a controller" : "live") : "";
+  if (p && p.source === "pad") $("padStatus").textContent = `${isDs4 ? "DualShock 4" : "Controller"} connected. Watch it on the left.`;
+  const q = p || { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, btn: {} };
+
+  // what the inputs do, from the mapping and the ports actually plugged in
+  const mp = currentMapping(), cp = currentPorts();
+  const plugged = (x) => cp.ports && cp.ports[x] && cp.ports[x].connected;
+  const uses = (axes) => {
+    if (!mp) return [];
+    const out = [];
+    for (const x of MOTOR_PORTS) {
+      const c = mp.ports[x]; if (!c || c.mode === "off") continue;
+      const axis = c.mode === "drive" ? [mp.drive.throttle, mp.drive.steer] : [c.input];
+      if (axis.some((a) => axes.includes(a))) out.push((c.mode === "position" ? "steer " : c.mode === "drive" ? "drive " : "run ") + x + (plugged(x) ? "" : "?"));
+    }
+    return out;
+  };
+  const describe = (stick, axes) => { const u = uses(axes); return u.length ? `${stick} · ${u.join(", ").replace(/, (drive|run|steer) /g, " + ")}` : `${stick} · not used`; };
+  $("coLtext").textContent = describe("Left stick", ["LX", "LY"]);
+  $("coRtext").textContent = describe("Right stick", ["RX", "RY"]);
+  const boostAxis = mp ? mp.speed.boost : "R2", base = mp ? mp.speed.base : 50;
+  const speed = Math.round(base + (100 - base) * (boostAxis === "R2" ? q.r2 : boostAxis === "L2" ? q.l2 : 0));
+  const triggerUse = uses(["R2", "R2-L2"]);
+  $("coR2text").textContent = triggerUse.length ? `R2 · ${triggerUse.join(", ")}` : boostAxis === "R2" ? `R2 · speed ${speed}%` : "R2 · not used";
+  const moved = (v) => Math.abs(v) > 0.08;
+  $("coL").classList.toggle("act", moved(q.lx) || moved(q.ly));
+  $("coR").classList.toggle("act", moved(q.rx) || moved(q.ry));
+  $("coR2").classList.toggle("act", q.r2 > 0.05);
+  $("coX").classList.toggle("act", !!q.btn.cross);
+  $("coOpt").classList.toggle("act", !!q.btn.options);
+  // light bar: grey = nothing to drive, blue = connected and safe, green = driving, red = stop held
+  const L = S.link || {};
+  const lc = !L.connected ? "#5b6266" : q.btn.cross ? "#ff4d4d" : S.armed ? "#3ddc84" : "#3d7bff";
+  if (window.DS4) window.DS4.update(q, lc);
+  // what the brick receives
+  const sent = L.sending || {};
+  const mapped = MOTOR_PORTS.filter((x) => mp && mp.ports[x] && mp.ports[x].mode !== "off");
+  if (location.hash === "#robot" || location.hash === "") setHTML($("getRows"), mapped.length ? mapped.map((x) => {
+    const v = sent[x], pct = outPct(x, v), w = Math.abs(pct) / 2, left = pct >= 0 ? 50 : 50 - w;
+    return `<div class="get ${pct ? "" : "idle"}"><span><b>${x}</b> ${esc((roleOf(x) || "").replace(/ \(.*\)/, ""))}</span><span class="bar"><i style="left:${left}%;width:${w}%"></i></span><span class="val">${outText(v)}</span></div>`;
+  }).join("") : '<p class="muted">No ports mapped. Set them up on the Controls page.</p>');
+  $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off: switch on Motors on to drive.") : q.btn.cross ? "✕ held: everything stopped." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
+  // glow the sockets that are being driven
+  document.querySelectorAll(".sock").forEach((el) => el.classList.toggle("active", !!outPct(el.dataset.p, sent[el.dataset.p]) && !!plugged(el.dataset.p)));
+}
+let inflight = false;
+setInterval(async () => {
+  const p = inputState(); drawPad(p);
+  if (p && p.source === "pad" && p.btn.options && !prevOptions) stopAll();
+  prevOptions = !!(p && p.btn.options);
+  if (S.armed && p && !inflight) {
+    inflight = true;
+    try {
+      await fetch("/api/input", { method: "POST", signal: AbortSignal.timeout(300), headers: { "X-PowerShock": "1", "Content-Type": "application/json" },
+        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, src: p.source }) });
+    } catch (e) {} finally { inflight = false; }
+  }
+}, 40);
+
+// ---------- polling ----------
+async function pollLink() {
+  let s;
+  try { s = await api("/api/status"); } catch (e) {
+    $("sbLinkDot").className = "dot bad"; $("sbLink").textContent = "Console stopped"; S.link = null;
+    if (S.armed) { setArmed(false); S.disarmWhy = "Motors switched off: the console stopped."; }
+    return;
+  }
+  if (S.armed && S.link && S.link.connected && !s.link.connected) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped."; }
+  S.link = s.link; S.fake = s.fake; S.app = s.app;
+  if (s.app && $("appVer").textContent !== s.app.version) $("appVer").textContent = s.app.version;
+  const L = s.link, practice = s.fake.running && L.host === "127.0.0.1";
+  if (L.connected) { $("sbLinkDot").className = "dot go"; $("sbLink").innerHTML = `<b>${practice ? "Practice" : esc(L.via || "Connected")}</b> <span class="opt">${esc(practice ? "" : L.host)}</span>`; }
+  else if (L.want) { $("sbLinkDot").className = "dot warn"; $("sbLink").textContent = `Reconnecting to ${practice ? "practice brick" : L.host}`; }
+  else if (brickHost()) { $("sbLinkDot").className = "dot warn"; $("sbLink").innerHTML = `Brick found <span class="opt">${esc(brickHost())}</span>`; }
+  else { $("sbLinkDot").className = "dot"; $("sbLink").textContent = "Not connected"; }
+  $("sbRate").textContent = L.connected ? ` · ${L.rate} Hz` : "";
+  setMeters(L.sending);
+  $("lcdHost").textContent = L.connected ? (practice ? "PRACTICE" : (L.via === "Bluetooth" ? "BT " : "WIFI ") + L.host) : "EV3";
+  $("lcdRate").textContent = L.connected ? `${L.rate}Hz` : "";
+  $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
+  $("fakeToggle").checked = s.fake.running;
+  drawPorts(); drawFacts(); drawProgram(); drawNext();
+  if (location.hash === "#controls") drawControls(false);
+  if (location.hash === "#connection") drawConnTiles();
+}
+async function pollBt() { try { S.bt = await api("/api/bluetooth"); } catch (e) { return; } drawBt(); }
+async function pollBrick() {
+  const h = brickHost();
+  if (!h) { S.brick = null; return; }
+  try { S.brick = await api("/api/brick?host=" + encodeURIComponent(h)); } catch (e) { return; }
+}
+setInterval(pollLink, 250); setInterval(pollBt, 2500); setInterval(pollBrick, 3000);
+Promise.all([pollLink(), pollBt()]).then(pollBrick);
+addEventListener("beforeunload", () => navigator.sendBeacon && navigator.sendBeacon("/api/stop", new Blob(["{}"], { type: "application/json" })));
+</script>
+<script type="module">
+// 3D gears (three.js): calculator, examples and the parts row.
+import { trainView, partsView } from "./gears3d.js";
+try {
+  const main = trainView(document.getElementById("gearMain"), S.gearTrain || [12, 36, 0, 0], 330);
+  window.Gears3D = { main };
+  EXAMPLES.forEach((e, i) => trainView(document.querySelector(`[data-ex="${i}"]`), e.t, 190));
+  const list = [8, 12, 16, 20, 24, 36, 40, 1];
+  const parts = partsView(document.getElementById("partsheet3d"), list, 200);
+  const names = { 1: ["Worm gear", "dark grey"] };
+  const labelFor = (t) => names[t] || [`${t} teeth`, GEARS[t].name.replace(/^\d+ tooth ?/, "").replace(/[()]/g, "")];
+  // labels follow the gears' spacing (the parts row is drawn edge to edge across the view)
+  document.getElementById("partlabels").innerHTML = parts.positions.map(({ t, x }) => {
+    const [a, b] = labelFor(t);
+    return `<span style="left:${(x / parts.width * 100).toFixed(1)}%">${a}<small>${b}</small></span>`;
+  }).join("");
+} catch (e) {
+  document.getElementById("gearMain").innerHTML = '<p class="muted" style="padding:20px">This browser can\'t show 3D gears (WebGL is off).</p>';
+}
+</script>
+<script type="module">
+// The 3D DualShock (three.js, vendored in console/vendor/three).
+import { createDS4, COLORS } from "./ds4model.js";
+const box = document.getElementById("ds3"), sel = document.getElementById("dsColor");
+try {
+  window.DS4 = createDS4(box);
+  document.getElementById("ds3msg").remove();
+  const saved = localStorage.getItem("ds4color") || "Magma Red";
+  sel.innerHTML = Object.keys(COLORS).map((n) => `<option ${n === saved ? "selected" : ""}>${n}</option>`).join("");
+  window.DS4.setColor(COLORS[saved] ?? COLORS["Magma Red"]);
+  sel.addEventListener("change", () => { localStorage.setItem("ds4color", sel.value); window.DS4.setColor(COLORS[sel.value]); });
+} catch (e) {
+  document.getElementById("ds3msg").textContent = "This browser can't show the 3D controller (WebGL is off).";
+  sel.hidden = true;
+}
+</script>
+</body>
+</html>

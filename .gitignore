@@ -1,0 +1,25 @@
+# Build output
+out/
+
+# From your own leJOS SD card, never committed: Oracle Java SE Embedded 7 may not be
+# redistributed, and leJOS / JNA come with their own licences.
+# Get them with:  python pc/tools/extract_libs.py <folder with your SD card's files>
+sd_lejos/
+sd_backup*/
+sd_backup*.zip
+lib/*.jar
+
+# Personal: your own brick's change log (has its Bluetooth address and your network names),
+# notes and drafts that aren't part of the project
+docs/DEVICE_LOG.md
+.private-terms
+EV3_DS4_summary.md
+feature-request-*.md
+
+# Local tool settings
+.claude/settings.local.json
+__pycache__/
+*.pyc
+
+# Your own controls layout and stick calibration (saved by the console)
+pc/mapping.json
