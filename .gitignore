@@ -26,3 +26,6 @@ pc/mapping.json
 
 # Your robot size for the live map (saved by the console)
 pc/worldmap.json
+
+# The robot camera: Pi address and access key (saved by the console)
+pc/camera.json

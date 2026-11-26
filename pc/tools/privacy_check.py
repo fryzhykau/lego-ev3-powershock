@@ -30,6 +30,8 @@ FORBIDDEN_PATHS = [
     (re.compile(r"\.(bz2|tar\.gz|tgz|img)$"), "an SD-card image or archive"),
     (re.compile(r"(^|/)out/"), "build output"),
     (re.compile(r"(^|/)pc/mapping\.json$"), "your own saved controls"),
+    (re.compile(r"(^|/)pc/camera\.json$"), "your camera's address and access key"),
+    (re.compile(r"(^|/)\.powershock-cam-key$"), "a camera access key"),
     (re.compile(r"(^|/)docs/DEVICE_LOG\.md$"), "your device log (has your brick's addresses)"),
     (re.compile(r"(^|/)\.private-terms$"), "your private terms list"),
     (re.compile(r"(^|/)\.env$|\.pem$|\.key$|(^|/)id_rsa"), "a secrets file"),

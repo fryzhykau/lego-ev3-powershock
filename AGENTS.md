@@ -11,6 +11,7 @@ PowerShock drives a LEGO EV3 (leJOS 0.9.1-beta, **Java 7**) with a PS4 DualShock
 | Console server | `pc/ev3_console.py` and the other `pc/*.py` | Python 3.9+, **standard library only** |
 | Console page | `pc/console/index.html` (one file: HTML, CSS, JS), `ds4model.js`, `gears3d.js` | Plain JS, no build step; three.js is vendored in `pc/console/vendor/three/` |
 | Brick programs | `ev3/src/powershock/*.java` | **Java 7 language and API only**: no lambdas, streams, `java.time`, try-with-resources on non-`AutoCloseable` types, or `String.join` |
+| Camera streamer | `pi/powershock_cam.py`, runs on a Raspberry Pi | Python 3, **standard library only** (Pillow only for `--test`) |
 | Build | `build.ps1` | PowerShell; compiles against `lib/rt7.jar` so any Java 8+ API is a compile error |
 
 ## Commands

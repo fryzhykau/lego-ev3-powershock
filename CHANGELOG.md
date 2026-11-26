@@ -26,6 +26,12 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Brick program:** a sensor thread (`Sensors.java`) reads IR, ultrasonic, colour and gyro sensors as they are plugged in. Their readings go to the console in the status line (`s1=ir:37`, `s3=col:5`, …). Older consoles ignore them.
 - **Practice brick** now has colour and infrared sensors and drives around a small room with two boxes, blue tape and a red mat.
 - **Tests** for odometry, the grid, sensor parsing and the practice room.
+- **Robot camera:** a Raspberry Pi with a camera rides on the robot and streams live video.
+  - **On the Pi:** `pi/powershock_cam.py` uses only the standard library. It works with `rpicam-vid`, `libcamera-vid` or `raspivid`, needs an access key for every request, and has a `--test` pattern mode.
+  - **In the console:** the Robot page's 3D view switches between **Brick** and **Camera**, and **Connection → Camera** sets it up.
+  - **Relay:** the console relays the video, so the page only ever talks to the console.
+  - **Setup guide:** `docs/CAMERA.md`.
+- **Controller colour swatches** replace the colour dropdown on the Robot page.
 
 ### Changed
 - **3D DualShock 4 rebuilt from reference drawings:**
@@ -39,6 +45,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - The seam line between the screen and the buttons.
   - White sides with Technic holes, and a grey EV3 band along the bottom.
 - **Devices list** shows live readings from IR, ultrasonic, colour and gyro sensors.
+- **Controller legend** chips are drawn as single pills again; they had a pill inside a pill.
 - **Brick view:** the brick and its motors and sensors fit the card on wide screens. Unchecked ports show just their letter, so their labels no longer overlap.
 - **README screenshots** show the 3D brick properly.
 

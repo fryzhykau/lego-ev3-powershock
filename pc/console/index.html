@@ -158,6 +158,18 @@
   .ctrlcard .card-head select { font-size: 12.5px; }
   .stagecard { padding: 0; overflow: hidden; position: relative; background: radial-gradient(ellipse at 65% 55%, #ffffff 0%, #f2f4f4 55%, #e8ebeb 100%); }
   .stagecard .scene { background: none; padding-top: 44px; box-sizing: border-box; }
+  .stagebar .grow1 { flex: 1; }
+  .stagebar .tabs { background: #ffffffd9; }
+  .camview { aspect-ratio: 4 / 3.35; min-height: 320px; max-height: 760px; padding-top: 48px; box-sizing: border-box; display: grid; place-items: center; background: #15181a; position: relative; }
+  .camview img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .camview img:not([src]) { display: none; }
+  .camwait { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; text-align: center; color: #c9ced1; font-size: 13.5px; line-height: 1.5; }
+  .camwait:empty { display: none; }
+  .camwait a { color: #fff; }
+  .camsteps { margin: 0 0 12px; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
+  .camsteps code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .camform input[type=text], .camform input[type=password] { flex: 1 1 180px; min-width: 0; }
+  .camform input[type=number] { width: 84px; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r-s); background: #fbfcfc; }
   .stagebar { position: absolute; left: 14px; right: 14px; top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 2; }
   .scene { height: clamp(420px, calc(var(--sw, 900px) * 1.08), 760px); perspective: 1700px; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; overflow: hidden;
     background: radial-gradient(ellipse at 50% 55%, #ffffff 0%, #f2f4f4 55%, #e8ebeb 100%); }
@@ -216,10 +228,13 @@
   .ds3gl { position: relative; aspect-ratio: 16 / 9; max-height: 360px; width: 100%; }
   .ds3gl canvas { border-radius: 10px; }
   .ds3msg { position: absolute; inset: 0; display: grid; place-items: center; }
-  #dsColor { padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; font-size: 12px; }
+  .swatches { display: flex; gap: 6px; margin-left: auto; }
+  .swatches button { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid #00000033; background: var(--c); cursor: pointer; }
+  .swatches button[aria-checked=true] { box-shadow: 0 0 0 2px var(--face), 0 0 0 3.5px var(--ink); }
+  .swatches button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .dslegend { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-  .dslegend span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--rule); color: var(--muted); transition: background .1s, color .1s, border-color .1s; }
-  .dslegend span.act { background: var(--go-soft); border-color: var(--go); color: var(--go); }
+  .dslegend > span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--rule); color: var(--muted); transition: background .1s, color .1s, border-color .1s; }
+  .dslegend > span.act { background: var(--go-soft); border-color: var(--go); color: var(--go); }
   .gets { display: grid; gap: 6px; background: var(--soft); border-radius: 10px; padding: 10px 12px; }
   .gets h3 { margin: 0 0 2px; }
   .get { display: grid; grid-template-columns: 92px 1fr 40px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
@@ -828,7 +843,7 @@
         </div>
 
         <div class="card ctrlcard" aria-label="DualShock 4: what you press and what it does">
-          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><select id="dsColor" title="Controller colour" aria-label="Controller colour" style="margin-left:auto"></select></div>
+          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><div class="swatches" id="dsColor" role="radiogroup" aria-label="Controller colour"></div></div>
             <div class="ds3gl" id="ds3" aria-label="DualShock 4 in 3D. Drag to turn it; double-click to reset."><p class="muted ds3msg" id="ds3msg">Loading the 3D controller…</p></div>
             <div class="dslegend">
               <span id="coL"><span id="coLtext">Left stick</span></span>
@@ -845,7 +860,8 @@
         </div>
 
         <div class="card stagecard">
-          <div class="stagebar"><span class="muted" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
+          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
+          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div></div>
           <div class="scene" id="scene" aria-label="The EV3 brick with what's plugged into each port. Drag to turn it.">
             <div class="brick intro" id="brick">
               <div class="f back"></div>
@@ -1107,6 +1123,11 @@
           <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, a medium motor, and touch, colour and infrared sensors.</div>
           <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
         </div>
+        <div class="ctile" id="tileCam">
+          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera<span class="pill" id="camPill">not set up</span></div>
+          <div class="ct-body" id="camBody">Give the robot eyes: a Raspberry Pi with a camera, riding on it.</div>
+          <div class="ct-acts"><button class="btn" id="camShow">Show on Robot page</button><button class="link" data-panel="cam" id="camSetupBtn">Set up</button></div>
+        </div>
       </div>
       <div class="card setup hidden" id="setupPanel">
         <div data-sub="bt">
@@ -1116,6 +1137,21 @@
             <li id="btLink"><span class="tick"></span><div><div class="what">Join the brick's network</div><div class="how" id="btLinkHow">Pairing alone doesn't connect.</div><button id="btOpen" class="btn hidden">Open Devices and Printers</button></div></li>
             <li id="btReady"><span class="tick"></span><div><div class="what">Talk to the brick</div><div class="how" id="btReadyHow">The brick answers at 10.0.1.1.</div></div></li>
           </ol>
+        </div>
+        <div data-sub="cam" class="hidden">
+          <div class="card-head"><h2>Camera setup</h2><span class="muted">A Raspberry Pi with a camera, riding on the robot</span><button class="link" data-close>Close</button></div>
+          <ol class="camsteps">
+            <li>Copy <code>pi/powershock_cam.py</code> from the PowerShock folder to the Pi, and start it there: <code>python3 powershock_cam.py</code>. <span class="muted">Full guide: <code>docs/CAMERA.md</code>.</span></li>
+            <li>It prints an access key. Enter it below with the Pi's address.</li>
+          </ol>
+          <div class="row camform">
+            <input id="camHost" type="text" placeholder="Pi address, e.g. raspberrypi.local" spellcheck="false" aria-label="Pi address">
+            <input id="camPort" type="number" value="8080" min="1" max="65535" aria-label="Port">
+            <input id="camKey" type="password" placeholder="Access key" autocomplete="off" spellcheck="false" aria-label="Access key">
+            <button id="camSave" class="btn dark">Save and test</button>
+            <button id="camForget" class="link">Forget camera</button>
+          </div>
+          <p class="note" id="camNote"></p>
         </div>
         <div data-sub="addr" class="hidden">
           <div class="card-head"><h2>Connect by address</h2><span class="muted">The address the brick shows under 10.0.1.1</span><button class="link" data-close>Close</button></div>
@@ -2346,6 +2382,70 @@ async function pollBrick() {
   if (!h) { S.brick = null; return; }
   try { S.brick = await api("/api/brick?host=" + encodeURIComponent(h)); } catch (e) { return; }
 }
+// ---------- camera: a Raspberry Pi on the robot (pi/powershock_cam.py) ----------
+S.stageView = localStorage.getItem("stageView") === "cam" ? "cam" : "brick";
+function setStage(v) {
+  S.stageView = v; localStorage.setItem("stageView", v);
+  $("stageTabs").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.v === v ? "true" : "false"));
+  $("scene").classList.toggle("hidden", v === "cam");
+  $("resetView").hidden = v === "cam";
+  $("portsNote").hidden = v === "cam";
+  $("camView").classList.toggle("hidden", v !== "cam");
+  syncCam();
+}
+function syncCam() {
+  // the video runs only while it can be seen, so the Pi and WiFi aren't busy for nothing
+  const c = S.cam, img = $("camImg");
+  const want = S.stageView === "cam" && (location.hash || "#robot") === "#robot" && document.visibilityState === "visible" && c && c.configured && c.reachable !== false;
+  if (want && !img.dataset.on) { img.dataset.on = "1"; img.src = "/api/camera/stream?t=" + Date.now(); }
+  if (!want && img.dataset.on) { img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live; }
+  const wait = !c ? "Checking the camera…"
+    : !c.configured ? 'No camera yet. Set one up on the <a href="#connection" data-cam-setup>Connection page</a>.'
+    : c.reachable === false ? esc(c.error || "The camera isn't answering.")
+    : c.ok === false && c.error ? esc(c.error)
+    : img.dataset.live ? "" : "Connecting to the camera…";
+  setHTML($("camWait"), wait);
+}
+$("camImg").addEventListener("load", () => { $("camImg").dataset.live = "1"; syncCam(); });
+$("camImg").addEventListener("error", () => { // the stream stopped: try again shortly
+  const img = $("camImg"); img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live;
+  setTimeout(syncCam, 2000);
+});
+$("camWait").addEventListener("click", (e) => { if (e.target.closest("[data-cam-setup]")) setTimeout(() => openPanel("cam"), 50); });
+$("stageTabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) setStage(b.dataset.v); });
+addEventListener("hashchange", syncCam);
+document.addEventListener("visibilitychange", syncCam);
+function drawCamTile() {
+  const c = S.cam || {};
+  const [cls, pill] = !c.configured ? ["", "not set up"] : c.reachable === false ? ["warn", "not answering"] : c.ok ? ["go", "live"] : ["warn", "no picture"];
+  $("camPill").className = "pill " + cls; $("camPill").textContent = pill;
+  $("camBody").textContent = !c.configured ? "Give the robot eyes: a Raspberry Pi with a camera, riding on it."
+    : c.ok ? `${c.width}×${c.height} at ${Math.round(c.fps || 0)} frames a second from ${c.host}${c.source === "test pattern" ? " (test pattern)" : ""}.`
+    : c.error || `Set up for ${c.host}.`;
+  $("camShow").disabled = !c.configured;
+  $("camSetupBtn").textContent = c.configured ? "Change" : "Set up";
+  if (c.configured && document.activeElement !== $("camHost") && !$("camHost").value) { $("camHost").value = c.host; $("camPort").value = c.port; }
+}
+async function pollCam() {
+  try { S.cam = await api("/api/camera"); } catch (e) { return; }
+  drawCamTile(); syncCam();
+}
+$("camShow").addEventListener("click", () => { location.hash = "#robot"; setStage("cam"); });
+$("camSave").addEventListener("click", () => busy($("camSave"), async () => {
+  setNote("camNote", "Testing…");
+  const r = await api("/api/camera", { host: $("camHost").value, port: Number($("camPort").value) || 8080, key: $("camKey").value });
+  if (!r.ok) return setNote("camNote", r.error, "bad");
+  $("camKey").value = "";
+  S.cam = r.status; drawCamTile(); syncCam();
+  setNote("camNote", r.status.ok ? "Saved. The camera is sending pictures." : `Saved, but: ${r.status.error || "no picture yet"}`, r.status.ok ? "ok" : "bad");
+}));
+$("camForget").addEventListener("click", () => busy($("camForget"), async () => {
+  await api("/api/camera/forget", {}); $("camHost").value = ""; $("camKey").value = ""; setNote("camNote", "Camera forgotten.");
+  await pollCam();
+}));
+setStage(S.stageView);
+pollCam(); setInterval(pollCam, 3000);
+
 // ---------- map page ----------
 const COLOUR_NAMES = { 0: ["Red", "#d8392b"], 1: ["Green", "#2f9e57"], 2: ["Blue", "#2d6fd8"], 3: ["Yellow", "#f1c40f"], 6: ["White", "#f4f5f5"], 7: ["Black", "#232628"], 13: ["Brown", "#7b4a28"] };
 const IR_RANGE = 70;
@@ -2445,10 +2545,22 @@ const box = document.getElementById("ds3"), sel = document.getElementById("dsCol
 try {
   window.DS4 = createDS4(box);
   document.getElementById("ds3msg").remove();
-  const saved = localStorage.getItem("ds4color") || "Magma Red";
-  sel.innerHTML = Object.keys(COLORS).map((n) => `<option ${n === saved ? "selected" : ""}>${n}</option>`).join("");
-  window.DS4.setColor(COLORS[saved] ?? COLORS["Magma Red"]);
-  sel.addEventListener("change", () => { localStorage.setItem("ds4color", sel.value); window.DS4.setColor(COLORS[sel.value]); });
+  let saved = localStorage.getItem("ds4color");
+  if (!(saved in COLORS)) saved = "Magma Red";
+  const hex = (n) => "#" + COLORS[n].toString(16).padStart(6, "0");
+  sel.innerHTML = Object.keys(COLORS).map((n) => `<button role="radio" aria-checked="${n === saved}" tabindex="${n === saved ? 0 : -1}" title="${n}" aria-label="${n}" data-c="${n}" style="--c:${hex(n)}"></button>`).join("");
+  window.DS4.setColor(COLORS[saved]);
+  const pick = (b) => {
+    sel.querySelectorAll("button").forEach((x) => { x.setAttribute("aria-checked", x === b); x.tabIndex = x === b ? 0 : -1; });
+    localStorage.setItem("ds4color", b.dataset.c); window.DS4.setColor(COLORS[b.dataset.c]);
+  };
+  sel.addEventListener("click", (e) => { const b = e.target.closest("button[data-c]"); if (b) pick(b); });
+  sel.addEventListener("keydown", (e) => { // arrow keys move between colours, as in any radio group
+    const all = [...sel.querySelectorAll("button")], i = all.indexOf(document.activeElement);
+    const d = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (i < 0 || !d) return;
+    e.preventDefault(); const b = all[(i + d + all.length) % all.length]; b.focus(); pick(b);
+  });
 } catch (e) {
   document.getElementById("ds3msg").textContent = "This browser can't show the 3D controller (WebGL is off).";
   sel.hidden = true;

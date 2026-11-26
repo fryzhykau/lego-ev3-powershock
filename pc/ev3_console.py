@@ -22,6 +22,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import camera  # noqa: E402
 import ds4_hid  # noqa: E402
 import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
@@ -713,6 +714,7 @@ link = Link()
 fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()
+cam = camera.Camera()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -729,6 +731,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _camera_stream(self):
+        """Relays the Pi's live video; the page shows it in an <img>."""
+        started = []
+
+        def start(ctype):
+            started.append(True)
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+
+        try:
+            cam.relay(self.wfile, start)
+        except camera.CameraError as e:
+            if not started:
+                self._json({"error": str(e)}, 502)
+        self.close_connection = True
 
     def _body(self):
         try:
@@ -802,6 +822,21 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bt.status())
         elif self.path == "/api/map":
             self._json(link.world.snapshot())
+        elif self.path == "/api/camera":
+            self._json(cam.status())
+        elif self.path.split("?")[0] == "/api/camera/stream":
+            self._camera_stream()
+        elif self.path.split("?")[0] == "/api/camera/snapshot":
+            try:
+                jpeg = cam.snapshot()
+            except camera.CameraError as e:
+                return self._json({"error": str(e)}, 502)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(jpeg)))
+            self.end_headers()
+            self.wfile.write(jpeg)
         elif self.path == "/api/ds4":
             # battery, model and firmware straight from Windows; no browser device picker needed
             with DS4_LOCK:
@@ -868,6 +903,18 @@ class Handler(BaseHTTPRequestHandler):
             self._json(scan())
         elif self.path == "/api/bluetooth/open":
             Bluetooth.open_windows_panel()
+            self._json({"ok": True})
+        elif self.path == "/api/camera":
+            try:
+                cam.set(b.get("host"), b.get("port", 8080), b.get("key"))
+            except camera.CameraError as e:
+                return self._json({"ok": False, "error": str(e)})
+            except OSError as e:
+                return self._json({"ok": False, "error": f"Couldn't save the camera settings: {e.strerror or e}"})
+            st = cam.status(max_age=0)
+            self._json({"ok": True, "status": st})
+        elif self.path == "/api/camera/forget":
+            cam.forget()
             self._json({"ok": True})
         elif self.path == "/api/map/reset":
             link.world.reset()

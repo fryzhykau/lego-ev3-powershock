@@ -8,6 +8,7 @@ Drive a LEGO Mindstorms EV3 running leJOS with a PS4 DualShock 4 controller, fro
 - **Your robot, your controls:** choose which stick drives which motor. Each port gets two-wheel drive, speed, or a steering angle, with smoothing and a steering centre.
 - **See what the brick sees:** the brick, its motors and sensors in 3D, live. Each motor can be tested on its own.
 - **A live map:** the robot's infrared, ultrasonic, colour and gyro sensors build a 3D map of the room as you drive.
+- **A camera, if you have a Raspberry Pi:** drive from the robot's point of view.
 - **Built for a safe first drive:** the motors stop within half a second if anything goes quiet. They never restart by themselves after a dropped link.
 - **No hardware?** **Practice** mode runs a pretend brick on the laptop.
 
@@ -66,6 +67,14 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
 The brick's battery shows top-left on the leJOS screen. A blinking number means it's low: charge first.
 
 ## The console
+
+### Camera
+
+Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video when you switch its 3D view from **Brick** to **Camera**, so you can drive from the robot's point of view.
+
+- **On the Pi:** run `pi/powershock_cam.py`. It uses only the standard library and works with any Raspberry Pi OS camera tool.
+- **In the console:** **Connection → Camera** takes the Pi's address and the access key it prints.
+- **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
 
 ### Map
 
@@ -196,10 +205,14 @@ pc/
   version.py             reads VERSION
   tools/BrickMenu.java   leJOS menu over RMI (versions, battery)
   tools/extract_libs.py  copies the three jars from your SD card
+  camera.py              the robot camera: Pi address and key, status, video relay
+pi/
+  powershock_cam.py      runs on a Raspberry Pi: streams its camera as MJPEG (needs the access key)
   test_*.py              tests
   ds4_client.py, ds4_mix.py, fake_ev3.py   older pygame client and its stand-in brick
 build.ps1                compile for Java 7, stamp the version, package, upload
 docs/TROUBLESHOOTING.md  battery, WiFi, Bluetooth PAN, SSH, port detection, DualShock
+docs/CAMERA.md           setting up the Raspberry Pi camera
 ```
 
 Not done yet: light bar and rumble; pairing for variant B, so it reconnects with just the PS button.
