@@ -17,9 +17,28 @@ The EV3 program doesn't change: the console still drives the motors, and the cam
 - **A USB power bank** with a short cable, to power the Pi on the robot. Get one that can supply at least 2 A for a Pi 2, or 2.5 A for a Pi 3.
 - **Something to mount it:** zip ties, or LEGO Technic beams. The Pi's mounting holes take M2.5 screws.
 
+## Which Raspberry Pi do I have?
+
+The name is printed on the board in small white letters, usually between the GPIO pins and the processor. Unclip the top of the case if it's hard to read.
+
+| Look for | Pi 2 B | Pi 3 B | Pi 3 B+ |
+|---|---|---|---|
+| Processor (big square chip in the middle) | black | black | shiny silver lid |
+| Small silver cover with the Raspberry Pi logo (the WiFi) | – | – | yes |
+| Little 4-pin header next to the end of the GPIO row | – | – | yes |
+| Tiny chip antenna by the display connector | – | yes | – |
+| Built-in WiFi and Bluetooth | no | yes (2.4 GHz) | yes (2.4 and 5 GHz) |
+| Power supply | 5 V, 2 A | 5 V, 2.5 A | 5 V, 2.5 A |
+| In Raspberry Pi Imager | Raspberry Pi 2, OS Lite 32-bit | Raspberry Pi 3, OS Lite 64-bit | Raspberry Pi 3, OS Lite 64-bit |
+
+- **Pi 3 B and B+:** WiFi is built in, so no USB WiFi dongle is needed.
+- **Once it's running,** `cat /proc/device-tree/model` prints the exact name.
+
+The console's Camera setup shows the same notes for the model you pick.
+
 ## 1. Prepare the SD card
 
-1. **Install the OS:** on the laptop, install [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and choose **Raspberry Pi OS Lite**. Use the 32-bit version for a Pi 2.
+1. **Install the OS:** on the laptop, install [Raspberry Pi Imager](https://www.raspberrypi.com/software/) Choose your Pi model, then **Raspberry Pi OS Lite**: 64-bit for a Pi 3, 32-bit for a Pi 2.
 2. **Before writing,** open the settings (**Edit settings**) and set:
    - a host name, e.g. `ev3cam`
    - a user name and password of your own

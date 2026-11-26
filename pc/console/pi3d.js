@@ -10,9 +10,9 @@ import * as THREE from "./vendor/three/three.module.js";
 export const PARTS = [
   { key: "camera", n: 1, title: "Camera connector", text: "Lift the connector's clip, push the ribbon in with its metal contacts facing the HDMI port, press the clip down. Only with the power off." },
   { key: "module", n: 2, title: "Camera module", text: "The lens points where the robot drives. Mounted upside down? Start the camera with --flip." },
-  { key: "power", n: 3, title: "Power (micro-USB)", text: "5 V from a USB power bank on the robot: at least 2 A for a Pi 2, 2.5 A for a Pi 3. No power button: it starts when plugged in." },
+  { key: "power", n: 3, title: "Power (micro-USB)", text: "5 V from a USB power bank on the robot: at least 2.5 A for a Pi 3, 2 A for a Pi 2. No power button: it starts when plugged in." },
   { key: "sd", n: 4, title: "microSD card (underneath)", text: "Raspberry Pi OS Lite, written with Raspberry Pi Imager with your WiFi and SSH set." },
-  { key: "wifi", n: 5, title: "WiFi", text: "A Pi 2 needs a USB WiFi dongle in any USB port. A Pi 3 has WiFi built in." },
+  { key: "wifi", n: 5, title: "WiFi", text: "A Pi 3 has WiFi built in (the B+ under a metal cover with the Raspberry Pi logo), so no dongle. A Pi 2 needs a USB WiFi dongle in any USB port." },
   { key: "leds", n: 6, title: "Lights", text: "Red: power is fine (flickering means too little power). Green flickering: reading the SD card." },
   { key: "unused", n: 7, title: "Not needed on the robot", text: "HDMI, audio, Ethernet, display connector and the GPIO pins stay empty." },
 ];
@@ -135,7 +135,11 @@ export function createPi(container) {
   add("wifi", box(4, 11.6, 4.4), metal, P(88.3, 9, 6.9), dongle);
   add("wifi", box(15, 14, 6.5), black, P(97.5, 9, 6.9), dongle);
   add("wifi", box(0.4, 3, 1.2), mat(0x1b3fb3, { emissive: 0x3d7bff, emissiveIntensity: 0.9 }), P(105.2, 7, 7.5), dongle);
-  const wifiChip = add("wifi", box(5, 5, 1), black, P(5, 46, 1.9)); // the Pi 3's own WiFi chip and antenna
+  // the Pi 3 B+'s own WiFi and Bluetooth: a module under a metal cover, plus its 4-pin PoE header
+  const wifiChip = new THREE.Group(); model.add(wifiChip);
+  add("wifi", box(13, 10, 1.6), metal, P(11, 44.5, 2.2), wifiChip);
+  for (const [x, y] of [[59.2, 46], [61.7, 46], [59.2, 48.5], [61.7, 48.5]]) add(null, box(0.64, 0.64, 6), gold, P(x, y, 4.4), wifiChip).castShadow = false;
+  add(null, box(5.6, 5.6, 2.5), black, P(60.45, 47.25, 2.65), wifiChip);
 
   // ----- camera ribbon and the camera module -----
   // the ribbon leaves the connector upwards and curls over to the module, which stands above the
@@ -156,7 +160,7 @@ export function createPi(container) {
   // ----- numbered markers that follow the parts -----
   const anchors = {
     camera: P(45, 11.5, 9), module: P(2, 11.5, 70), power: P(10.6, -9, 7), sd: P(-1, 28, -1),
-    wifi: P(98, 9, 11), leds: P(1.6, 9.8, 3), unused: P(32, 0, 8.5),
+    wifi: P(98, 9, 11), wifiBuiltIn: P(11, 44.5, 4.5), leds: P(1.6, 9.8, 3), unused: P(32, 0, 8.5),
   };
   const layer = document.createElement("div");
   layer.className = "pimarks";
@@ -212,7 +216,7 @@ export function createPi(container) {
     model.updateMatrixWorld();
     for (const p of PARTS) {
       const m = marks[p.key];
-      if (p.key === "wifi" && !dongle.visible) { v.copy(wifiChip.position).add(new THREE.Vector3(0, 4, 0)); } else v.copy(anchors[p.key]);
+      v.copy(p.key === "wifi" && !dongle.visible ? anchors.wifiBuiltIn : anchors[p.key]);
       v.applyMatrix4(model.matrixWorld).project(camera);
       m.style.transform = `translate(${((v.x + 1) / 2 * w).toFixed(1)}px, ${((1 - v.y) / 2 * h).toFixed(1)}px) translate(-50%, -50%)`;
     }
