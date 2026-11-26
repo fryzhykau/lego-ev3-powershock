@@ -29,6 +29,8 @@ The EV3 program doesn't change: the console still drives the motors, and the cam
 
 ## 2. Connect the camera
 
+The console's **Connection → Camera → Set up** panel shows all of this on a 3D Raspberry Pi. Pick Pi 2 or Pi 3, and point at an entry in the list to see where it goes.
+
 With the Pi unplugged:
 
 1. **Pi end:** gently lift the clip of the **CAMERA** connector. On a Pi 2 or 3 it sits between the HDMI port and the audio jack. Slide the ribbon in with its **metal contacts facing the HDMI port**, then press the clip down.
