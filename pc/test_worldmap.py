@@ -46,6 +46,15 @@ class OdometryTest(unittest.TestCase):
         self.assertAlmostEqual(self.o.y, 0.0, places=6)
         self.assertAlmostEqual(self.o.th, 0.0, places=6)
 
+    def test_gearing_between_motor_and_wheel(self):
+        # a differential that slows the wheels 1.4 times: the same motor turn carries the car 1.4 times less far
+        geared = dict(R, gear=1.4)
+        car = w.layout(mapping.CAR)
+        self.o.update({"B": 0, "C": 0, "D": 0}, car, geared)
+        self.o.update({"B": 360, "C": 360, "D": 0}, car, geared)
+        self.assertAlmostEqual(self.o.x, 360 * CM_PER_DEG / 1.4, places=3)
+        self.assertAlmostEqual(w.forward_speed({"B": 360, "C": 360}, car, geared), 360 * CM_PER_DEG / 1.4)
+
     def test_tank_spins_left_when_right_wheel_leads(self):
         tank = w.layout(mapping.TANK)
         self.o.update({"B": 0, "C": 0}, tank, R)
@@ -142,6 +151,9 @@ class WorldMapTest(unittest.TestCase):
         self.assertEqual(r["wheel"], 200)
         self.assertEqual(r["weight"], 0)
         self.assertEqual(w.robot_settings({"weight": "1250"})["weight"], 1250)
+        self.assertEqual(w.robot_settings({})["gear"], 1.0)  # saved before gearing existed: direct drive
+        self.assertEqual(w.robot_settings({"gear": 0})["gear"], 0.1)  # never divides by zero
+        self.assertEqual(w.robot_settings({"gear": "2.33"})["gear"], 2.33)
         self.assertEqual(r["track"], w.ROBOT["track"])
         self.assertEqual(r["gyroSign"], -1)
         self.assertNotIn("evil", r)

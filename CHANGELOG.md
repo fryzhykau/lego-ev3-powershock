@@ -18,6 +18,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **Drive gearing** under **Robot size** on the Map page: **Motor turns per wheel turn**, for robots with gears or a differential between the drive motors and the wheels. The map, the speed shown, the obstacle brake and the top speed calibration use it. It starts at 1, so robots set up before keep working as they did.
 - **Handbrake:** hold ◯ on the controller (F on the keyboard) and the motors that drive brake, while steering still works. The throttle keeps going underneath, so letting go powers straight out of the slide. For drifting with grip-reduced rear wheels.
 - **Robot weight** under **Robot size** on the Map page, in grams. Saved with the robot's size, for planning later; nothing uses it yet.
 - **Car calibration,** repeatable, on the Driving page: **Find steering limits** (feels for both end stops, sets centre, keeps the steering 4° inside them), **Measure left/right turn** (drives a slow circle at full lock; gives the turning circle, the wheels' real angle and the map's steering ratio), and **Top speed**, learned while driving straight at full power and shown for the battery voltage now. Kept in `pc/calibration.json`.

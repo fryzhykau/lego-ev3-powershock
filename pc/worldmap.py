@@ -37,6 +37,7 @@ TRAIL_MAX = 3000
 # The robot's size and where its sensors sit. Defaults fit a small EV3 car or tank.
 ROBOT = {
     "wheel": 56.0,       # wheel diameter, mm
+    "gear": 1.0,         # drive motor turns per wheel turn: 1 when the motor turns the wheel directly
     "track": 120.0,      # distance between the left and right wheels, mm (tank turning)
     "base": 140.0,       # distance between front and rear axles, mm (car turning)
     "steerRatio": 1.0,   # degrees the front wheels turn per degree of the steering motor
@@ -50,7 +51,7 @@ ROBOT = {
     "camFov": 62.0,      # ... degrees it sees across (62 for the Pi camera v2, 54 for v1)
     "weight": 0.0,       # the whole robot with batteries, grams; 0 = not weighed yet
 }
-LIMITS = {"wheel": (20, 200), "track": (40, 400), "base": (40, 400), "steerRatio": (0.05, 3.0),
+LIMITS = {"wheel": (20, 200), "gear": (0.1, 10), "track": (40, 400), "base": (40, 400), "steerRatio": (0.05, 3.0),
           "eyeAhead": (-300, 300), "eyeAngle": (-180, 180), "floorAhead": (-300, 300),
           "camAhead": (-300, 300), "camHeight": (30, 600), "camTilt": (-10, 60), "camFov": (30, 160),
           "weight": (0, 20000)}
@@ -152,14 +153,20 @@ def layout(mapping):
     return {"type": "car", "drive": drive, "steer": steer}
 
 
+def cm_per_deg(robot):
+    """cm the robot moves per degree a drive motor turns. Gears between motor and wheel (a gearbox,
+    a differential's ring) change how far one motor turn carries it, so they count as much as the wheel."""
+    return math.pi * robot["wheel"] / 10 / 360 / robot["gear"]
+
+
 def forward_speed(speeds, lay, robot):
     """cm/s forward (negative: backwards) from the drive motors' speeds in degrees a second."""
     if not lay:
         return 0.0
-    cm_per_deg = math.pi * robot["wheel"] / 10 / 360
+    per_deg = cm_per_deg(robot)
     groups = (lay["left"], lay["right"]) if lay["type"] == "tank" else (lay["drive"],)
     means = [sum(speeds.get(p, 0) * s for p, s in g.items()) / len(g) for g in groups if g]
-    return sum(means) / len(means) * cm_per_deg if means else 0.0
+    return sum(means) / len(means) * per_deg if means else 0.0
 
 
 class Odometry:
@@ -192,13 +199,13 @@ class Odometry:
         self.last = dict(tachos)
         if not lay:
             return 0.0
-        cm_per_deg = math.pi * robot["wheel"] / 10 / 360
+        per_deg = cm_per_deg(robot)
         mean = lambda ports: sum(d.get(p, 0) * s for p, s in ports.items()) / max(1, len(ports))  # noqa: E731
         if lay["type"] == "tank":
-            dl, dr = mean(lay["left"]) * cm_per_deg, mean(lay["right"]) * cm_per_deg
+            dl, dr = mean(lay["left"]) * per_deg, mean(lay["right"]) * per_deg
             ds, dth = (dl + dr) / 2, (dr - dl) / (robot["track"] / 10)
         else:
-            ds = mean(lay["drive"]) * cm_per_deg
+            ds = mean(lay["drive"]) * per_deg
             dth = 0.0
             if lay["steer"] and lay["steer"][0] in tachos:
                 port, s = lay["steer"]

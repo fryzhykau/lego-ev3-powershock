@@ -404,6 +404,8 @@ Still open: choosing a licence.
 
 **Weight** was added to the robot's size, entered from a kitchen scale. It isn't used yet. Physics says it matters when the motors limit how fast the car can stop or speed up, and for when the driven wheels start to spin, but not for a stop limited by tyre grip.
 
+**Gearing:** the car is a big Technic car body, and its rear wheels are driven through a differential whose 28-tooth ring is turned by a smaller gear, so the wheels turn slower than the motors. The map had assumed the motor turns the wheel directly, so speed and distance would have read too high by that ratio. **Motor turns per wheel turn** fixes it. The easiest way to measure it is to roll the car with the brick off until a wheel turns once and count the motor hub's turns, with no teeth to count.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.
