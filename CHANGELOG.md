@@ -78,6 +78,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Brick program:** when the signal is weak, it moves to the strongest saved network or access point. It only looks while the robot stands still, at most every two minutes, and only with two or more saved networks, because a scan stalls the link for a second or two. It sends its signal in the status line (`w=-62`).
   - **The Pi:** a new service, `pi/powershock_wifi.py`, does the same with NetworkManager, and the camera reports its signal.
   - **The console** finds the brick again if it comes back at a new address.
+  - **Adding a network over WiFi** works too: the brick saves it and restarts its WiFi a moment later, and the console reconnects. It used to need Bluetooth.
   - **The map's instrument panel** shows both signals.
 - **An instrument panel on the map:** live speed, heading and turn rate, an arrow showing where the robot will be in a second, and what the autopilot (the obstacle brake, for now) decides: what you ask for against what it allows, why, and its last few decisions.
 - **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.

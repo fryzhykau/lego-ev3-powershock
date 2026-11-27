@@ -138,6 +138,22 @@ class BrickNetworksTest(unittest.TestCase):
         self.assertNotIn("password1", conf)
         self.assertNotIn("password1", " ".join(cmd for cmd, _ in sent))
 
+    def test_join_over_wifi_answers_before_wifi_restarts(self):
+        sent = []
+
+        def ssh(host, command, stdin=None, timeout=30):
+            sent.append((command, stdin))
+            return CONF if command.startswith("cat /home") else ""
+        real, ev3_brick.ssh = ev3_brick.ssh, ssh
+        try:
+            r = ev3_brick.wifi_join("<brick address>", "Upstairs", "password1", over_wifi=True)
+        finally:
+            ev3_brick.ssh = real
+        self.assertEqual(r, {"ok": True, "pending": True})
+        self.assertIn("nohup", sent[-1][0])  # WiFi restarts after the answer has gone back
+        self.assertEqual(len(ev3_brick.conf_networks(sent[-1][1].decode())), 3)
+        self.assertNotIn("password1", sent[-1][1].decode())
+
     def test_saved_names_only(self):
         real = ev3_brick.ssh
         ev3_brick.ssh = lambda host, command, stdin=None, timeout=30: '"HomeNetwork"\n' + b"Caf\xc3\xa9".hex() + "\n"

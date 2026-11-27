@@ -86,7 +86,7 @@ final class WifiRoam implements Runnable {
         }
         lastScan = now;
         wpa("scan");
-        Thread.sleep(4000);
+        Thread.sleep(7000); // the WNA1100 dongle needs about 6 s to see every network
         String bestSsid = null, bestBssid = null;
         int best = Integer.MIN_VALUE, current = level;
         for (String l : wpa("scan_results")) {

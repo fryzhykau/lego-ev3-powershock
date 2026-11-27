@@ -375,7 +375,7 @@ def parse_telemetry(line):
 # ---------- WiFi ----------
 
 def wifi_scan(host):
-    raw = ssh(host, "wpa_cli -i wlan0 scan >/dev/null 2>&1; sleep 4; wpa_cli -i wlan0 scan_results", timeout=30)
+    raw = ssh(host, "wpa_cli -i wlan0 scan >/dev/null 2>&1; sleep 7; wpa_cli -i wlan0 scan_results", timeout=30)
     best = {}
     for line in raw.splitlines()[1:]:
         p = line.split("\t")
@@ -505,11 +505,16 @@ def wifi_forget(host, ssid):
     return {"ok": True, "saved": wifi_saved(host)}
 
 
-def wifi_join(host, ssid, password):
+def wifi_join(host, ssid, password, over_wifi=False):
     """Adds a network to the brick's saved ones (the others are kept, so it can move between
     them) and runs leJOS's own startwlan. The password is turned into the WPA key here (PBKDF2,
     as wpa_passphrase does), so it never reaches the brick or any log in plain text. Returns
-    the new WiFi address."""
+    the new WiFi address.
+
+    over_wifi: the laptop reaches the brick over the WiFi that's about to restart, so the answer
+    would never arrive. The network is saved, WiFi restarts a moment later, and this returns
+    at once with "pending"; the console's link finds the brick again. The networks saved before
+    are kept, so a wrong password leaves the brick on one of those."""
     raw = _wpa_bytes(ssid)  # the SSID as the radio sends it
     ssid_hex = raw.hex()
     if password:
@@ -520,6 +525,9 @@ def wifi_join(host, ssid, password):
     else:
         net = f"\tssid={ssid_hex}\n\tkey_mgmt=NONE\n"
     conf = conf_with(_read_conf(host), raw, f"network={{\n{net}}}")
+    if over_wifi:
+        _write_conf(host, conf, f"; nohup sh -c 'sleep 2; {LEJOS_BIN}/startwlan' </dev/null >/dev/null 2>&1 &")
+        return {"ok": True, "pending": True}
     script = (
         "cat > /home/root/lejos/config/wpa_supplicant.conf.new && "
         "chmod 600 /home/root/lejos/config/wpa_supplicant.conf.new && "

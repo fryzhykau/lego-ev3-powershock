@@ -1080,7 +1080,8 @@ class Handler(BaseHTTPRequestHandler):
                     r = ev3_brick.wifi_forget(host, str(b.get("ssid", "")))
                 else:
                     # The password goes straight into the key derivation and is never logged.
-                    r = ev3_brick.wifi_join(host, str(b.get("ssid", "")), str(b.get("password", "")))
+                    r = ev3_brick.wifi_join(host, str(b.get("ssid", "")), str(b.get("password", "")),
+                                            over_wifi=host != LEJOS_PAN_IP)
             except ev3_brick.BrickError as e:
                 r = {"ok": False, "error": str(e)}
             if self.path not in ("/api/wifi/scan", "/api/wifi/saved"):

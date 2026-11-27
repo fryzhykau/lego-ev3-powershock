@@ -73,83 +73,99 @@ final class Sensors implements Runnable {
         }
     }
 
+    /** A port whose sensor said it's one the map doesn't use: left alone until it's unplugged. */
+    private final boolean[] ignored = new boolean[4];
+
     /**
-     * What an EV3 sensor says it is, from the name of its first mode ("IR-PROX", "COL-REFLECT",
-     * "US-DIST-CM", "GYRO-ANG"). Under leJOS the connection manager leaves the type of EV3
-     * sensors unknown (125), so the sensor itself is asked. Takes up to a second or two.
+     * Which sensor this is, from the name of its first mode ("IR-PROX", "COL-REFLECT",
+     * "US-DIST-CM", "GYRO-ANG"), or 0 if it's none the map uses.
      */
-    private static int askType(Port p) {
-        UARTPort u = p.open(UARTPort.class);
-        try {
-            if (!u.initialiseSensor(0)) {
-                return 0;
-            }
-            String name = u.getModeName(0);
-            if (name == null) {
-                return 0;
-            }
-            if (name.startsWith("IR-")) {
-                return TYPE_IR;
-            }
-            if (name.startsWith("COL-")) {
-                return TYPE_COLOR;
-            }
-            if (name.startsWith("US-")) {
-                return TYPE_US;
-            }
-            if (name.startsWith("GYRO-") || name.startsWith("GYR")) {
-                return TYPE_GYRO;
-            }
+    static int typeOf(String name) {
+        if (name == null) {
             return 0;
-        } finally {
-            u.close();
         }
+        if (name.startsWith("IR-")) {
+            return TYPE_IR;
+        }
+        if (name.startsWith("COL-")) {
+            return TYPE_COLOR;
+        }
+        if (name.startsWith("US-")) {
+            return TYPE_US;
+        }
+        if (name.startsWith("GYRO") || name.startsWith("GYR-")) {
+            return TYPE_GYRO;
+        }
+        return 0;
     }
 
+    /**
+     * Opens the sensor on port i. Under leJOS the brick's port detection leaves the type of EV3
+     * sensors unknown (125), so the sensor itself is asked its name, on a port that then stays
+     * open for it: each port is opened once per plug-in, never opened and closed over and over.
+     */
     private void tryOpen(int i, long now) {
         int[] c = PortWatch.sensorCodes(i);
         if (c[0] != CONN_UART) {
+            ignored[i] = false; // unplugged: a new sensor gets asked again
+            return;
+        }
+        if (ignored[i]) {
             return;
         }
         int type = c[1];
-        if (type != TYPE_IR && type != TYPE_COLOR && type != TYPE_US && type != TYPE_GYRO) {
-            type = askType(PORTS[i]);
-            if (type == 0) {
-                retryAt[i] = now + RETRY_MS; // not one the map uses, or still starting up
-                return;
+        UARTPort u = null;
+        try {
+            if (type != TYPE_IR && type != TYPE_COLOR && type != TYPE_US && type != TYPE_GYRO) {
+                u = PORTS[i].open(UARTPort.class);
+                String name = u.initialiseSensor(0) ? u.getModeName(0) : null;
+                type = typeOf(name);
+                if (type == 0) {
+                    u.close();
+                    u = null;
+                    if (name != null) {
+                        ignored[i] = true; // a sensor the map doesn't use
+                    } else {
+                        retryAt[i] = now + RETRY_MS; // still starting up
+                    }
+                    return;
+                }
             }
-        }
-        switch (type) {
-            case TYPE_IR: {
-                EV3IRSensor s = new EV3IRSensor(PORTS[i]);
-                open[i] = s;
-                mode[i] = s.getDistanceMode();
-                kind[i] = "ir";
-                break;
+            switch (type) {
+                case TYPE_IR: {
+                    EV3IRSensor s = u != null ? new EV3IRSensor(u) : new EV3IRSensor(PORTS[i]);
+                    open[i] = s;
+                    mode[i] = s.getDistanceMode();
+                    kind[i] = "ir";
+                    break;
+                }
+                case TYPE_COLOR: {
+                    EV3ColorSensor s = u != null ? new EV3ColorSensor(u) : new EV3ColorSensor(PORTS[i]);
+                    open[i] = s;
+                    mode[i] = s.getColorIDMode();
+                    kind[i] = "col";
+                    break;
+                }
+                case TYPE_US: {
+                    EV3UltrasonicSensor s = u != null ? new EV3UltrasonicSensor(u) : new EV3UltrasonicSensor(PORTS[i]);
+                    open[i] = s;
+                    mode[i] = s.getDistanceMode();
+                    kind[i] = "us";
+                    break;
+                }
+                default: {
+                    EV3GyroSensor s = u != null ? new EV3GyroSensor(u) : new EV3GyroSensor(PORTS[i]);
+                    open[i] = s;
+                    mode[i] = s.getAngleMode();
+                    kind[i] = "gy";
+                    break;
+                }
             }
-            case TYPE_COLOR: {
-                EV3ColorSensor s = new EV3ColorSensor(PORTS[i]);
-                open[i] = s;
-                mode[i] = s.getColorIDMode();
-                kind[i] = "col";
-                break;
+        } catch (RuntimeException e) {
+            if (u != null && open[i] == null) {
+                u.close();
             }
-            case TYPE_US: {
-                EV3UltrasonicSensor s = new EV3UltrasonicSensor(PORTS[i]);
-                open[i] = s;
-                mode[i] = s.getDistanceMode();
-                kind[i] = "us";
-                break;
-            }
-            case TYPE_GYRO: {
-                EV3GyroSensor s = new EV3GyroSensor(PORTS[i]);
-                open[i] = s;
-                mode[i] = s.getAngleMode();
-                kind[i] = "gy";
-                break;
-            }
-            default:
-                break;
+            throw e;
         }
     }
 

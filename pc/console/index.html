@@ -1253,7 +1253,7 @@
         </div>
         <div data-sub="net" class="hidden">
           <div class="card-head"><h2>Choose the brick's WiFi network</h2><span class="muted" id="wifiSummary"></span><button class="link" data-close>Close</button></div>
-          <p class="help">Needs the Bluetooth link. The password is turned into a key here and never stored or shown.</p>
+          <p class="help">Works over Bluetooth or WiFi. Over WiFi, the link drops for about 30 seconds while the brick joins. The password is turned into a key here and never stored or shown.</p>
           <p class="help">Add every network the robot drives through, such as the router and its extender on each floor. The brick keeps them all, and while it stands still with a weak signal, it moves to the strongest one (brick program 0.8 or later). Its dongle only sees 2.4 GHz networks.</p>
           <div id="savedBox" class="hidden" style="margin-top:10px"><h3>Saved on the brick</h3><ul id="savedNets" class="savednets"></ul></div>
           <div class="row" style="margin-top:10px"><button id="netScanBtn" class="btn">Look for networks</button></div>
@@ -2406,6 +2406,7 @@ function openPanel(name) {
   panel.dataset.open = same ? "" : name;
   panel.querySelectorAll("[data-sub]").forEach((x) => x.classList.toggle("hidden", x.dataset.sub !== name));
   if (!same && name === "addr") $("host").focus();
+  if (!same && name === "net") loadSaved(brickHost());
 }
 document.querySelectorAll("#page-connection [data-panel]").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
 $("setupPanel").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) { $("setupPanel").classList.add("hidden"); $("setupPanel").dataset.open = ""; } });
@@ -2437,7 +2438,7 @@ let chosenNet = null;
 const bars = (sig) => { const n = sig > -55 ? 4 : sig > -67 ? 3 : sig > -75 ? 2 : 1; return `<span class="bars">${[5, 8, 11, 14].map((h, i) => `<i class="${i < n ? "on" : ""}" style="height:${h}px"></i>`).join("")}</span>`; };
 const secName = { wpa: "WPA2", open: "Open", wep: "WEP (not supported)", enterprise: "Work login (not supported)" };
 $("netScanBtn").addEventListener("click", () => busy($("netScanBtn"), async () => {
-  const h = brickHost(); if (!h) return setNote("joinNote", "Connect over Bluetooth first.", "bad");
+  const h = brickHost(); if (!h) return setNote("joinNote", "Connect to the brick first, over Bluetooth or WiFi.", "bad");
   setNote("joinNote", "The brick is looking for networks…"); $("nets").innerHTML = ""; $("joinBox").classList.add("hidden");
   const r = await api("/api/wifi/scan", { host: h });
   if (!r.ok) return setNote("joinNote", r.error, "bad");
@@ -2459,8 +2460,9 @@ $("joinBtn").addEventListener("click", () => busy($("joinBtn"), async () => {
   setNote("joinNote", `Adding ${chosenNet.ssid}. This takes up to 30 seconds…`);
   const r = await api("/api/wifi/join", { host: brickHost(), ssid: chosenNet.ssid, password: chosenNet.security === "open" ? "" : $("wifiPass").value });
   $("wifiPass").value = "";
-  setNote("joinNote", r.ok ? `Added. The brick's WiFi address is ${r.ip}. Enter it under WiFi address to drive without Bluetooth.` : r.error, r.ok ? "ok" : "bad");
-  if (r.ok) $("host").value = r.ip;
+  setNote("joinNote", r.ok && r.pending ? `Saved ${chosenNet.ssid}. The brick is restarting its WiFi to use it, and the console reconnects by itself in about 30 seconds.`
+    : r.ok ? `Added. The brick's WiFi address is ${r.ip}. Enter it under WiFi address to drive without Bluetooth.` : r.error, r.ok ? "ok" : "bad");
+  if (r.ok && r.ip) $("host").value = r.ip;
   loadSaved(brickHost());
   pollBrick();
 }));
