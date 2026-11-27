@@ -997,8 +997,12 @@ class Handler(BaseHTTPRequestHandler):
                 speed = max(5, min(100, int(b.get("speed") or 50)))
             except (TypeError, ValueError):
                 return self._json({"ok": False, "error": "bad test command"})
-            ok = link.send_line(f"M {port} {action} {value} {speed}")
-            self._json({"ok": ok, "error": None if ok else "not connected to PowerShock"})
+            with link.lock:
+                m = link.mapper.mapping
+            # a grouped motor moves with its group, so two motors on one axle never fight
+            lines = [f"M {port} {action} {value} {speed}"] if port == "*" else mapping.test_lines(m, port, action, value, speed)
+            ok = all([link.send_line(x) for x in lines])
+            self._json({"ok": ok, "error": None if ok else "not connected to PowerShock", "ports": [x.split()[1] for x in lines]})
         elif self.path == "/api/stop":
             link.stop_input()
             link.send_line("M * stop 0 50")  # also ends any motor test in progress

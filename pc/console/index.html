@@ -1472,6 +1472,7 @@ function currentMapping() { return (S.link && S.link.mapping) || null; }
 function roleOf(p) {
   const m = currentMapping(), c = m && m.ports && m.ports[p];
   if (!c || c.mode === "off") return null;
+  if (c.mode === "follow") return `Same as ${c.leader}${c.invert ? ", reversed" : ""}`;
   if (c.mode === "drive") return c.side === "left" ? "Left drive" : "Right drive";
   if (c.mode === "position") return `Steering (${AXIS_NAME[c.input]})`;
   return `Speed (${AXIS_NAME[c.input]})`;
@@ -1690,12 +1691,18 @@ const AXIS_OPTS = ["LX", "LY", "RX", "RY", "R2-L2", "R2", "L2"];
 const sel = (key, value, opts) => `<select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === value ? "selected" : ""}>${t}</option>`).join("")}</select>`;
 const axisSel = (key, value, withNone) => sel(key, value, [...AXIS_OPTS, ...(withNone ? ["none"] : [])].map((a) => [a, AXIS_NAME[a]]));
 const range = (key, value, min, max, step, unit) => `<span class="rv"><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${value}"><output>${value}${unit}</output></span>`;
-function portCard(p, c, cp) {
+function portCard(p, c, cp, ports) {
   const d = cp.ports && cp.ports[p];
   const dev = !d ? "Not checked yet" : d.connected ? `<b>${esc(d.label)}</b> plugged in` : "Nothing plugged in";
   const warn = c.mode !== "off" && d && d.connected === false;
-  const modeSel = sel(`${p}.mode`, c.mode, [["off", "Not used"], ["drive", "Two-wheel drive"], ["speed", "Speed (run)"], ["position", "Steering (angle)"]]);
+  // "Same as A": this motor gets exactly what A gets, so the two run as one
+  const leaders = MOTOR_PORTS.filter((q) => q !== p && ports[q] && !["off", "follow"].includes(ports[q].mode));
+  const modeSel = sel(`${p}.mode`, c.mode === "follow" ? `follow:${c.leader}` : c.mode, [["off", "Not used"], ["drive", "Two-wheel drive"], ["speed", "Speed (run)"],
+    ["position", "Steering (angle)"], ...leaders.map((q) => [`follow:${q}`, `Same as ${q} (together)`])]);
   let f = "";
+  if (c.mode === "follow") f = `<p class="help">Gets exactly what ${c.leader} gets, so the two always start, stop and change speed together. The test buttons move both. If it's mounted facing the other way (the two would fight), turn on Reversed.</p>
+      <label class="field"><span>Direction</span><span><label class="toggle"><input type="checkbox" data-k="${p}.invert" ${c.invert ? "checked" : ""}><span class="track"></span><span>Reversed</span></label></span></label>
+      <div class="outline"><span>Now sending</span><span class="outbar"><i data-out="${p}"></i></span><output data-outv="${p}">–</output></div>`;
   if (c.mode === "drive") f = `<label class="field"><span>Side</span>${sel(`${p}.side`, c.side, [["left", "Left wheel"], ["right", "Right wheel"]])}</label>
       <label class="field"><span>Top speed</span>${range(`${p}.max`, c.max, 0, 100, 5, "%")}</label>`;
   if (c.mode === "speed") f = `<label class="field"><span>Controlled by</span>${axisSel(`${p}.input`, c.input)}</label>
@@ -1703,7 +1710,7 @@ function portCard(p, c, cp) {
   if (c.mode === "position") f = `<label class="field"><span>Controlled by</span>${axisSel(`${p}.input`, c.input)}</label>
       <label class="field"><span>Turns up to</span>${range(`${p}.range`, c.range, 5, 180, 5, "°")}</label>
       <label class="field"><span>Turn speed</span>${range(`${p}.speed`, c.speed, 5, 100, 5, "%")}</label>`;
-  if (c.mode !== "off") f += `<label class="field"><span>Smoothing</span>${range(`${p}.smooth`, c.smooth, 0, 2, 0.1, " s")}</label>
+  if (c.mode !== "off" && c.mode !== "follow") f += `<label class="field"><span>Smoothing</span>${range(`${p}.smooth`, c.smooth, 0, 2, 0.1, " s")}</label>
       <label class="field"><span>Direction</span><span><label class="toggle"><input type="checkbox" data-k="${p}.invert" ${c.invert ? "checked" : ""}><span class="track"></span><span>Reversed</span></label></span></label>
       <div class="outline"><span>Now sending</span><span class="outbar"><i data-out="${p}"></i></span><output data-outv="${p}">–</output></div>`;
   if (c.mode === "position") f += `<div class="field" style="align-items:start"><span>Centre</span><div style="display:grid;gap:6px">
@@ -1719,7 +1726,7 @@ function drawControls(force) {
   const shape = JSON.stringify(m) + "|" + MOTOR_PORTS.map((p) => cp.ports && cp.ports[p] ? cp.ports[p].label : "").join(",");
   if (force || $("pgrid").dataset.shape !== shape) {
     $("pgrid").dataset.shape = shape;
-    $("pgrid").innerHTML = MOTOR_PORTS.map((p) => portCard(p, m.ports[p], cp)).join("");
+    $("pgrid").innerHTML = MOTOR_PORTS.map((p) => portCard(p, m.ports[p], cp, m.ports)).join("");
     const usesDrive = MOTOR_PORTS.some((p) => m.ports[p].mode === "drive");
     $("globals").innerHTML = `
       <label class="field"><span>Normal speed</span>${range("speed.base", m.speed.base, 10, 100, 5, "%")}</label>
@@ -1771,7 +1778,8 @@ function onControlChange(e) {
   const [a, b] = key.split("."), m = S.mapDraft;
   const val = el.type === "checkbox" ? el.checked : el.type === "range" ? +el.value : el.value;
   if (el.type === "range") el.nextElementSibling.textContent = el.value + (b === "range" ? "°" : b === "smooth" ? " s" : a === "brake" ? " cm" : "%");
-  if (b === "mode") m.ports[a] = { ...MODE_DEFAULTS[val], ...(val === "drive" ? { side: a === "C" ? "right" : "left" } : {}) };
+  if (b === "mode" && val.startsWith("follow:")) m.ports[a] = { mode: "follow", leader: val.slice(7), invert: false };
+  else if (b === "mode") m.ports[a] = { ...MODE_DEFAULTS[val], ...(val === "drive" ? { side: a === "C" ? "right" : "left" } : {}) };
   else if (MOTOR_PORTS.includes(a)) m.ports[a][b] = val;
   else m[a][b] = val;
   m.name = "custom";

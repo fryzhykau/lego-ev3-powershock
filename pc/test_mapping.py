@@ -61,6 +61,67 @@ class CarTest(unittest.TestCase):
         self.assertEqual(r["B"], ("s", -60))
 
 
+def grouped(invert=False):
+    """Two large motors on one axle (A leads, B follows) and steering on D."""
+    m = dict(mp.CAR, ports={
+        "A": {"mode": "speed", "input": "RY", "invert": False, "max": 100, "smooth": 0.8},
+        "B": {"mode": "follow", "leader": "A", "invert": invert},
+        "C": {"mode": "off"},
+        "D": mp.CAR["ports"]["D"],
+    })
+    return mp.validate(m)
+
+
+class GroupTest(unittest.TestCase):
+    def test_follower_gets_exactly_what_its_leader_gets(self):
+        m = mp.Mapper(grouped())
+        for _ in range(20):
+            r = m.step(inp(ry=-1, r2=1), 0.02)  # smoothing on the leader: the follower ramps with it
+            self.assertEqual(r["B"], r["A"])
+        self.assertEqual(r["A"], ("s", 50))
+        self.assertEqual(m.step(None, 0.02)["B"], ("s", 0))  # and stops with it
+
+    def test_reversed_follower(self):
+        m = mp.Mapper(grouped(invert=True))
+        for _ in range(60):
+            r = m.step(inp(ry=-1), 0.02)
+        self.assertEqual((r["A"], r["B"]), (("s", 60), ("s", -60)))
+
+    def test_follower_of_steering(self):
+        m = dict(mp.CAR, ports=dict(mp.CAR["ports"], A={"mode": "follow", "leader": "D", "invert": True}))
+        mm = mp.Mapper(mp.validate(m))
+        for _ in range(50):
+            r = mm.step(inp(lx=1), 0.02)
+        self.assertEqual((r["D"], r["A"]), (("p", 45, 60), ("p", -45, 60)))
+
+    def test_bad_leaders_turn_the_port_off(self):
+        ports = {"A": {"mode": "follow", "leader": "B"}, "B": {"mode": "follow", "leader": "A"},
+                 "C": {"mode": "follow", "leader": "C"}, "D": {"mode": "follow", "leader": "Z"}}
+        out = mp.validate(dict(mp.CAR, ports=ports))
+        self.assertEqual({p: c["mode"] for p, c in out["ports"].items()}, dict.fromkeys("ABCD", "off"))
+        out = mp.validate(dict(mp.CAR, ports=dict(mp.CAR["ports"], A={"mode": "follow", "leader": "B"},
+                                                  B={"mode": "off"})))
+        self.assertEqual(out["ports"]["A"], {"mode": "off"})  # a leader that does nothing
+
+    def test_saved_in_port_order(self):
+        self.assertEqual(list(grouped()["ports"]), ["A", "B", "C", "D"])
+
+    def test_tests_move_the_whole_group(self):
+        m = grouped(invert=True)
+        self.assertEqual(mp.test_lines(m, "A", "run", 40, 50), ["M A run 40 50", "M B run -40 50"])
+        # pressing the follower's button moves the leader too, the right way round
+        self.assertEqual(mp.test_lines(m, "B", "rotate", 90, 50), ["M A rotate -90 50", "M B rotate 90 50"])
+        self.assertEqual(mp.test_lines(m, "B", "stop", 0, 50), ["M A stop 0 50", "M B stop 0 50"])
+        self.assertEqual(mp.test_lines(m, "D", "run", 40, 50), ["M D run 40 50"])  # not grouped
+
+    def test_the_drive_layout_sees_both(self):
+        import worldmap
+        lay = worldmap.layout(grouped(invert=True))
+        self.assertEqual(lay["type"], "car")
+        self.assertEqual(lay["drive"], {"A": 1, "B": -1})
+        self.assertEqual(lay["steer"], ("D", 1))
+
+
 class ValidateTest(unittest.TestCase):
     def test_rejects_unknown_input(self):
         bad = mp.validate(mp.CAR)

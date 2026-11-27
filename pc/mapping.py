@@ -6,6 +6,11 @@ The console runs this 50 times a second. Each motor port gets one of:
   drive     - one side of a two-wheel (tank) drive: throttle +/- steer, mixed
   speed     - an axis sets the motor speed (forward/back)
   position  - an axis sets the motor *angle* (steering, arms): -range..+range degrees
+  follow    - exactly what another port (its "leader") gets, optionally reversed: two motors
+              on one axle, or both sides of a big model, always run together as one
+
+A leader and its followers are a group: they get their commands in the same line, so they
+start, stop and change speed together, and the test buttons move the whole group.
 
 Every port has a smoothing time (seconds from 0 to full). That is what makes car-style
 control feel gradual: the throttle ramps up and the steering turns smoothly instead of
@@ -29,7 +34,7 @@ import os
 import brake
 
 AXES = ("LX", "LY", "RX", "RY", "L2", "R2", "R2-L2", "none")
-MODES = ("off", "drive", "speed", "position")
+MODES = ("off", "drive", "speed", "position", "follow")
 PORTS = ("A", "B", "C", "D")
 
 TANK = {
@@ -101,6 +106,8 @@ def validate(m):
         mode = c.get("mode", "off")
         if mode not in MODES:
             raise ValueError(f"unknown mode for {p}: {mode}")
+        if mode == "follow":
+            continue  # once every leader is known
         pc = {"mode": mode}
         if mode != "off":
             pc["invert"] = bool(c.get("invert", False))
@@ -116,6 +123,49 @@ def validate(m):
             pc["range"] = _num(c.get("range", 45), 5, 720)
             pc["speed"] = _num(c.get("speed", 60), 5, 100)
         out["ports"][p] = pc
+    for p in PORTS:
+        c = ports.get(p) or {}
+        if c.get("mode") != "follow":
+            continue
+        lead = c.get("leader")
+        # a leader must be a port that does something itself: not off, and not a follower
+        ok = lead in PORTS and lead != p and (out["ports"].get(lead) or {}).get("mode") not in (None, "off")
+        out["ports"][p] = {"mode": "follow", "leader": lead, "invert": bool(c.get("invert", False))} if ok else {"mode": "off"}
+    return {**out, "ports": {p: out["ports"][p] for p in PORTS}}
+
+
+def effective(ports):
+    """The ports with each follower given its leader's settings (and its own direction), as
+    the drive layout, the brake and the map see them."""
+    out = {}
+    for p, c in ports.items():
+        if c.get("mode") == "follow" and c.get("leader") in ports:
+            lead = ports[c["leader"]]
+            out[p] = dict(lead, invert=bool(lead.get("invert")) != bool(c.get("invert")))
+        else:
+            out[p] = c
+    return out
+
+
+def group(m, port):
+    """The ports that move with this one, each with its direction relative to it: [(port, 1 or -1)].
+    A port in no group is a group of one."""
+    ports = (m or {}).get("ports") or {}
+    c = ports.get(port) or {}
+    lead = c["leader"] if c.get("mode") == "follow" and c.get("leader") in ports else port
+    own = lambda q: -1 if q != lead and ports[q].get("invert") else 1  # noqa: E731
+    members = [lead] + [q for q in PORTS if q != lead and (ports.get(q) or {}).get("mode") == "follow"
+                        and ports[q].get("leader") == lead]
+    me = own(port) if port in members else 1
+    return [(q, own(q) * me) for q in members]
+
+
+def test_lines(m, port, action, value, speed):
+    """The motor test lines ("M <port> <action> <value> <speed>") for a port and its group."""
+    out = []
+    for q, sign in group(m, port):
+        v = value * sign if action in ("run", "rotate") else value
+        out.append(f"M {q} {action} {v} {speed}")
     return out
 
 
@@ -215,7 +265,7 @@ class Mapper:
         targets = self.targets(inp) if inp is not None else {}
         for p, c in self.mapping["ports"].items():
             mode = c["mode"]
-            if mode == "off":
+            if mode in ("off", "follow"):
                 result[p] = None
                 continue
             t = targets.get(p)
@@ -241,6 +291,12 @@ class Mapper:
                 result[p] = ("p", round(v), int(c["speed"]))
             else:
                 result[p] = ("s", int(round(max(-100, min(100, v)))))
+        # followers get exactly what their leader got, after its smoothing: never out of step
+        for p, c in self.mapping["ports"].items():
+            r = result.get(c.get("leader")) if c["mode"] == "follow" else None
+            if r is not None:
+                sign = -1 if c.get("invert") else 1
+                result[p] = ("s", r[1] * sign) if r[0] == "s" else ("p", r[1] * sign, r[2])
         return result
 
 

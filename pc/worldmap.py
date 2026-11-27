@@ -23,6 +23,8 @@ import os
 import threading
 import time
 
+import mapping as controls
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(HERE, "worldmap.json")
 
@@ -133,7 +135,7 @@ def layout(mapping):
     """Which ports move the robot, from the controls mapping:
     {"type": "tank", "left": {port: sign}, "right": {port: sign}} or
     {"type": "car", "drive": {port: sign}, "steer": (port, sign) | None} or None."""
-    ports = (mapping or {}).get("ports") or {}
+    ports = controls.effective((mapping or {}).get("ports") or {})  # followers count as what they follow
     sign = lambda c: -1 if c.get("invert") else 1  # noqa: E731
     left = {p: sign(c) for p, c in ports.items() if c.get("mode") == "drive" and c.get("side") == "left"}
     right = {p: sign(c) for p, c in ports.items() if c.get("mode") == "drive" and c.get("side") == "right"}
