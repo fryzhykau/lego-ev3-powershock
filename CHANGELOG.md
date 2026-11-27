@@ -18,7 +18,8 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
-- **Motor groups:** a port can be **Same as** another port, so two motors (two large motors on one axle, say) run as one. The follower gets exactly the leader's command, optionally reversed. Testing either motor moves the whole group, and the brake and the map count both as driving.
+- **Motor groups:** a port can be **Same as** another port, so two motors (two large motors on one axle, say) run as one. The follower gets exactly the leader's command, optionally reversed. Set it from **Works with** on each motor in the Robot page's Devices list, or on the Driving page. Testing either motor moves the whole group, and the brake and the map count both as driving.
+- **Sensor names in the Devices list:** EV3 sensors show as "Colour sensor", "Infrared sensor" and so on, as the brick program asks each one what it is, instead of "EV3 sensor".
 - **Map page:** a live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above.
   - **Position:** worked out from the wheel motors' angles and the robot's size. In car layouts the steering angle is used too, and a gyro, if one is plugged in, gives the heading.
   - **Walls and obstacles:** the infrared or ultrasonic sensor marks them on an occupancy grid. Each cell keeps a score, so one stray reading doesn't draw a wall.

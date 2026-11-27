@@ -666,6 +666,12 @@
   .devrow { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; padding: 8px 0; align-items: center; }
   .devrow .live { font-size: 12.5px; color: var(--muted); text-align: right; white-space: nowrap; } .devrow .live b { color: var(--ink); }
   .devrow + .devrow { border-top: 1px solid var(--rule); }
+  /* motors that work together: a bar down the side joins them */
+  .devrow.grouped { box-shadow: inset 3px 0 0 var(--go); padding-left: 10px; margin-left: -10px; }
+  .devrow.grouped + .devrow.grouped.same { border-top-color: transparent; }
+  .grpline { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--muted); }
+  .grpline select { font-size: 12.5px; padding: 3px 6px; }
+  .grpline .toggle { font-size: 12.5px; }
   .devrow .pbadge { background: var(--panel); color: var(--on-panel); margin-top: 1px; }
   .devrow .d { font-weight: 600; font-size: 13.5px; } .devrow .d span { font-weight: 400; color: var(--muted); }
   .devrow .r { font-size: 12.5px; color: var(--muted); } .devrow .r b { color: var(--ink); }
@@ -1615,22 +1621,71 @@ $("speedSeg").addEventListener("click", (e) => {
   S.testSpeed = +b.dataset.s; drawDevices(currentPorts());
   document.querySelectorAll("#speedSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
 });
+// ---------- motor groups: motors that work together, set from the Devices card too ----------
+function mapPorts() { return (S.mapDraft && S.mapDraft.ports) || ((currentMapping() || {}).ports) || null; }
+function groupOf(p) {
+  const P = mapPorts(); if (!P || !P[p]) return null;
+  const lead = P[p].mode === "follow" ? P[p].leader : p;
+  const members = MOTOR_PORTS.filter((q) => q === lead || (P[q].mode === "follow" && P[q].leader === lead));
+  return members.length > 1 ? { lead, members } : null;
+}
+// "With q": p joins q's group. The group keeps its leader's job; a group with no job yet gets
+// the usual drive job (Speed on the right stick), which the Driving page can change.
+function setGroup(p, q) {
+  if (!S.mapDraft) return;
+  const m = JSON.parse(JSON.stringify(S.mapDraft)), P = m.ports;
+  const followersOf = (x) => MOTOR_PORTS.filter((y) => P[y].mode === "follow" && P[y].leader === x);
+  if (!q) {
+    if (P[p].mode === "follow") P[p] = { mode: "off" };
+    else followersOf(p).forEach((y) => { P[y] = { mode: "off" }; }); // on its own: the others stop following it
+  } else {
+    const lead = P[q].mode === "follow" ? P[q].leader : q;
+    if (lead === p || (P[p].mode === "follow" && P[p].leader === lead)) return;
+    if (P[lead].mode === "off" && !["off", "follow"].includes(P[p].mode)) {
+      P[q] = { mode: "follow", leader: p, invert: false }; // p already has a job: q joins p instead
+    } else {
+      if (P[lead].mode === "off") P[lead] = { ...MODE_DEFAULTS.speed };
+      followersOf(p).forEach((y) => { P[y].leader = lead; });
+      P[p] = { mode: "follow", leader: lead, invert: false };
+    }
+  }
+  m.name = "custom"; S.mapDraft = m;
+  drawControls(true); saveMapping(); drawDevices(currentPorts());
+}
+$("devList").addEventListener("change", (e) => {
+  const g = e.target.closest("[data-group]"), r = e.target.closest("[data-grev]");
+  if (g) setGroup(g.dataset.group, g.value);
+  if (r && S.mapDraft) { S.mapDraft.ports[r.dataset.grev].invert = r.checked; S.mapDraft.name = "custom"; drawControls(true); saveMapping(); }
+});
 function drawDevices(cp) {
   const m = cp.motors || {};
   const all = [...MOTOR_PORTS, ...SENSOR_PORTS];
   const present = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected);
   const canTest = !!(S.link && S.link.connected && S.link.telemetry);
-  // rebuild only when the set of devices changes, so held buttons keep working
-  const shape = present.map((p) => p + cp.ports[p].label + roleOf(p)).join("|") + "|" + canTest;
+  const P = mapPorts();
+  // rebuild only when the set of devices or groups changes, so held buttons keep working
+  const sensed = cp.sensors || {};
+  const shape = present.map((p) => p + cp.ports[p].label + roleOf(p) + (sensed[p] ? sensed[p].kind : "")).join("|") + "|" + canTest + "|" + JSON.stringify(P);
   const list = $("devList");
   if (list.dataset.shape !== shape) {
     list.dataset.shape = shape;
     list.innerHTML = present.length ? present.map((p) => {
       const d = cp.ports[p], role = roleOf(p), motor = d.kind === "motor";
       const dis = canTest ? "" : "disabled";
-      return `<div class="devrow" data-p="${p}"><span class="pbadge">${p.replace("S", "")}</span>
-        <div class="d">${esc(d.label)} <span>· ${role ? esc(role.replace(/ \(.*\)/, "")) : motor ? "not in your controls" : "sensor"}</span></div>
-        <div class="live" data-live>${motor ? "–" : "no reading"}</div>
+      const g = motor ? groupOf(p) : null, mates = g ? g.members.filter((q) => q !== p) : [];
+      const others = MOTOR_PORTS.filter((q) => q !== p && ((cp.ports[q] && cp.ports[q].kind === "motor") || (P && P[q] && P[q].mode !== "off")));
+      const follower = P && P[p] && P[p].mode === "follow";
+      const what = role ? role.replace(/ \(.*\)/, "") + (g && !follower ? ` · leads ${mates.join(", ")}` : "") : motor ? "not in your controls"
+        : sensed[p] ? "on the map" : "sensor";
+      // the brick can't tell EV3 sensors apart by their port; the brick program asks each one what it is
+      const label = !motor && sensed[p] ? SENSOR_NAME[sensed[p].kind] || d.label : d.label;
+      const grp = motor && P && others.length ? `<div class="grpline"><label>Works with <select data-group="${p}" aria-label="Motor ${p} works with">
+          <option value="">on its own</option>${others.map((q) => `<option value="${q}" ${mates.includes(q) ? "selected" : ""}>${q}, together</option>`).join("")}</select></label>
+          ${follower ? `<label class="toggle"><input type="checkbox" data-grev="${p}" ${P[p].invert ? "checked" : ""}><span class="track"></span><span>Reversed against ${P[p].leader}</span></label>` : ""}</div>` : "";
+      const same = g && g.members[0] !== p ? " same" : "";
+      return `<div class="devrow${g ? " grouped" + same : ""}" data-p="${p}"><span class="pbadge">${p.replace("S", "")}</span>
+        <div class="d">${esc(label)} <span>· ${esc(what)}</span></div>
+        <div class="live" data-live>${motor ? "–" : "no reading"}</div>${grp}
         ${motor ? `<div class="tbtns">
           <span class="grp"><button class="hold" data-dir="-1" ${dis} title="Hold to run backwards">⟲</button><button class="hold" data-dir="1" ${dis} title="Hold to run forwards">⟳</button></span>
           <span class="grp"><button data-deg="-90" ${dis} title="Turn back 90°">−90°</button><button data-deg="90" ${dis} title="Turn 90°">+90°</button></span>
@@ -1647,8 +1702,10 @@ function drawDevices(cp) {
   const need = MOTOR_PORTS.filter((p) => roleOf(p) && cp.ports && cp.ports[p] && cp.ports[p].connected === false);
   $("emptyLine").innerHTML = !cp.ports ? "" : (empty.length ? `Empty: ${empty.join(", ")}` : "Every port is in use")
     + (need.length ? `<span class="warn">Your controls use ${need.join(" and ")}, but nothing is plugged in there.</span>` : "");
+  const grouped = MOTOR_PORTS.some((p) => groupOf(p));
   $("devNote").textContent = !cp.ports ? "Connect to the brick to see what's plugged in."
     : canTest ? `Hold ⟲ ⟳ to run; turns are exact. Speed ${S.testSpeed}% of top. Space stops all.`
+      + (grouped ? " Motors that work together move together: try 25% and +90° first, and if they strain against each other, turn on Reversed." : "")
     : "Start PowerShock and connect to test motors from here.";
 }
 function sendTest(port, action, value) {
@@ -2818,6 +2875,7 @@ pollCam(); setInterval(pollCam, 3000);
 // ---------- map page ----------
 const COLOUR_NAMES = { 0: ["Red", "#d8392b"], 1: ["Green", "#2f9e57"], 2: ["Blue", "#2d6fd8"], 3: ["Yellow", "#f1c40f"], 6: ["White", "#f4f5f5"], 7: ["Black", "#232628"], 13: ["Brown", "#7b4a28"] };
 const IR_RANGE = 70;
+const SENSOR_NAME = { ir: "Infrared sensor", us: "Ultrasonic sensor", col: "Colour sensor", gy: "Gyro sensor" };
 function sensorText(s) {
   if (!s) return "";
   if (s.kind === "ir") return s.value >= 95 ? "nothing in range" : `about ${Math.round(s.value * IR_RANGE / 100)} cm`;

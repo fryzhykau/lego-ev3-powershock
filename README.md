@@ -148,7 +148,7 @@ The map also draws the obstacle brake's lines in front of the robot: where it st
 Which stick drives which motor. Pick a starting layout, then fine-tune each motor port.
 
 - **Steering ports** get a **Centre** control: nudge the wheels straight, then **Set centre here**.
-- **Motors that work together** (two large motors on one axle, say): set the second port to **Same as A**. It gets exactly what A gets, after smoothing, so the two always start, stop and change speed together. Turn on its **Reversed** if it's mounted facing the other way, or the two would fight. The test buttons on the Robot page move the whole group, and the obstacle brake and the map count both as driving.
+- **Motors that work together** (two large motors on one axle, say): on the Robot page's **Devices** list, set **Works with** on one of them to the other, or on this page set the second port to **Same as A**. Grouped motors are joined by a bar in the Devices list. It gets exactly what A gets, after smoothing, so the two always start, stop and change speed together. Turn on its **Reversed** if it's mounted facing the other way, or the two would fight. The test buttons on the Robot page move the whole group, and the obstacle brake and the map count both as driving.
 - **Changes** apply while you drive and are saved.
 - **Obstacle brake** (on unless you switch it off): with an infrared or ultrasonic sensor facing ahead, the robot slows down when something is closer than 40 cm and stops 15 cm short. Both distances can be changed.
   - **Only driving towards the obstacle is braked.** You can always back away, or turn on the spot.
