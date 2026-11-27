@@ -103,6 +103,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **Motors on is in the top bar,** next to Stop, on every page. The controller in the top bar opens a **Drive with** menu (Controller or Keyboard), which also says how the controller is doing. The Robot page card now only appears when there's something to say: the controller needs a button press, or the keyboard's keys.
 - **A new look: an instrument cluster at night,** and the old look kept as **Day look**:
   - **Cabin and panels:** a dark blue-graphite cabin, with panels drawn as hairline edges rather than shadows.
   - **Lit wells:** the 3D brick, controller, gears, Pi, map and camera sit in lit wells.

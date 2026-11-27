@@ -570,7 +570,26 @@
   #sbPadItem.go .pad-ico { color: var(--go); } #sbPadItem.warn .pad-ico { color: var(--warn); }
   #sbPadBatt { width: 18px; height: 9px; } #sbPadBatt::after { top: 1.5px; height: 3px; }
   @media (max-width: 960px) { #sbPadItem #sbPad { display: none; } }
-  @media (max-width: 520px) { #sbArmItem, #sbPadPct { display: none !important; } #sbPadItem { gap: 5px; padding: 4px 6px; } }
+  @media (max-width: 520px) {
+    /* Motors on and Stop always fit: the switch and the dots say enough */
+    #sbArm, #sbRate, #sbPadPct, .brand .ver, #sbLink { display: none !important; }
+    #sbPadItem, #sbArmItem { gap: 5px; padding: 4px 6px; } .statusbar .si { padding-left: 6px; padding-right: 6px; }
+  }
+  /* status bar: Motors on, and what drives (a menu under the controller item) */
+  #sbArmItem { gap: 8px; } #sbArmItem.on #sbArm { color: var(--stop); font-weight: 600; }
+  #sbArmItem:has(input:focus-visible) { outline: 2px solid var(--panel); outline-offset: 1px; } #sbArmItem input:focus-visible + .track { outline: none; }
+  #sbPadItem .kb, #sbPadItem.kbd .gp { display: none; } #sbPadItem.kbd .kb { display: block; }
+  #sbPadItem .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .15s; }
+  #sbPadItem[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .srcmenu { position: fixed; inset: auto; margin: 0; width: 260px; box-sizing: border-box; padding: 6px; border: 1px solid var(--edge); border-radius: 12px; background: var(--face); color: var(--ink); box-shadow: 0 12px 32px #0006; }
+  .srcmenu .mh { margin: 4px 8px 6px; font-size: 12px; color: var(--muted); }
+  .srcmenu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+  .srcmenu button:hover, .srcmenu button:focus-visible { background: var(--hover); }
+  .srcmenu button:focus-visible, .srcmenu a:focus-visible { outline: 2px solid var(--panel); outline-offset: -2px; }
+  .srcmenu button[aria-checked="true"] { background: var(--soft); box-shadow: inset 3px 0 0 var(--go); }
+  .srcmenu button span { display: grid; gap: 1px; } .srcmenu small { font-size: 12px; color: var(--muted); }
+  .srcmenu a { display: block; margin: 4px 8px; font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { #sbPadItem .chev { transition: none; } }
   .pairdone > span:not(.dot) { flex: 1 1 0; min-width: 0; }
   /* stick calibration and feel */
   .feel { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 8px 16px; align-items: center; margin-top: 12px; }
@@ -950,13 +969,19 @@
   <span class="sep hide-s"></span>
   <button class="si hide-m" data-go="program" title="PowerShock program"><span class="dot" id="sbProgDot"></span><span id="sbProg">Program unknown</span></button>
   <span class="sep hide-s"></span>
-  <button class="si" data-go="controller" title="Controller" id="sbPadItem"><svg class="pad-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b></button>
+  <button class="si" id="sbPadItem" popovertarget="srcMenu" aria-haspopup="true" aria-expanded="false" title="Drive with the controller or the keyboard"><svg class="pad-ico gp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><svg class="pad-ico kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></button>
   <span class="sep"></span>
   <button class="si hidden" data-go="driving" id="sbBrakeItem" title="Obstacle brake"><span class="dot" id="sbBrakeDot"></span><span id="sbBrake"></span></button>
-  <span class="si" id="sbArmItem"><span class="dot" id="sbArmDot"></span><span id="sbArm">Motors off</span><span class="opt" id="sbRate"></span></span>
+  <label class="si toggle arm" id="sbArmItem" title="With Motors on, the sticks drive the motors. Space or Esc stops everything."><input id="armToggle" type="checkbox" role="switch" aria-label="Motors on"><span class="track"></span><span id="sbArm">Motors off</span><span class="opt" id="sbRate"></span></label>
   <div class="grow"></div>
   <button id="stopBtn" class="stop" title="Stops every motor at once, including test runs. Keyboard: Space or Esc." aria-label="Stop all motors"><span class="sq"></span><span>Stop<span class="long"> motors</span></span><kbd>Space</kbd></button>
 </header>
+<div id="srcMenu" class="srcmenu" popover role="menu" aria-label="Drive with">
+  <p class="mh">Drive with</p>
+  <button role="menuitemradio" data-src="pad" aria-checked="true"><svg class="pad-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><span><b>Controller</b><small id="srcPadNote">No controller yet</small></span></button>
+  <button role="menuitemradio" data-src="manual" aria-checked="false"><svg class="pad-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/></svg><span><b>Keyboard</b><small>W A S D and the arrow keys</small></span></button>
+  <a class="link" href="#controller">Controller page</a>
+</div>
 
 <div class="shell">
   <nav>
@@ -983,13 +1008,6 @@
             <button id="nextBtn" class="btn dark hidden"></button>
           </div>
           <div class="card drivecard">
-            <div class="card-head">
-              <div class="tabs" role="tablist" id="srcTabs">
-                <button role="tab" data-src="pad" aria-selected="true">Controller</button>
-                <button role="tab" data-src="manual" aria-selected="false">Keyboard</button>
-              </div>
-              <label class="toggle arm"><input id="armToggle" type="checkbox"><span class="track"></span><span>Motors on</span></label>
-            </div>
             <div id="padView">
               <p id="padEmpty" class="empty">No controller yet: connect it, then press any button. <a class="link" href="#controller">How?</a></p>
               <div id="padLive" class="hidden"><p class="muted" id="padStatus"></p></div>
@@ -2603,7 +2621,7 @@ $("fakeToggle").addEventListener("change", async (e) => {
 function setArmed(on) {
   if (on) S.disarmWhy = null;
   S.armed = on; $("armToggle").checked = on; $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
-  $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmDot").className = "dot " + (on ? "bad" : "");
+  $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmItem").classList.toggle("on", on);
   $("stopBtn").classList.toggle("live", on);
   drawBrake();
   if (!on) api("/api/stop", {});
@@ -2637,12 +2655,31 @@ function drawBrake() {
 function stopAll() { setArmed(false); }
 $("armToggle").addEventListener("change", (e) => setArmed(e.target.checked));
 $("stopBtn").addEventListener("click", stopAll);
-$("srcTabs").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  S.src = b.dataset.src;
-  document.querySelectorAll("#srcTabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
-  $("padView").classList.toggle("hidden", S.src !== "pad"); $("manualView").classList.toggle("hidden", S.src !== "manual");
+function setSrc(src) {
+  S.src = src;
+  document.querySelectorAll("#srcMenu [data-src]").forEach((x) => x.setAttribute("aria-checked", x.dataset.src === src));
+  $("padView").classList.toggle("hidden", src !== "pad"); $("manualView").classList.toggle("hidden", src !== "manual");
   setArmed(false);
+}
+$("srcMenu").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-src]");
+  if (b) setSrc(b.dataset.src);
+  if (b || e.target.closest("a")) $("srcMenu").hidePopover();
+});
+// The status bar clips what overflows it, so the menu is a popover, placed under its button.
+$("srcMenu").addEventListener("beforetoggle", (e) => {
+  const open = e.newState === "open", m = $("srcMenu"), r = $("sbPadItem").getBoundingClientRect();
+  $("sbPadItem").setAttribute("aria-expanded", open);
+  if (open) { m.style.top = `${r.bottom + 6}px`; m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 276))}px`; }
+});
+$("srcMenu").addEventListener("toggle", (e) => {
+  if (e.newState === "open") $("srcMenu").querySelector('[aria-checked="true"]').focus();
+});
+$("srcMenu").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  e.preventDefault();
+  const items = [...$("srcMenu").querySelectorAll("button, a")], i = items.indexOf(document.activeElement);
+  items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
 });
 const typing = () => document.activeElement && document.activeElement.tagName === "INPUT" && ["text", "password"].includes(document.activeElement.type);
 addEventListener("keydown", (e) => {
@@ -2680,13 +2717,17 @@ const DS_BTN = { dsPad: "pad", dsL1: "L1", dsR1: "R1", dsShare: "share", dsOpt: 
 function drawPad(p) {
   const real = S.src === "pad";
   $("padEmpty").classList.toggle("hidden", !real || !!p); $("padLive").classList.toggle("hidden", !real || !p);
+  document.querySelector(".drivecard").classList.toggle("hidden", real && !!p);
   const isDs4 = p && p.source === "pad" && /wireless controller|dualshock|054c/i.test(p.id || p.name);
   const pst = padStatus(p && p.source === "pad" ? p : null).state, winPad = !p && pst === "press";
   $("sbPad").textContent = real ? (p ? (isDs4 ? "DualShock 4" : "Controller") : pst === "press" ? "DualShock 4 · press a button" : pst === "asleep" ? "DualShock 4 · asleep, press PS" : "No controller") : "Keyboard";
-  $("sbPadDot").className = "dot hidden"; $("sbPadItem").className = "si " + (p ? "go" : pst === "press" || pst === "asleep" ? "warn" : "");
+  $("sbPadDot").className = "dot hidden"; $("sbPadItem").className = "si " + (p ? "go" : pst === "press" || pst === "asleep" ? "warn" : "") + (real ? "" : " kbd");
   const emptyMsg = pst === "press" ? "Windows has your DualShock 4. <b>Press any button on it</b> so this page can use it."
     : pst === "asleep" ? 'Your DualShock 4 is asleep. <b>Press PS</b> (the round button in the middle) to wake it. <a class="link" href="#controller">More</a>'
     : 'No controller yet: connect it, then press any button. <a class="link" href="#controller">How?</a>';
+  const padNote = p && p.source === "pad" ? (isDs4 ? "DualShock 4 connected" : "Connected") : pst === "press" ? "Press any button on it"
+    : pst === "asleep" ? "Asleep: press PS" : "No controller yet";
+  if ($("srcPadNote").textContent !== padNote) $("srcPadNote").textContent = padNote;
   if ($("padEmpty").dataset.msg !== emptyMsg) { $("padEmpty").dataset.msg = emptyMsg; $("padEmpty").innerHTML = emptyMsg; }
   $("dsName").textContent = p ? (p.source === "keys" ? "Keyboard" : isDs4 ? "DualShock 4" : "Controller") : "No controller";
   $("dsSource").textContent = p ? (p.source === "keys" ? "shown as a controller" : "live") : "";
