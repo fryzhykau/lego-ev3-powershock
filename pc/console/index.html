@@ -172,10 +172,15 @@
   /* Robot page: what to do next on top, then controller -> brick -> devices, left to right */
   .robot { display: grid; gap: 16px; align-items: start;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 340px);
-    grid-template-areas: "bar bar bar" "rob rob dev" "brick cam dev"; }
+    grid-template-areas: "bar bar bar" "rob rob rob" "brick brick cam"; }
   .robot > .drivebar { grid-area: bar; } .robot > .robotcard { grid-area: rob; } .robot > .stagecard { grid-area: brick; } .robot > .camcard { grid-area: cam; } .robot > .devcard { grid-area: dev; }
-  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-areas: "bar bar" "rob dev" "brick dev" "cam dev"; } }
-  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "rob" "brick" "cam" "dev"; gap: 12px; } }
+  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "bar bar" "rob rob" "brick cam"; } }
+  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "rob" "brick" "cam"; gap: 12px; } }
+  .appfoot { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; margin: 28px 2px 6px; padding-top: 14px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); }
+  .appfoot b { color: var(--ink); font-weight: 650; } .appfoot .link { font-size: 12px; }
+  .rdevs { margin: 4px 0 10px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .rdevs h3 { margin: 0 0 8px; font-size: 14px; } .rdevs h3 .muted { font-weight: 400; font-size: 12.5px; margin-left: 6px; }
+  .rdevs.hidden { display: none; }
   /* Your robot: the car from above, each device wired to its port on the brick */
   .robotcard .card-head { margin-bottom: 8px; }
   .rtype { margin-bottom: 4px; gap: 8px; } .rtype .preset { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 10px; flex: 0 0 auto; min-width: 0; }
@@ -1129,6 +1134,13 @@
           <div class="robotsvg" id="robotSvg" role="img" aria-label="The robot from above, with each motor and sensor wired to its port on the brick"></div>
           <div class="rkey"><span><i class="ok"></i>working</span><span><i class="warn"></i>needs attention</span><span><i class="off"></i>not known yet</span></div>
           <div class="rstats" id="robotStats"></div>
+          <div class="rdevs devcard" id="robotDevs">
+            <h3>Devices <span class="muted">test each motor, and which motors work together</span></h3>
+            <div id="devList"></div>
+            <div class="emptyline" id="emptyLine"></div>
+            <p class="devnote" id="devNote"></p>
+            <p class="devmore"><a class="link" href="#brick">Specs for each port</a></p>
+          </div>
           <details class="mapsize" id="mapSize">
             <summary>Edit sizes and where things sit</summary>
             <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
@@ -1200,14 +1212,6 @@
             <div class="camview" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div><div class="camboxes" id="camBoxes" aria-hidden="true"></div><div class="camsee hidden" id="camSeeNote" role="status"></div></div>
         </div>
 
-        <div class="card devcard">
-          <div class="card-head"><h2>Devices</h2>
-          </div>
-            <div id="devList"></div>
-            <div class="emptyline" id="emptyLine"></div>
-            <p class="devnote" id="devNote"></p>
-            <p class="devmore"><a class="link" href="#brick">Specs for each port</a></p>
-        </div>
       </div>
     </section>
 
@@ -1582,6 +1586,12 @@
       </div>
     </section>
 
+    <footer class="appfoot">
+      <span><b>PowerShock</b> <span id="footVer"></span></span>
+      <a class="link" href="https://github.com/fryzhykau/lego-ev3-powershock" target="_blank" rel="noopener">Source on GitHub</a>
+      <span>All rights reserved: no licence chosen yet. three.js is MIT; the optional YOLOX recognition models are Apache-2.0.</span>
+      <span>LEGO, MINDSTORMS and EV3 are trademarks of the LEGO Group, and DualShock of Sony; this project isn't made or endorsed by either.</span>
+    </footer>
   </main>
 </div>
 
@@ -1966,6 +1976,7 @@ $("devList").addEventListener("change", (e) => {
   if (r && S.mapDraft) { S.mapDraft.ports[r.dataset.grev].invert = r.checked; S.mapDraft.name = "custom"; drawControls(true); saveMapping(); }
 });
 function drawDevices(cp) {
+  $("robotDevs").classList.toggle("hidden", !cp.ports);
   const m = cp.motors || {};
   const all = [...MOTOR_PORTS, ...SENSOR_PORTS];
   const present = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected);
@@ -2482,12 +2493,12 @@ setInterval(() => {
 
 // ---------- gearing page ----------
 const GEARS = {
-  8: { name: "8 tooth (light grey)", note: "small and weak under load" },
-  12: { name: "12 tooth double bevel (dark grey)", note: "" },
+  8: { name: "8 tooth (dark grey)", note: "small and weak under load" },
+  12: { name: "12 tooth double bevel (black)", note: "" },
   16: { name: "16 tooth (light grey)", note: "" },
-  20: { name: "20 tooth double bevel (light grey)", note: "" },
+  20: { name: "20 tooth double bevel (black)", note: "" },
   24: { name: "24 tooth (light grey, 4 holes)", note: "" },
-  36: { name: "36 tooth double bevel (dark grey)", note: "" },
+  36: { name: "36 tooth double bevel (black)", note: "" },
   40: { name: "40 tooth (light grey, 12 holes)", note: "" },
   1: { name: "Worm gear (dark grey)", note: "one tooth per turn; can't be turned backwards" },
 };
@@ -3117,7 +3128,7 @@ async function pollLinkOnce() {
   S.consoleDown = false;
   if (S.armed && S.link && S.link.connected && !s.link.connected) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped."; }
   S.link = s.link; S.fake = s.fake; S.app = s.app;
-  if (s.app && $("appVer").textContent !== s.app.version) $("appVer").textContent = s.app.version;
+  if (s.app && $("appVer").textContent !== s.app.version) { $("appVer").textContent = s.app.version; $("footVer").textContent = s.app.version; }
   const L = s.link, practice = s.fake.running && L.host === "127.0.0.1";
   // the console moved the controls onto the motors that are plugged in: take its mapping, so a
   // later edit here doesn't save the old one back, and say what moved

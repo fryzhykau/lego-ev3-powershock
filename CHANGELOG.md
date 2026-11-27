@@ -18,6 +18,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **A footer** on every page: the version, a link to the source on GitHub, the licence status (all rights reserved for now; three.js MIT, YOLOX Apache-2.0) and that LEGO and Sony's trademarks aren't ours.
 - **Controls follow the motors:** when a port your controls use has no motor, but every job can find one, the console moves the jobs onto the motors that are plugged in (steering to a medium motor, driving to the large ones) and keeps each job's settings. It waits for the motors to stay the same for 1.5 s and for nobody to have driven for 2 s, never moves anything with a motor missing, and says what moved on the Robot page.
 - **Wrong-port warning:** a motor plugged into a sensor port (1–4), or a sensor in a motor port (A–D), is marked **Wrong port?** on the brick on the Robot page, and the note above it says which ports to check. The brick can't identify a motor in a sensor port, so a sensor port that stays unidentified for 3 seconds is flagged.
 - **Drive gearing** under **Robot size** on the Map page: **Motor turns per wheel turn**, for robots with gears or a differential between the drive motors and the wheels. The map, the speed shown, the obstacle brake and the top speed calibration use it. It starts at 1, so robots set up before keep working as they did.
@@ -108,6 +109,8 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **The Devices list** (test each motor, which motors work together) moved into the **Your robot** card, under the drawing; with the brick out of reach it hides instead of repeating that.
+- **The Gearing page's 3D gears** look like LEGO's: gears from 20 teeth have a full-width toothed rim, a thinner web with the holes in it and a raised hub round the axle, in slightly glossy plastic; the double-bevel gears are black.
 - **The 3D brick** shows the WiFi dongle (a USB stick with a blue light) and the SD card when the brick reports them, and now faces you with that side. On smaller screens the 3D brick, controller and Pi take a fifth less room.
 - **The 3D controller's labels** sit next to the stick or button they describe, with a thin line to it, and follow the model as you turn it; on narrow screens they stay in a row below.
 - **Car and Tank** are picked with small top-view drawings; the Robot tab has a robot icon.

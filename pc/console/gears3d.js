@@ -3,18 +3,19 @@
 // meshing gears sit (t1 + t2) / 2 mm apart, which is (t1 + t2) / 16 studs (8 mm per stud).
 import * as THREE from "./vendor/three/three.module.js";
 
-const LIGHT = 0xa3a9ad; // LEGO light bluish grey
-const DARK = 0x585c5f;  // LEGO dark bluish grey
+const LIGHT = 0xa0a5a9; // LEGO light bluish grey
+const DARK = 0x6c6e68;  // LEGO dark bluish grey
+const BLACK = 0x2a2c2e; // LEGO black, as the double-bevel gears usually come
 const RED = 0xc4281c;   // red axle on the motor
 
 // Per gear: colour, double bevel, and the holes punched through it.
 const STYLE = {
-  8: { color: LIGHT, bevel: false, holes: [] },
-  12: { color: DARK, bevel: true, holes: [] },
+  8: { color: DARK, bevel: false, holes: [] },
+  12: { color: BLACK, bevel: true, holes: [] },
   16: { color: LIGHT, bevel: false, holes: [["win", 4, 4.4, 1.3]] },
-  20: { color: LIGHT, bevel: true, holes: [["pin", 4, 5.6, 0.9]] },
-  24: { color: LIGHT, bevel: false, holes: [["pin", 4, 6.6, 2.4]] },
-  36: { color: DARK, bevel: true, holes: [["lobe", 4, 0, 0]] },
+  20: { color: BLACK, bevel: true, holes: [["pin", 4, 6.0, 0.9]] },
+  24: { color: LIGHT, bevel: false, holes: [["pin", 4, 7.2, 1.6]] },
+  36: { color: BLACK, bevel: true, holes: [["lobe", 4, 0, 0]] },
   40: { color: LIGHT, bevel: false, holes: [["pin", 4, 8, 2.4], ["pin", 8, 14.6, 2.4]] },
 };
 
@@ -97,12 +98,51 @@ function wormMesh() {
   return group;
 }
 
+// Real LEGO gears from 20 teeth up aren't solid slabs: a full-width toothed rim, a thinner web
+// with the holes in it, and a full-width hub round the axle hole. Smaller gears are solid.
+const HUB_R = 3.9;
+function gearParts(t) {
+  if (cache.has("parts" + t)) return cache.get("parts" + t);
+  const st = STYLE[t], depth = st.bevel ? 2.6 : 3.2, rp = t / 2, root = rp - 1.15;
+  if (t < 20) { cache.set("parts" + t, null); return null; }  // too small for a web: solid
+  const rimIn = root - 1.5, web = depth * 0.42;
+  const ring = gearShape(t);
+  ring.holes = [new THREE.Path().absarc(0, 0, rimIn, 0, Math.PI * 2, true)];
+  const rim = new THREE.ExtrudeGeometry(ring, { depth, curveSegments: 24, bevelEnabled: true,
+    bevelThickness: st.bevel ? 0.95 : 0.35, bevelSize: st.bevel ? 0.6 : 0.3, bevelSegments: 2 });
+  rim.translate(0, 0, -depth / 2);
+  const disc = new THREE.Shape().absarc(0, 0, rimIn + 0.3, 0, Math.PI * 2, false);
+  disc.holes = gearShape(t).holes.slice(1);  // the web keeps the gear's own holes, not the axle cross
+  disc.holes.push(new THREE.Path().absarc(0, 0, HUB_R - 0.2, 0, Math.PI * 2, true));
+  const webG = new THREE.ExtrudeGeometry(disc, { depth: web, curveSegments: 32, bevelEnabled: false });
+  webG.translate(0, 0, -web / 2);
+  const hubS = new THREE.Shape().absarc(0, 0, HUB_R, 0, Math.PI * 2, false);
+  hubS.holes.push(crossPath(4.8, 1.8));
+  const hub = new THREE.ExtrudeGeometry(hubS, { depth: depth + (st.bevel ? 1.2 : 0.5), curveSegments: 28, bevelEnabled: true,
+    bevelThickness: 0.25, bevelSize: 0.25, bevelSegments: 2 });
+  hub.translate(0, 0, -(depth + (st.bevel ? 1.2 : 0.5)) / 2);
+  const parts = [rim, webG, hub];
+  cache.set("parts" + t, parts);
+  return parts;
+}
+
 function makeGear(t) {
   const st = STYLE[t];
-  const mat = new THREE.MeshStandardMaterial({ color: st.color, roughness: 0.42, metalness: 0.0 });
-  const m = new THREE.Mesh(gearGeometry(t), mat);
-  m.castShadow = true; m.receiveShadow = true;
-  return m;
+  // ABS plastic: a soft gloss, no metal
+  const mat = new THREE.MeshPhysicalMaterial({ color: st.color, roughness: 0.38, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.45 });
+  const parts = gearParts(t);
+  if (!parts) {
+    const m = new THREE.Mesh(gearGeometry(t), mat);
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+  const g = new THREE.Group();
+  for (const geo of parts) {
+    const m = new THREE.Mesh(geo, mat);
+    m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+  }
+  return g;
 }
 
 // ---------- a little scene per view ----------
