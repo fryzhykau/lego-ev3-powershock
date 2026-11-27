@@ -138,8 +138,10 @@ class WorldMapTest(unittest.TestCase):
         self.assertGreaterEqual(len(snap["trail"]), 2)
 
     def test_robot_settings_are_checked_and_saved(self):
-        r = self.m.set_robot({"wheel": 5000, "track": "x", "gyroSign": -3, "evil": 1})
+        r = self.m.set_robot({"wheel": 5000, "track": "x", "gyroSign": -3, "evil": 1, "weight": -5})
         self.assertEqual(r["wheel"], 200)
+        self.assertEqual(r["weight"], 0)
+        self.assertEqual(w.robot_settings({"weight": "1250"})["weight"], 1250)
         self.assertEqual(r["track"], w.ROBOT["track"])
         self.assertEqual(r["gyroSign"], -1)
         self.assertNotIn("evil", r)

@@ -1395,6 +1395,7 @@
               <label class="field"><span>Camera height</span><input type="number" data-k="camHeight" min="30" max="600" title="The camera lens above the floor"></label>
               <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
               <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
+              <label class="field"><span>Weight (grams)</span><input type="number" data-k="weight" min="0" max="20000" step="10" title="The whole robot with batteries in, on a kitchen scale. 0 if not weighed yet"></label>
             </div>
             <p class="muted">The camera's height and tilt tell the map how far away things are, from where they meet the floor in the picture. The 3D view shows the camera on the robot, with lines to the corners of the floor it can see.</p>
             <div class="mplace" id="mapPlace"></div>

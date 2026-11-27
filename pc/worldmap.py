@@ -48,10 +48,12 @@ ROBOT = {
     "camHeight": 150.0,  # ... mm above the floor
     "camTilt": 15.0,     # ... degrees it looks down (0 = level)
     "camFov": 62.0,      # ... degrees it sees across (62 for the Pi camera v2, 54 for v1)
+    "weight": 0.0,       # the whole robot with batteries, grams; 0 = not weighed yet
 }
 LIMITS = {"wheel": (20, 200), "track": (40, 400), "base": (40, 400), "steerRatio": (0.05, 3.0),
           "eyeAhead": (-300, 300), "eyeAngle": (-180, 180), "floorAhead": (-300, 300),
-          "camAhead": (-300, 300), "camHeight": (30, 600), "camTilt": (-10, 60), "camFov": (30, 160)}
+          "camAhead": (-300, 300), "camHeight": (30, 600), "camTilt": (-10, 60), "camFov": (30, 160),
+          "weight": (0, 20000)}
 
 IR_RANGE = 70.0   # cm at proximity 100; the EV3 IR sensor is roughly linear up to here
 IR_NOTHING = 95   # proximity at or above this: nothing in range

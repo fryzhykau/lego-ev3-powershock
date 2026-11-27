@@ -112,7 +112,7 @@ A live 3D map of what the robot's sensors find while it drives, seen from behind
 - **Colour sensor,** pointing at the floor: paints the floor's colours.
 - **Gyro sensor,** if you have one: keeps the heading accurate.
 
-Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set **Robot size** to match your robot: wheel diameter, wheel spacing, axle spacing, and where the sensors sit. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
+Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set **Robot size** to match your robot: wheel diameter, wheel spacing, axle spacing, and where the sensors sit. **Weight** (in grams, the whole robot with batteries, from a kitchen scale) is kept for later planning; nothing uses it yet. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
 
 What to expect from the sensors that come with EV3 sets:
 
