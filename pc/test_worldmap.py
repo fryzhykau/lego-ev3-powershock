@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 
+import brake
 import ev3_brick
 import ev3_console as c
 import mapping
@@ -281,6 +282,26 @@ class SpeedTest(unittest.TestCase):
         self.assertEqual(eye["at"], 1.25)
         m.feed(tel(450, {}), mapping.TANK, now=1.5)
         self.assertIsNone(m.eye_now()[0], "unplugged: no reading to brake on")
+
+    def test_nearer_of_two_range_sensors(self):
+        """Infrared and ultrasonic together: the brake gets the nearer obstacle, whichever port it's on."""
+        m = w.WorldMap(os.path.join(tempfile.mkdtemp(), "worldmap.json"))
+        tel = lambda sensors: {"motors": {"B": {"tacho": 0, "speed": 0}, "C": {"tacho": 0, "speed": 0}},  # noqa: E731
+                               "sensors": sensors}
+        m.feed(tel({"S2": {"kind": "us", "value": 25}, "S4": {"kind": "ir", "value": 99}}), mapping.TANK, now=1.0)
+        eye = m.eye_now()[0]
+        self.assertEqual((eye["kind"], eye["hit"], eye["dist"]), ("us", True, 25.0), "infrared sees nothing")
+        m.feed(tel({"S1": {"kind": "ir", "value": 20}, "S2": {"kind": "us", "value": 80}}), mapping.TANK, now=1.25)
+        eye = m.eye_now()[0]
+        self.assertEqual((eye["kind"], eye["hit"], eye["dist"]), ("ir", True, 14.0), "infrared is nearer")
+        m.feed(tel({"S2": {"kind": "us", "value": 255}, "S4": {"kind": "ir", "value": 99}}), mapping.TANK, now=1.5)
+        self.assertFalse(m.eye_now()[0]["hit"], "neither sees anything")
+        b, go = brake.Brake(), {"B": ("s", 100), "C": ("s", 100)}
+        res = b.apply(go, w.layout(mapping.TANK), m.eye_now()[0], brake.settings({}), R, 1.5)
+        self.assertEqual(res, go)
+        m.feed(tel({"S2": {"kind": "us", "value": 5}, "S4": {"kind": "ir", "value": 99}}), mapping.TANK, now=1.75)
+        res = b.apply(go, w.layout(mapping.TANK), m.eye_now()[0], brake.settings({}), R, 1.75)
+        self.assertEqual(res, {"B": ("s", 0), "C": ("s", 0)}, "the ultrasonic's obstacle stops the car though infrared is on a later port")
 
 
 if __name__ == "__main__":

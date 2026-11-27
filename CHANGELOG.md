@@ -92,6 +92,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.
 
 ### Fixed
+- **Obstacle brake with two range sensors:** with infrared and ultrasonic both plugged in, the brake followed only the sensor on the later port, even when the other saw something nearer. It now goes by whichever sees the nearer obstacle.
 - **Motors that share a shaft no longer strain against each other while stopped,** which made the batteries hot. leJOS keeps a stopped motor actively holding its angle, and two motors on one shaft each held a different angle, so they stalled against each other with the robot standing still (about 1.8 A, falling voltage). A stopped speed motor now brakes at once, then floats after 0.3 s. Steering still holds its angle.
 - **Sensors on the real brick:** the brick program now asks each EV3 sensor what it is. Under leJOS, the brick's port detection never says which EV3 sensor is plugged in, so on a real brick no sensor was ever read (the practice brick hid this).
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.

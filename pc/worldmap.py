@@ -330,6 +330,7 @@ class WorldMap:
             if math.hypot(o.x - self.trail[-1][0], o.y - self.trail[-1][1]) >= 1.0:
                 self.trail.append([round(o.x, 1), round(o.y, 1)])
                 del self.trail[:-TRAIL_MAX]
+            seen = []
             for s in sensors.values():
                 if s["kind"] in ("ir", "us"):
                     if s["kind"] == "ir":
@@ -342,11 +343,16 @@ class WorldMap:
                     ex, ey = o.x + ahead * math.cos(o.th), o.y + ahead * math.sin(o.th)
                     face = o.th + math.radians(r["eyeAngle"])
                     self.grid.ray(ex, ey, face, dist, hit)
-                    self.eye = {"dist": round(dist, 1), "hit": hit, "kind": s["kind"], "at": now,
-                                "speed": round(self.speed, 1)}
+                    seen.append((not hit, dist, s["kind"]))
                 elif s["kind"] == "col" and s["value"] >= 0:
                     ahead = r["floorAhead"] / 10
                     self.grid.paint(o.x + ahead * math.cos(o.th), o.y + ahead * math.sin(o.th), s["value"])
+            if seen:
+                # infrared and ultrasonic both plugged in: the brake goes by whichever sees the nearer thing,
+                # since each misses what the other sees (dark surfaces, soft or slanted ones)
+                miss, dist, kind = min(seen)
+                self.eye = {"dist": round(dist, 1), "hit": not miss, "kind": kind, "at": now,
+                            "speed": round(self.speed, 1)}
 
     def travelled(self):
         """cm the wheels have driven, either way, since the map started (for the turning circle)."""
