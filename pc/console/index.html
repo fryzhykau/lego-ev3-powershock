@@ -754,6 +754,10 @@
   .mbrake.slow { background: var(--warn-tint); } .mbrake.stop { background: var(--stop-tint); }
   .mfloor::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--map-free); flex: none; }
   .mfloor.off::before { background: var(--muted); }
+  .modelpick { margin: 4px 0 12px; }
+  .modelpick .msform { grid-template-columns: 1fr; }
+  .modelpick .msform .field { grid-template-columns: 1fr; gap: 4px; }
+  .modelpick select { width: 100%; }
   .mplace { margin: 10px 0; padding: 10px; border-radius: 8px; background: var(--soft); font-size: 13px; }
   .mplace p { margin: 0 0 8px; } .mplace p:last-child { margin-bottom: 0; }
   .mseen { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
@@ -1345,6 +1349,14 @@
           <label class="toggle"><input type="checkbox" id="mapSee"><span class="track"></span><span>Recognise things while this page is open</span></label>
           <ul class="mseen" id="mapSeen"></ul>
           <p class="note" id="mapSeeNote"></p>
+          <div class="modelpick" id="modelPick" hidden>
+            <div class="msform">
+              <label class="field"><span>Recognition model</span><select id="modelSel" aria-label="Recognition model"></select></label>
+              <label class="field"><span>Runs on</span><select id="chipSel" aria-label="Where recognition runs">
+                <option value="auto">Graphics chip if there is one</option><option value="gpu">Graphics chip</option><option value="cpu">Processor</option></select></label>
+            </div>
+            <p class="note" id="modelNote"></p>
+          </div>
           <details class="mapsize" id="mapSize">
             <summary>Robot size</summary>
             <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
@@ -2818,6 +2830,42 @@ async function pollSee() {
   finally { S.seeBusy = false; }
   drawSee();
 }
+// which model, where, and how long a picture takes: " (Better model, graphics chip, 14 ms)"
+const MODEL_LABEL = { nano: "Fast", tiny: "Balanced", s: "Better", m: "Best" };
+function runsOn(r) {
+  if (!r || !r.model) return "";
+  return ` (${MODEL_LABEL[r.model] || r.model} model, ${r.where && r.where.startsWith("graphics") ? "graphics chip" : "processor"}, ${Math.round(r.ms)} ms)`;
+}
+// ---------- the recognition model: which size, and where it runs (pc/vision.py) ----------
+S.visionSt = null;
+async function loadModels() {
+  try { S.visionSt = await api("/api/vision"); } catch (e) { return; }
+  drawModels();
+}
+function drawModels() {
+  const st = S.visionSt; $("modelPick").hidden = !st || !st.models;
+  if (!st || !st.models) return;
+  const ch = st.choice || {};
+  setHTML($("modelSel"), st.models.map((m) => `<option value="${m.name}" ${m.name === ch.model ? "selected" : ""} ${m.downloaded ? "" : "disabled"}>`
+    + `${esc(m.label)} (${esc(m.name)}, ${Math.round(m.mb)} MB)${m.downloaded ? "" : ": not downloaded"}</option>`).join(""));
+  if (document.activeElement !== $("chipSel")) $("chipSel").value = ch.chip || "auto";
+  $("chipSel").querySelector('option[value="gpu"]').disabled = !st.gpu;
+  const r = S.mapSeeRes && S.mapSeeRes.model ? S.mapSeeRes : S.seeRes && S.seeRes.model ? S.seeRes : null;
+  const missing = st.models.filter((m) => !m.downloaded).map((m) => m.name);
+  const note = (r ? `Now: ${MODEL_LABEL[r.model]} model on the ${r.where && r.where.startsWith("graphics") ? "graphics chip" : "processor"}, ${Math.round(r.ms)} ms a picture. ` : "")
+    + "Bigger models find smaller and farther things, and guess wrong less often, but take longer. "
+    + (st.gpu ? "" : "To use the graphics chip, install onnxruntime-directml (docs/VISION.md). ")
+    + (missing.length ? `To get the others: python pc/tools/get_model.py --all` : "");
+  if ($("modelNote").textContent !== note) $("modelNote").textContent = note;
+}
+async function chooseModel() {
+  const r = await api("/api/vision/choose", { model: $("modelSel").value, chip: $("chipSel").value });
+  if (!r.ok) setNote("modelNote", r.error, "bad");
+  S.mapSeeRes = null; S.seeRes = null;
+  await loadModels();
+}
+$("modelSel").addEventListener("change", chooseModel); $("chipSel").addEventListener("change", chooseModel);
+loadModels(); setInterval(() => { if (location.hash === "#map") drawModels(); }, 1000);
 function seeSummary(items) {
   const n = {};
   items.forEach((t) => { n[t.label] = (n[t.label] || 0) + 1; });
@@ -2843,8 +2891,8 @@ function drawSee() {
     : s && s.error ? esc(s.error)
     : !r || r.age == null ? "Starting object recognition…"
     : r.age > 2 ? "Waiting for pictures from the camera…"
-    : items.length ? `Recognising ${r.fps} times a second: ${seeSummary(items)}`
-    : `Recognising ${r.fps} times a second: nothing it knows in view`;
+    : items.length ? `Recognising ${r.fps} times a second${runsOn(r)}: ${seeSummary(items)}`
+    : `Recognising ${r.fps} times a second${runsOn(r)}: nothing it knows in view`;
   note.classList.toggle("hidden", !msg);
   setHTML(note, msg);
 }

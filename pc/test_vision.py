@@ -186,7 +186,8 @@ class VisionTest(unittest.TestCase):
         self.cam = camera.Camera(os.path.join(tempfile.mkdtemp(), "camera.json"))
         self.cam.set("127.0.0.1", self.pi.port, KEY)
         self.found = []
-        self.v = vision.Vision(self.cam, on_result=self.found.append)
+        self.v = vision.Vision(self.cam, on_result=self.found.append,  # not the owner's saved model choice
+                               settings=os.path.join(tempfile.mkdtemp(), "vision.json"))
 
     def test_runs_while_asked_and_stops_after(self):
         self.start([jpeg()])
@@ -233,6 +234,56 @@ class VisionTest(unittest.TestCase):
         self.assertTrue(wait_for(lambda: self.v.poll(True).get("error")))
         self.assertIn("isn't answering", self.v.poll(True)["error"])
         self.v.poll(False)
+
+
+class ChoiceTest(unittest.TestCase):
+    """Which model, and where it runs (pc/vision.json)."""
+
+    def setUp(self):
+        self.path = os.path.join(tempfile.mkdtemp(), "vision.json")
+
+    def test_four_sizes_each_pinned(self):
+        self.assertEqual(list(vision.MODELS), ["nano", "tiny", "s", "m"])
+        for name, m in vision.MODELS.items():
+            self.assertEqual(len(m["sha256"]), 64)
+            self.assertTrue(vision.model_url(name).startswith("https://github.com/Megvii-BaseDetection/YOLOX/releases/"))
+        self.assertEqual(vision.MODEL, vision.model_path("nano"))  # the default stays nano
+
+    def test_settings_checked(self):
+        self.assertEqual(vision.load_settings(self.path), {"model": "nano", "chip": "auto"})  # nothing saved
+        with open(self.path, "w") as f:
+            f.write('{"model": "huge", "chip": "quantum"}')
+        self.assertEqual(vision.load_settings(self.path), {"model": "nano", "chip": "auto"})
+
+    def test_choose_saves_and_reloads(self):
+        v = vision.Vision(None, settings=self.path)
+        real = vision.model_path
+        here = tempfile.mkdtemp()
+        vision.model_path = lambda n: os.path.join(here, vision.MODELS[n]["file"])
+        try:
+            r = v.choose("s", "cpu")
+            self.assertFalse(r["ok"])
+            self.assertIn("get_model.py --model s", r["error"])  # not downloaded: says how
+            open(vision.model_path("s"), "wb").close()
+            self.assertTrue(v.choose("s", "cpu")["ok"])
+            self.assertEqual(vision.load_settings(self.path), {"model": "s", "chip": "cpu"})
+            self.assertEqual(v.model, vision.model_path("s"))
+            self.assertIsNone(v.detector)  # the next picture loads the new one
+            self.assertFalse(v.choose("s", "quantum")["ok"])
+            st = v.status()
+            self.assertEqual([m["name"] for m in st["models"]], ["nano", "tiny", "s", "m"])
+            self.assertEqual(st["choice"], {"model": "s", "chip": "cpu"})
+        finally:
+            vision.model_path = real
+
+    @unittest.skipUnless(HAVE_ALL and os.path.isfile(vision.model_path("s")), "onnxruntime or the s model isn't here")
+    def test_bigger_model_finds_the_disc_too(self):
+        det = vision.Detector(vision.model_path("s"), vision.MODELS["s"]["sha256"], chip="auto")
+        self.assertEqual(det.size, 640)
+        items, _ = det(jpeg())
+        self.assertTrue(items, "the s model should find the red disc too")
+        if vision.gpu_available():
+            self.assertTrue(det.where.startswith("graphics chip"), det.where)
 
 
 class Serve(BaseHTTPRequestHandler):

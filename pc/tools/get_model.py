@@ -1,11 +1,14 @@
-"""Downloads the object recognition model into pc/models/ and checks it.
+"""Downloads object recognition models into pc/models/ and checks them.
 
-    python pc/tools/get_model.py           download it, unless a good copy is already there
-    python pc/tools/get_model.py --check   only check the copy that's there
+    python pc/tools/get_model.py                download nano, unless a good copy is already there
+    python pc/tools/get_model.py --model s      another size: nano, tiny, s or m
+    python pc/tools/get_model.py --all          all four (about 160 MB)
+    python pc/tools/get_model.py --check        only check the copies that are there
 
-The model is YOLOX-nano by Megvii (Apache-2.0), 3.7 MB, from the official YOLOX releases on GitHub.
-Its SHA-256 checksum is fixed in pc/vision.py, so a changed or broken download is refused.
-The file stays out of git (pc/models/ is ignored). Setup guide: docs/VISION.md.
+The models are YOLOX by Megvii (Apache-2.0), from the official YOLOX releases on GitHub:
+nano 3.7 MB, tiny 20 MB, s 36 MB, m 101 MB. Their SHA-256 checksums are fixed in pc/vision.py,
+so a changed or broken download is refused. The files stay out of git (pc/models/ is ignored).
+Setup guide: docs/VISION.md.
 """
 import argparse
 import hashlib
@@ -50,30 +53,41 @@ def download(url, dest, sha256, size, progress=True):
             os.remove(tmp)
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(description="Download and check the object recognition model.")
-    ap.add_argument("--check", action="store_true", help="only check the copy that's there")
-    args = ap.parse_args(argv)
-    name = os.path.basename(vision.MODEL)
-    there = os.path.isfile(vision.MODEL)
-    if there and vision.file_sha256(vision.MODEL) == vision.MODEL_SHA256:
+def get(key, check=False):
+    """One model: 0 if it's there and right (downloading it unless check), 1 if not."""
+    m = vision.MODELS[key]
+    path, name = vision.model_path(key), m["file"]
+    there = os.path.isfile(path)
+    if there and vision.file_sha256(path) == m["sha256"]:
         print(f"{name} is there and its checksum is right.")
         return 0
-    if args.check:
-        print(f"{name} {'has the wrong checksum' if there else 'is not there'}. Run python pc/tools/get_model.py.")
+    if check:
+        print(f"{name} {'has the wrong checksum' if there else 'is not there'}. "
+              f"Run python pc/tools/get_model.py --model {key}.")
         return 1
-    print(f"Downloading {name} ({vision.MODEL_SIZE / 1e6:.1f} MB) from {vision.MODEL_URL}")
+    print(f"Downloading {name} ({m['size'] / 1e6:.1f} MB) from {vision.model_url(key)}")
     try:
-        download(vision.MODEL_URL, vision.MODEL, vision.MODEL_SHA256, vision.MODEL_SIZE)
+        download(vision.model_url(key), path, m["sha256"], m["size"])
     except (OSError, ValueError, urllib.error.URLError) as e:
-        print(f"\nCouldn't get the model: {getattr(e, 'reason', None) or e}. "
+        print(f"\nCouldn't get {name}: {getattr(e, 'reason', None) or e}. "
               "Check the internet connection and try again; docs/VISION.md has other ways.")
         return 1
     print(f"Saved and checked: pc/models/{name}")
-    missing = [m for m in vision.missing() if m != "model"]
-    if missing:
-        print(f"Still needed: {', '.join(missing)}. Run python -m pip install -r pc/requirements-vision.txt")
     return 0
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Download and check the object recognition models.")
+    ap.add_argument("--model", choices=list(vision.MODELS), default="nano", help="which size (default nano)")
+    ap.add_argument("--all", action="store_true", help="all sizes")
+    ap.add_argument("--check", action="store_true", help="only check the copies that are there")
+    args = ap.parse_args(argv)
+    keys = list(vision.MODELS) if args.all else [args.model]
+    bad = sum(get(k, args.check) for k in keys)
+    missing = [m for m in vision.missing() if m != "model"]
+    if missing and not args.check:
+        print(f"Still needed: {', '.join(missing)}. Run python -m pip install -r pc/requirements-vision.txt")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":

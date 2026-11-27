@@ -18,6 +18,10 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **Bigger recognition models, and the graphics chip:** choose Fast (nano), Balanced (tiny), Better (s) or Best (m) under **Recognition model** on the Map page, and whether it runs on the processor or the graphics chip.
+  - **Downloads:** `python pc/tools/get_model.py --all` (or `--model s`), each checked against a pinned checksum. All four are YOLOX, Apache-2.0.
+  - **The graphics chip** needs `onnxruntime-directml` instead of `onnxruntime`. With two graphics chips, the console times each and uses the faster.
+  - **The camera view and the Map page** say which model runs, where, and how long a picture takes.
 - **Motor groups:** a port can be **Same as** another port, so two motors (two large motors on one axle, say) run as one. The follower gets exactly the leader's command, optionally reversed. Set it from **Works with** on each motor in the Robot page's Devices list, or on the Driving page. Testing either motor moves the whole group, and the brake and the map count both as driving.
 - **Sensor names in the Devices list:** EV3 sensors show as "Colour sensor", "Infrared sensor" and so on, as the brick program asks each one what it is, instead of "EV3 sensor".
 - **Map page:** a live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above.

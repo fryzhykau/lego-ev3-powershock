@@ -100,6 +100,8 @@ python pc\tools\get_model.py
 
 The second command downloads the YOLOX-nano model (3.7 MB, Apache-2.0) and checks its checksum. Everything runs on the laptop. The full guide is [docs/VISION.md](docs/VISION.md).
 
+**Bigger models and the graphics chip:** under **Recognition model** on the Map page, choose Fast, Balanced, Better or Best (YOLOX nano, tiny, s or m), and whether it runs on the processor or the graphics chip. `python pc\tools\get_model.py --all` downloads them all. With `onnxruntime-directml` installed, even Best takes under 20 ms a picture on a laptop graphics card. See [docs/VISION.md](docs/VISION.md#bigger-models-and-the-graphics-chip).
+
 ![Object recognition on the Camera view, with a test picture: a red disc the model takes for a frisbee](docs/screenshots/vision.png)
 
 ### Map

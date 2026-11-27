@@ -47,6 +47,34 @@ In PowerShell, in the PowerShock folder:
 
 There's no need to restart the console: it notices the packages and the model the next time you turn recognition on.
 
+## Bigger models, and the graphics chip
+
+Four sizes of the same model can be chosen under **Recognition model** on the Map page. Bigger ones find smaller and farther things, and guess wrong less often, but take longer per picture.
+
+| Choice | Model | Download | Looks at | Accuracy (COCO mAP) | Processor | Graphics chip |
+|---|---|---|---|---|---|---|
+| Fast | nano | 3.7 MB | 416 × 416 | 25.8 | 13 ms | 3 ms |
+| Balanced | tiny | 20 MB | 416 × 416 | 32.8 | 39 ms | 15 ms |
+| Better | s | 36 MB | 640 × 640 | 40.5 | 157 ms | 14 ms |
+| Best | m | 101 MB | 640 × 640 | 46.9 | 392 ms | 18 ms |
+
+The times are for the model alone, measured on one laptop (Intel Core i9-13900H; NVIDIA RTX 4070 Laptop GPU). Recognition runs at most 10 times a second, so anything under about 80 ms a picture keeps up; on the processor, **Balanced** is the largest that does.
+
+1. **Get the other sizes:**
+   ```powershell
+   python pc\tools\get_model.py --all
+   ```
+   Or one at a time: `--model tiny`, `--model s`, `--model m`. Each is checked against its own pinned checksum.
+2. **Use the graphics chip** (optional). Swap the processor-only package for the DirectML one, which works with any DirectX 12 graphics chip on Windows (NVIDIA, AMD or Intel) and needs no NVIDIA CUDA toolkit:
+   ```powershell
+   python -m pip uninstall -y onnxruntime
+   python -m pip install onnxruntime-directml
+   ```
+   To go back: uninstall `onnxruntime-directml` and install `onnxruntime` again.
+3. **Choose** on the Map page: the model, and **Runs on**. "Graphics chip if there is one" uses it when the DirectML package is installed. A laptop often has two graphics chips (one built into the processor); the console times each when a model loads and uses the faster one.
+
+The camera view and the Map page say which model is running, where, and how long each picture takes. The choice is kept in `pc/vision.json` (git-ignored).
+
 ## Use it
 
 1. Open the **Robot** page and switch the 3D view to **Camera**.
@@ -91,16 +119,21 @@ The console also uses the camera's pictures to see where the floor is free (`pc/
 | `pc/floor.py` | finds where the floor ends in each direction; Pillow only | yes |
 | `pc/tools/get_model.py` | downloads and checks the model | yes |
 | `pc/requirements-vision.txt` | the three packages | yes |
-| `pc/models/yolox_nano.onnx` | the model | **no**: `pc/models/` is ignored |
+| `pc/models/yolox_*.onnx` | the models | **no**: `pc/models/` is ignored |
+| `pc/vision.json` | which model, and where it runs | **no**: your own choice |
 
-The model's address, size and checksum are fixed in `pc/vision.py` (`MODEL_URL`, `MODEL_SIZE`, `MODEL_SHA256`).
+Each model's address, size and checksum are fixed in `pc/vision.py` (`MODELS`).
 
 ## The model and its licence
 
-- **Model:** [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)-nano, by Megvii, trained on the COCO dataset.
-- **Licence:** Apache-2.0.
-- **Why it isn't in this repository:** it's a binary file with its own licence, so each person downloads it from its source.
-- **Checksum (SHA-256):** `c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d`.
+- **Models:** [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) nano, tiny, s and m, by Megvii, trained on the COCO dataset. All four come from the same YOLOX release (0.1.1rc0).
+- **Licence:** Apache-2.0, for all four.
+- **Why they aren't in this repository:** they're binary files with their own licence, so each person downloads them from their source.
+- **Checksums (SHA-256):**
+  - nano: `c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d`
+  - tiny: `427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7`
+  - s: `c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063`
+  - m: `21ff6cfdeb53b013bac2249599e55f00bff3cfdfdab37ed7a4620818c1d15b3f`
 
 **Without the tool:**
 
@@ -116,6 +149,8 @@ The model's address, size and checksum are fixed in `pc/vision.py` (`MODEL_URL`,
 | `pip` can't find `onnxruntime` | Your Python is too old, or 32-bit. Install 64-bit Python 3.10 or newer from python.org, then install the packages again. |
 | "The model file isn't the one PowerShock expects" | The file is damaged or a different version. Run `python pc\tools\get_model.py` again. |
 | `get_model.py` says it couldn't get the model | Check the internet connection. A company network may block GitHub downloads; then download it by hand as above. |
+| "isn't downloaded yet" when choosing a model | Run `python pc\tools\get_model.py --model <name>` (or `--all`). |
+| **Runs on** says processor although you chose the graphics chip | The DirectML package isn't installed, or no graphics chip could run the model. See "Bigger models, and the graphics chip". |
 | "Too many camera views are open" | Close the camera's own window, or another console tab: recognition needs one of the 3 video connections. |
 | Boxes are missing or flicker | The picture is blurred or dark, or the thing is small or far away. Slow down, add light, or move closer. |
 | Driving feels slow while recognising | Unlikely, as it's capped at 10 a second and 2 threads. If it happens, close other heavy programs, or turn recognition off while driving. |

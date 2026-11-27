@@ -4,4 +4,6 @@
 # onnxruntime needs Python 3.10 or newer.
 numpy>=1.24
 onnxruntime>=1.16
+# For the graphics chip instead (any DirectX 12 one, on Windows), see docs/VISION.md:
+#   python -m pip uninstall -y onnxruntime && python -m pip install onnxruntime-directml
 pillow>=10.0

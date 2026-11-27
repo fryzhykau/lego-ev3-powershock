@@ -32,3 +32,4 @@ pc/camera.json
 
 # Object recognition model (python pc/tools/get_model.py); large binary with its own licence
 pc/models/
+pc/vision.json

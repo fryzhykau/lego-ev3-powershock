@@ -1044,6 +1044,9 @@ class Handler(BaseHTTPRequestHandler):
             if flo:
                 out["floor"] = see.watch_floor()
             self._json(out)
+        elif self.path == "/api/vision/choose":
+            # {"model": "nano|tiny|s|m", "chip": "auto|gpu|cpu"}: which recognition model, and where it runs
+            self._json(see.choose(str(b.get("model", "")), str(b.get("chip", ""))))
         elif self.path == "/api/camera/forget":
             cam.forget()
             self._json({"ok": True})

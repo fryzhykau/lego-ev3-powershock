@@ -364,6 +364,22 @@ Still open: choosing a licence.
 
 **What it taught:** the brick reports total current 4 times a second. Watching it would have caught this in seconds: a high current with nothing moving always means something is wrong.
 
+## Stage 17: bigger eyes on the graphics chip
+
+**Idea:** recognition runs on the laptop, which has far more power than nano needs. Offer bigger models of the same family, and let the graphics chip run them.
+
+**What was built:**
+- **Four sizes of YOLOX** (nano, tiny, s, m), all Apache-2.0 from the same release, each pinned by its checksum. Their output has the same shape, so the same decoding works for all four; only the picture size (416 or 640) differs, and the model says which.
+- **DirectML** instead of the processor-only onnxruntime: one package, no NVIDIA CUDA toolkit, and it works with any DirectX 12 graphics chip.
+- **Choosing the right chip:** DirectML numbers the chips but doesn't name them. On this laptop chip 0 is the graphics built into the processor and chip 1 the RTX 4070. The console times each when a model loads and keeps the faster.
+
+**Measured (model alone):** nano 13 ms on the processor, 3 ms on the RTX; m, the biggest, 392 ms on the processor, 18 ms on the RTX.
+
+**What didn't, at first:**
+- **The wrong chip won:** after one warm-up run, the RTX still looked slower than the built-in graphics, because a big chip takes a few runs to set itself up. Three warm-up runs, then five timed, pick it every time.
+- **A chip that isn't there** made onnxruntime print a large error before falling back to the processor. The search now stops quietly at the first missing chip.
+- **0 ms:** nano on the RTX was so quick that a picture's time rounded to 0, which a test took as "not running".
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.
