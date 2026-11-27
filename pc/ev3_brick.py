@@ -372,6 +372,40 @@ def parse_telemetry(line):
         return None
 
 
+WRONG_AFTER_S = 3.0  # an EV3 sensor takes a second or two to say what it is: no warning while it starts up
+
+
+class PortCheck:
+    """Notices a device in the wrong kind of port. Motor and sensor cables are the same, and a motor in
+    a sensor port isn't reported as a motor: the brick sees something there it can't identify. So a
+    sensor port that stays unidentifiable probably holds a motor, and a motor port with anything but a
+    motor in it probably holds a sensor."""
+
+    def __init__(self):
+        self.since = {}  # port -> when it first looked wrong
+
+    def update(self, ports, now):
+        """{port: what to do} for the ports that have looked wrong for a while."""
+        out = {}
+        for p, d in (ports or {}).items():
+            sensor_port = p.startswith("S")
+            if d.get("held") or d.get("connected") is False:  # held: PowerShock opened it, so it's in use as meant
+                wrong = False
+            elif sensor_port:
+                wrong = d.get("kind") == "unknown"
+            else:
+                wrong = d.get("kind") != "motor"
+            if not wrong:
+                self.since.pop(p, None)
+                continue
+            first = self.since.setdefault(p, now)
+            if now - first >= WRONG_AFTER_S:
+                out[p] = ("The brick can't identify what's in this sensor port. If it's a motor, move it to A, B, C or D."
+                          if sensor_port else
+                          "This isn't a motor. If it's a sensor, move it to port 1, 2, 3 or 4.")
+        return out
+
+
 # ---------- WiFi ----------
 
 def wifi_scan(host):

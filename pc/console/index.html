@@ -443,6 +443,7 @@
   .ptag { position: absolute; left: 0; transform: translateX(-50%); width: max-content; max-width: 120px; text-align: center; padding: 4px 6px; border-radius: 8px; background: var(--glass); border: 1px dashed var(--tick); font-size: 10.5px; line-height: 1.25; color: var(--muted); }
   .ptag b { display: block; font-size: 11px; color: var(--ink); }
   .ptag.warn { border: 1px solid var(--warn); background: var(--warn-tint); } .ptag.warn b { color: var(--warn); }
+  .wrongports { color: var(--warn); font-weight: 600; }
   .f.top .ptag { bottom: var(--tl, 22px); } .f.bottom .ptag { top: var(--tl, 22px); }
   .ptag::after { content: ""; position: absolute; left: 50%; width: 0; border-left: 1px dashed var(--tick); height: var(--tl, 22px); }
   .f.top .ptag::after { top: 100%; } .f.bottom .ptag::after { bottom: 100%; }
@@ -1579,7 +1580,7 @@ setMeters({});
 // ---------- ports: live from the receiver, else the periodic check ----------
 function currentPorts() {
   const t = S.link && S.link.telemetry;
-  if (t) return { ports: t.ports, motors: t.motors || {}, sensors: t.sensors || {}, live: true };
+  if (t) return { ports: t.ports, motors: t.motors || {}, sensors: t.sensors || {}, wrong: t.wrong || {}, live: true };
   return { ports: (S.brick || {}).ports, motors: {}, live: false };
 }
 function portView(p, cp) {
@@ -1587,6 +1588,7 @@ function portView(p, cp) {
   const isMotorPort = !p.startsWith("S");
   if (!d) return { cls: "", dev: "", note: roleName || "", warn: false };
   if (d.kind === "busy") return { cls: "busy", dev: d.label, note: roleName || "", warn: false };
+  if (cp.wrong && cp.wrong[p]) return { cls: "", dev: isMotorPort ? "Not a motor" : "Unknown", note: cp.wrong[p], warn: true, tag: "Wrong port?" };
   if (!d.connected) {
     const needed = isMotorPort && !!role;
     return { cls: "", dev: "Empty", note: needed ? `${roleName}: plug a motor in here` : "Nothing plugged in", warn: needed };
@@ -1599,7 +1601,7 @@ function sensorClass(label) {
   return /Touch/.test(label) ? "touch" : /Color/.test(label) ? "color" : /Ultrasonic|Infrared/.test(label) ? "eyes" : /Gyro/.test(label) ? "gyro" : "generic";
 }
 function deviceHTML(p, v, live, cp) {
-  if (v.cls !== "on") return `<div class="ptag ${v.warn ? "warn" : ""}"><b>${p.replace("S", "")}${v.dev ? " · " + esc(v.dev) : ""}</b>${v.warn ? "Needs a motor" : ""}</div>`;
+  if (v.cls !== "on") return `<div class="ptag ${v.warn ? "warn" : ""}" ${v.warn ? `title="${esc(v.note)}"` : ""}><b>${p.replace("S", "")}${v.dev ? " · " + esc(v.dev) : ""}</b>${v.warn ? esc(v.tag || "Needs a motor") : ""}</div>`;
   const role = roleOf(p);
   const spd = live ? Math.round(live.speed / 6) : null;
   const label = `<div class="dlabel" style="${p.startsWith("S") ? "top" : "bottom"}: calc(100% + 10px)">${esc(v.label)}${role ? `<small>${role.replace(/ \(.*\)/, "")}</small>` : ""}${v.kind === "motor" ? '<small data-rpm>0 rpm</small><em data-stall hidden>stalled</em>' : ""}</div>`;
@@ -1647,8 +1649,9 @@ function drawPorts() {
   const src = cp.live ? '<span class="live">Live from the brick</span>'
     : S.fake && S.fake.running ? "Practice brick" : !brickHost() ? "Not connected"
     : b.portsBusy ? "Checking the ports…" : b.portsAt ? `Checked ${ago(b.portsAt * 1000)}; live once PowerShock runs` : "Checking the ports…";
-  $("portsNote").innerHTML = src;
-  const warn = [...MOTOR_PORTS].some((p) => portView(p, cp).warn);
+  const wrong = Object.keys(cp.wrong || {}).sort().map((p) => p.replace("S", ""));
+  setHTML($("portsNote"), wrong.length ? `<span class="wrongports">Check port ${wrong.join(", ")}: motors go in A–D, sensors in 1–4.</span>` : src);
+  const warn = [...MOTOR_PORTS, ...SENSOR_PORTS].some((p) => portView(p, cp).warn);
   if ($("mapName")) $("mapName").textContent = currentMapping() ? `Layout: ${currentMapping().name}` : "";
   $("navRobot").className = "badge " + (warn ? "warn" : "");
 }

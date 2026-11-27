@@ -18,6 +18,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **Wrong-port warning:** a motor plugged into a sensor port (1–4), or a sensor in a motor port (A–D), is marked **Wrong port?** on the brick on the Robot page, and the note above it says which ports to check. The brick can't identify a motor in a sensor port, so a sensor port that stays unidentified for 3 seconds is flagged.
 - **Drive gearing** under **Robot size** on the Map page: **Motor turns per wheel turn**, for robots with gears or a differential between the drive motors and the wheels. The map, the speed shown, the obstacle brake and the top speed calibration use it. It starts at 1, so robots set up before keep working as they did.
 - **Handbrake:** hold ◯ on the controller (F on the keyboard) and the motors that drive brake, while steering still works. The throttle keeps going underneath, so letting go powers straight out of the slide. For drifting with grip-reduced rear wheels.
 - **Robot weight** under **Robot size** on the Map page, in grams. Saved with the robot's size, for planning later; nothing uses it yet.

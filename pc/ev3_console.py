@@ -67,6 +67,7 @@ class Link:
         self.hold_until = 0.0  # after Stop, ignore input for a moment (a late request can't restart driving)
         self.telemetry = None  # live battery + ports streamed back by the receiver
         self.telemetry_at = 0.0
+        self.port_check = ev3_brick.PortCheck()  # a motor in a sensor port, or the other way round
         self.brick_version = None  # from the receiver's "V <version>" line; None for versions before 0.7.0
         self.world = worldmap.WorldMap()  # live map from motor angles and sensor readings
         # Controls mapping: the page sends raw controller input; the mapping turns it into
@@ -288,6 +289,7 @@ class Link:
                     continue
                 t = ev3_brick.parse_telemetry(text)
                 if t:
+                    t["wrong"] = self.port_check.update(t["ports"], time.monotonic())
                     with self.lock:
                         self.telemetry, self.telemetry_at = t, time.monotonic()
                         m = self.mapper.mapping

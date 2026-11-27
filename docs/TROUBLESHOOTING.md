@@ -59,6 +59,7 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - **A port that a program opens reads 0:0**, because detection is switched off while it's in use. **A program that was killed rather than closed leaves its ports reading 0:0 even after it exits.** Opening a port as a `ConfigurationPort` switches detection back on (`PortWatch.prime()`), and the receiver now closes its motors in a shutdown hook.
 - So the receiver only claims a motor port once a motor is detected there. Unused ports stay free and keep detecting, so a motor plugged in later shows up and starts working within a quarter of a second.
 - A cable with nothing on the other end reads as an empty port.
+- **A motor in a sensor port** was seen reading 127:127 (connection error): the sensor ports can't identify a motor. The motor ports A–D then read 126 (nothing) and nothing drives. Motors go in the lettered ports above the screen, sensors in the numbered ports below the buttons. The console marks a sensor port that reads like this for 3 seconds, or a motor port with something other than a motor in it, as **Wrong port?** on the Robot page. An EV3 sensor that's just been plugged in can read 127 for a second or two while it starts, which is why it waits.
 - With busybox `ps` the command line is cut short; find processes by `/proc/<pid>/cmdline` instead.
 
 ## Motors
