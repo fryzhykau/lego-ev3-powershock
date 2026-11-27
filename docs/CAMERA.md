@@ -48,7 +48,7 @@ The console's Camera setup shows the same notes for the model you pick.
 
 ## 2. Connect the camera
 
-The console's **Setup → Camera → Set up** panel shows all of this on a 3D Raspberry Pi. Pick Pi 2 or Pi 3, and point at an entry in the list to see where it goes.
+The console's **Pi** page shows all of this on a 3D Raspberry Pi. Pick Pi 2 or Pi 3, and point at an entry in the list to see where it goes.
 
 With the Pi unplugged:
 
@@ -106,7 +106,7 @@ It works with whichever camera tool the OS has: `rpicam-vid`, `libcamera-vid`, o
 
 ## 5. Connect the console
 
-1. Open **Setup → Camera → Set up**.
+1. Open the **Pi** page; **Camera setup** is below the camera.
 2. Enter the Pi's address (`ev3cam.local`, or its IP address), port `8080` and the access key.
 3. Click **Save and test**. The tile shows **live** and the picture size.
 4. On the **Robot** page, switch the 3D view to **Camera**.

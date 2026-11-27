@@ -77,7 +77,8 @@ The menu has the pages you use while driving, then the setup and a tool:
 - **Map:** what the sensors have found.
 - **Driving:** which stick drives which motor.
 - **Controller:** the DualShock in 3D, live, with what each stick and button does and what the brick gets; pairing, battery and stick calibration.
-- **Setup:** connect the brick and the camera, put PowerShock on the brick, and check the brick.
+- **Pi:** the Raspberry Pi camera: whether it's live, how to set it up, and which object recognition model runs.
+- **Setup:** connect the brick, put PowerShock on the brick, and check the brick.
 - **Gearing:** a gear calculator.
 
 It looks like a car's instrument cluster at night: a dark cabin, with the 3D brick, controller, map and camera in lit wells, and the EV3's own status-light colours for what's live. **Day look**, at the bottom of the menu, switches to a light version, and the console remembers your choice.
@@ -87,7 +88,7 @@ It looks like a car's instrument cluster at night: a dark cabin, with the 3D bri
 Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video in its own **Camera** card, next to the brick, so you can drive from the robot's point of view.
 
 - **On the Pi:** run `pi/powershock_cam.py`. It uses only the standard library and works with any Raspberry Pi OS camera tool.
-- **In the console:** **Setup → Camera** takes the Pi's address and the access key it prints.
+- **In the console:** the **Pi** page takes the Pi's address and the access key it prints.
 - **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
 
 ### Object recognition (optional)
@@ -103,7 +104,7 @@ python pc\tools\get_model.py
 
 The second command downloads the YOLOX-nano model (3.7 MB, Apache-2.0) and checks its checksum. Everything runs on the laptop. The full guide is [docs/VISION.md](docs/VISION.md).
 
-**Bigger models and the graphics chip:** under **Recognition model** on the Map page, choose Fast, Balanced, Better or Best (YOLOX nano, tiny, s or m), and whether it runs on the processor or the graphics chip. `python pc\tools\get_model.py --all` downloads them all. With `onnxruntime-directml` installed, even Best takes under 20 ms a picture on a laptop graphics card. See [docs/VISION.md](docs/VISION.md#bigger-models-and-the-graphics-chip).
+**Bigger models and the graphics chip:** under **Recognition model** on the Pi page, choose Fast, Balanced, Better or Best (YOLOX nano, tiny, s or m), and whether it runs on the processor or the graphics chip. `python pc\tools\get_model.py --all` downloads them all. With `onnxruntime-directml` installed, even Best takes under 20 ms a picture on a laptop graphics card. See [docs/VISION.md](docs/VISION.md#bigger-models-and-the-graphics-chip).
 
 ![Object recognition on the Camera view, with a test picture: a red disc the model takes for a frisbee](docs/screenshots/vision.png)
 

@@ -176,6 +176,13 @@
   .robot > .drivebar { grid-area: bar; } .robot > .stagecard { grid-area: brick; } .robot > .camcard { grid-area: cam; } .robot > .devcard { grid-area: dev; }
   @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-areas: "bar bar" "brick dev" "cam dev"; } }
   @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "brick" "cam" "dev"; gap: 12px; } }
+  .pigrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .pigrid > #camSetupCard { grid-column: 1 / -1; }
+  @media (max-width: 960px) { .pigrid { grid-template-columns: minmax(0, 1fr); } }
+  .pitile { background: var(--face); }
+  #recogCard .modelpick:not([hidden]) + #recogNone { display: none; }
+  .progmore { margin-top: 4px; } .progmore > summary { cursor: pointer; color: var(--muted); font-size: 13.5px; margin: 0 4px 10px; }
+  .progmore[open] > summary { margin-bottom: 12px; } #buildCard { margin-top: 12px; }
   .camcard { padding: 12px; } .camcard .card-head { margin-bottom: 10px; } .camacts { display: flex; gap: 6px; }
   .camcard .camview { padding-top: 0; border-radius: var(--r-s); overflow: hidden; }
   .camcard .camview.idle { aspect-ratio: auto; min-height: 0; padding: 18px 14px; background: var(--soft); }
@@ -1023,6 +1030,7 @@
     <a href="#map" data-page="map" title="Map: what the sensors found around the robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Map</span></a>
     <a href="#driving" data-page="driving" title="Driving: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Driving</span></a>
     <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
+    <a href="#pi" data-page="pi" title="Raspberry Pi: the robot's camera, its setup and object recognition"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4c1 1.2 2 1.6 3 1.6S14 5.2 15 4"/><circle cx="12" cy="10" r="2.4"/><circle cx="8" cy="13.5" r="2.4"/><circle cx="16" cy="13.5" r="2.4"/><circle cx="12" cy="17.5" r="2.4"/></svg><span>Pi</span><span class="badge" id="navPi"></span></a>
     <a href="#setup" data-page="setup" title="Setup: connect the brick and the camera, the program on the brick, the brick's details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></svg><span>Setup</span><span class="badge" id="navSetup"></span></a>
     <div class="navsep" role="separator"></div>
     <a href="#gearing" data-page="gearing" title="Gearing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="9" r="3"/><path d="M8 3v2M8 13v2M2 9h2M12 9h2M3.8 4.8l1.4 1.4M10.8 11.8l1.4 1.4M3.8 13.2l1.4-1.4M10.8 6.2l1.4-1.4"/><circle cx="17" cy="16" r="2.2"/><path d="M17 12v1.5M17 18.5V20M13 16h1.5M19.5 16H21"/></svg><span>Gearing</span></a>
@@ -1258,43 +1266,28 @@
     </section>
 
     <!-- ================= SETUP: connection, program on the brick, the brick ================= -->
-    <section class="page" id="page-setup">
-      <div class="pagehead"><h1>Setup</h1><span class="muted">Everything the robot needs before driving</span></div>
-      <div class="setupsec" id="sec-connection">
-      <div class="sechead first"><h2>Connect</h2><span class="muted">How this laptop talks to the brick, and the robot's camera</span></div>
-      <div class="conntiles">
-        <div class="ctile" id="tileBt">
-          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>Bluetooth<span class="pill" id="btPill">…</span></div>
-          <div class="ct-body" id="btBody">Checking…</div>
-          <div class="ct-acts"><button class="btn" id="useBt">Use Bluetooth</button><button class="link" data-panel="bt" id="btSetupBtn">Pairing steps</button></div>
-        </div>
-        <div class="ctile" id="tileWifi">
-          <div class="ct-head"><svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg>WiFi<span class="pill" id="wifiPill">…</span></div>
-          <div class="ct-body" id="wifiBody">Checking…</div>
-          <div class="ct-acts"><button class="btn" id="useWifi">Use WiFi</button><button class="link" data-panel="net" id="netSetupBtn">Change network</button><button class="link" data-panel="addr">Enter address</button></div>
-        </div>
-        <div class="ctile" id="tilePractice">
-          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
-          <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, two medium motors (one steers, with end stops), and touch, colour and infrared sensors.</div>
-          <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
-        </div>
-        <div class="ctile" id="tileCam">
+    <section class="page" id="page-pi">
+      <div class="pagehead"><h1>Raspberry Pi</h1><span class="muted">The robot's camera: a Raspberry Pi riding on it, streaming to this laptop</span></div>
+      <div class="pigrid">
+        <div class="ctile pitile" id="tileCam">
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera<span class="pill" id="camPill">not set up</span></div>
           <div class="ct-body" id="camBody">Give the robot eyes: a Raspberry Pi with a camera, riding on it.</div>
-          <div class="ct-acts"><button class="btn" id="camShow">Show the camera</button><button class="link" data-panel="cam" id="camSetupBtn">Set up</button></div>
+          <div class="ct-acts"><button class="btn" id="camShow">Show the camera</button><button class="link" id="camSetupBtn">Set up</button></div>
         </div>
-      </div>
-      <div class="card setup hidden" id="setupPanel">
-        <div data-sub="bt">
-          <div class="card-head"><h2>Bluetooth setup</h2><span class="muted">Works without WiFi</span><button class="link" data-close>Close</button></div>
-          <ol class="steps">
-            <li id="btPair"><span class="tick"></span><div><div class="what">Pair with the EV3</div><div class="how" id="btPairHow">Checking…</div></div></li>
-            <li id="btLink"><span class="tick"></span><div><div class="what">Join the brick's network</div><div class="how" id="btLinkHow">Pairing alone doesn't connect.</div><button id="btOpen" class="btn hidden">Open Devices and Printers</button></div></li>
-            <li id="btReady"><span class="tick"></span><div><div class="what">Talk to the brick</div><div class="how" id="btReadyHow">The brick answers at 10.0.1.1.</div></div></li>
-          </ol>
+        <div class="card" id="recogCard">
+          <div class="card-head"><h2>Object recognition</h2><span class="muted">Runs on this laptop, on the camera's picture</span></div>
+          <div class="modelpick" id="modelPick" hidden>
+            <div class="msform">
+              <label class="field"><span>Recognition model</span><select id="modelSel" aria-label="Recognition model"></select></label>
+              <label class="field"><span>Runs on</span><select id="chipSel" aria-label="Where recognition runs">
+                <option value="auto">Graphics chip if there is one</option><option value="gpu">Graphics chip</option><option value="cpu">Processor</option></select></label>
+            </div>
+            <p class="note" id="modelNote"></p>
+          </div>
+          <p class="muted" id="recogNone">Recognition needs a few extra Python packages on this laptop: see "Object recognition" in the README.</p>
         </div>
-        <div data-sub="cam" class="hidden">
-          <div class="card-head"><h2>Camera setup</h2><span class="muted">A Raspberry Pi with a camera, riding on the robot</span><button class="link" data-close>Close</button></div>
+        <div class="card" id="camSetupCard">
+          <div class="card-head"><h2>Camera setup</h2><span class="muted">A Raspberry Pi with a camera, riding on the robot</span></div>
           <ol class="camflow">
             <li class="cf" id="cfSd">
               <span class="cf-n">1</span>
@@ -1341,6 +1334,39 @@
             </li>
           </ol>
         </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-setup">
+      <div class="pagehead"><h1>Setup</h1><span class="muted">Everything the robot needs before driving</span></div>
+      <div class="setupsec" id="sec-connection">
+      <div class="sechead first"><h2>Connect</h2><span class="muted">How this laptop talks to the brick</span></div>
+      <div class="conntiles">
+        <div class="ctile" id="tileBt">
+          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>Bluetooth<span class="pill" id="btPill">…</span></div>
+          <div class="ct-body" id="btBody">Checking…</div>
+          <div class="ct-acts"><button class="btn" id="useBt">Use Bluetooth</button><button class="link" data-panel="bt" id="btSetupBtn">Pairing steps</button></div>
+        </div>
+        <div class="ctile" id="tileWifi">
+          <div class="ct-head"><svg viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg>WiFi<span class="pill" id="wifiPill">…</span></div>
+          <div class="ct-body" id="wifiBody">Checking…</div>
+          <div class="ct-acts"><button class="btn" id="useWifi">Use WiFi</button><button class="link" data-panel="net" id="netSetupBtn">Change network</button><button class="link" data-panel="addr">Enter address</button></div>
+        </div>
+        <div class="ctile" id="tilePractice">
+          <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
+          <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, two medium motors (one steers, with end stops), and touch, colour and infrared sensors.</div>
+          <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
+        </div>
+      </div>
+      <div class="card setup hidden" id="setupPanel">
+        <div data-sub="bt">
+          <div class="card-head"><h2>Bluetooth setup</h2><span class="muted">Works without WiFi</span><button class="link" data-close>Close</button></div>
+          <ol class="steps">
+            <li id="btPair"><span class="tick"></span><div><div class="what">Pair with the EV3</div><div class="how" id="btPairHow">Checking…</div></div></li>
+            <li id="btLink"><span class="tick"></span><div><div class="what">Join the brick's network</div><div class="how" id="btLinkHow">Pairing alone doesn't connect.</div><button id="btOpen" class="btn hidden">Open Devices and Printers</button></div></li>
+            <li id="btReady"><span class="tick"></span><div><div class="what">Talk to the brick</div><div class="how" id="btReadyHow">The brick answers at 10.0.1.1.</div></div></li>
+          </ol>
+        </div>
         <div data-sub="addr" class="hidden">
           <div class="card-head"><h2>Connect by address</h2><span class="muted">The address the brick shows under 10.0.1.1</span><button class="link" data-close>Close</button></div>
           <div class="row"><input id="host" type="text" placeholder="e.g. 192.168.1.40" spellcheck="false" aria-label="Brick address"><button id="useHostBtn" class="btn dark">Connect</button><button id="scanBtn" class="link">Find it for me</button></div>
@@ -1370,6 +1396,7 @@
         </div>
       </div>
       <p class="note" id="progNote" style="margin:-8px 4px 12px"></p>
+      <details class="progmore" id="progMore"><summary>Files and programs on the brick</summary>
       <div class="tri">
         <div class="card">
           <div class="card-head"><h2>PowerShock files</h2><span class="muted">On the brick vs. this laptop</span></div>
@@ -1379,10 +1406,11 @@
           <div class="card-head"><h2>Programs on the brick</h2><span class="muted">Starting takes about 30 s</span></div>
           <ul class="plist" id="progList"><li><span></span><span class="muted">Connect to the brick to see.</span></li></ul>
         </div>
-        <div class="card hidden" id="buildCard">
-          <div class="card-head"><h2>Build log</h2></div>
-          <pre id="buildLog">Nothing built in this session yet.</pre>
-        </div>
+      </div>
+      </details>
+      <div class="card hidden" id="buildCard">
+        <div class="card-head"><h2>Build log</h2></div>
+        <pre id="buildLog">Nothing built in this session yet.</pre>
       </div>
       </div>
       <div class="setupsec" id="sec-brick">
@@ -1435,14 +1463,6 @@
           <label class="toggle"><input type="checkbox" id="mapSee"><span class="track"></span><span>Recognise things while this page is open</span></label>
           <ul class="mseen" id="mapSeen"></ul>
           <p class="note" id="mapSeeNote"></p>
-          <div class="modelpick" id="modelPick" hidden>
-            <div class="msform">
-              <label class="field"><span>Recognition model</span><select id="modelSel" aria-label="Recognition model"></select></label>
-              <label class="field"><span>Runs on</span><select id="chipSel" aria-label="Where recognition runs">
-                <option value="auto">Graphics chip if there is one</option><option value="gpu">Graphics chip</option><option value="cpu">Processor</option></select></label>
-            </div>
-            <p class="note" id="modelNote"></p>
-          </div>
           <details class="mapsize" id="mapSize">
             <summary>Robot size</summary>
             <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
@@ -1530,7 +1550,7 @@ const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 1
 
 // ---------- pages ----------
 // Pages that moved: old addresses (bookmarks, links, the status bar) still land in the right place.
-const MOVED = { connection: ["setup", "sec-connection"], program: ["setup", "sec-program"], brick: ["setup", "sec-brick"], controls: ["driving", null] };
+const MOVED = { connection: ["setup", "sec-connection"], program: ["setup", "sec-program"], brick: ["setup", "sec-brick"], controls: ["driving", null], camera: ["pi", null] };
 const BADGES = {};
 function setBadge(key, cls) {
   BADGES[key] = cls || "";
@@ -2469,6 +2489,9 @@ function drawProgram() {
   }
   if (S.fake && S.fake.running) { dot = "on"; title = "Practice brick"; body = "PowerShock isn't needed in Practice mode."; }
   $("progDot").className = "pdot " + dot; $("progTitle").textContent = title; $("progBody").textContent = body;
+  // a brick that doesn't answer has nothing more to show: the program card already says so
+  const answers = !!(d && d.ok);
+  $("progMore").hidden = !answers; $("sec-brick").hidden = !answers && !(S.fake && S.fake.running);
   $("runBtn").disabled = !d || !d.ok || run || !(builds && builds.onBrick);
   $("stopProgBtn").disabled = !d || !d.ok || !run;
   $("uploadBtn").disabled = !host || !d || !d.ok;
@@ -2978,7 +3001,7 @@ function syncCam() {
   if (want && !img.dataset.on) { img.dataset.on = "1"; img.src = "/api/camera/stream?t=" + Date.now(); }
   if (!want && img.dataset.on) { img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live; }
   const wait = !c ? "Checking the camera…"
-    : !c.configured ? 'No camera yet. Set one up on the <a href="#connection" data-cam-setup>Setup page</a>.'
+    : !c.configured ? 'No camera yet. Set one up on the <a href="#pi" data-cam-setup>Pi page</a>.'
     : c.reachable === false ? "The camera isn't answering. Check the Raspberry Pi is switched on and on the same WiFi as this laptop."
     : c.ok === false && c.error ? esc(c.error)
     : img.dataset.live ? "" : "Connecting to the camera…";
@@ -2993,7 +3016,8 @@ $("camImg").addEventListener("error", () => { // the stream stopped: try again s
   const img = $("camImg"); img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live;
   setTimeout(syncCam, 2000);
 });
-$("camWait").addEventListener("click", (e) => { if (e.target.closest("[data-cam-setup]")) setTimeout(() => openPanel("cam"), 50); });
+$("camWait").addEventListener("click", (e) => { if (e.target.closest("[data-cam-setup]")) { e.preventDefault(); location.hash = "#pi"; } });
+$("camSetupBtn").addEventListener("click", () => { $("camSetupCard").scrollIntoView({ block: "start", behavior: "smooth" }); setTimeout(() => $("camHost").focus(), 300); });
 addEventListener("hashchange", syncCam);
 document.addEventListener("visibilitychange", syncCam);
 function drawCamTile() {
@@ -3002,6 +3026,7 @@ function drawCamTile() {
   $("camPill").className = "pill " + cls; $("camPill").textContent = pill;
   $("camBody").textContent = !c.configured ? "Give the robot eyes: a Raspberry Pi with a camera, riding on it."
     : c.ok ? `${c.width}×${c.height} at ${Math.round(c.fps || 0)} frames a second from ${c.host}${c.source === "test pattern" ? " (test pattern)" : ""}.`
+    : c.reachable === false ? "The Pi isn't answering. Check it's switched on and on the same WiFi as this laptop."
     : c.error || `Set up for ${c.host}.`;
   $("camShow").disabled = !c.configured;
   if (window.Pi3D) window.Pi3D.setStatus({ live: !!c.ok, reachable: !!c.reachable });
@@ -3343,7 +3368,7 @@ function drawMapSeen(m) {
   }).join(""));
   const r = S.mapSeeRes, c = S.cam;
   const note = !S.mapSee ? (objs.length ? "" : "Turn this on to put what the camera recognises on the map: people, chairs, cups, pets and more.")
-    : !c || !c.configured ? 'No camera yet. Set one up on the <a href="#setup">Setup page</a>.'
+    : !c || !c.configured ? 'No camera yet. Set one up on the <a href="#pi">Pi page</a>.'
     : r && r.ok === false && r.missing ? "Object recognition needs a one-time setup on this laptop: see <code>docs/VISION.md</code>."
     : r && r.error ? esc(r.error)
     : !r || r.age == null ? "Starting object recognition…"
