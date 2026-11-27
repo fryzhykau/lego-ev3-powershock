@@ -20,7 +20,7 @@
     --go: #36d27f; --go-soft: #12301f; --warn: #f5a524; --warn-soft: #33260f; --stop: #ff4b55; --stop-soft: #3a1519;
     --warn-tint: #1f1b13; --stop-tint: #241619; --amber-soft: #3a2a10; --track: #2a3541; --tick: #6b7a87; --on-go: #052313; --badge: #26313c; --badge-ink: #b4c0ca; --stall: #c8141e;
     --well-hi: #2b3846; --well-mid: #18212b; --well-lo: #0f151c;
-    --map-floor: #18202a; --map-grid-1: #3b4957; --map-grid-2: #26303b; --map-start: #6b7a87;
+    --map-floor: #18202a; --map-grid-1: #3b4957; --map-grid-2: #26303b; --map-start: #6b7a87; --map-seen: #5ab8ff;
     --ev3-white: #f6f7f7; --ev3-grey: #b8bcbd; --ev3-grey-2: #a3a8a9; --ev3-dark: #1e2224; --ev3-key: #c6cacb;
     --lcd: #c4cfbd; --lcd-ink: #263022; --hub: #c9301f;
     --r-s: 8px; --r-l: 16px;
@@ -38,7 +38,7 @@
     --go: #2e8a57; --go-soft: #e3f2ea; --warn: #b0650a; --warn-soft: #fbf0e1; --stop: #d1242f; --stop-soft: #fbe6e7;
     --warn-tint: #fffaf3; --stop-tint: #fff7f7; --amber-soft: #fff6e6; --track: #e3e7e7; --tick: #aeb5b8; --on-go: #fff; --badge: #e3e7e7; --badge-ink: #59636a; --stall: #ffb3ad;
     --well-hi: #ffffff; --well-mid: #f2f4f4; --well-lo: #e8ebeb;
-    --map-floor: #e9ecec; --map-grid-1: #c3cacd; --map-grid-2: #d6dbdd; --map-start: #8a949a;
+    --map-floor: #e9ecec; --map-grid-1: #c3cacd; --map-grid-2: #d6dbdd; --map-start: #8a949a; --map-seen: #1f6fd1;
   }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; background: var(--room); color: var(--ink); font: 14.5px/1.5 var(--ui); font-variant-numeric: tabular-nums; display: grid; grid-template-rows: auto 1fr; }
@@ -717,6 +717,15 @@
   .msens .v { font-weight: 650; font-variant-numeric: tabular-nums; }
   .msens .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; box-shadow: inset 0 0 0 1px #0002; }
   .mapsize { margin: 12px 0; border-top: 1px solid var(--rule); padding-top: 10px; }
+  .mbrake { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--soft); font-size: 13px; }
+  .mbrake.slow { background: var(--warn-tint); } .mbrake.stop { background: var(--stop-tint); }
+  .mseen { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+  .mseen li { display: flex; gap: 8px; align-items: baseline; padding: 5px 9px; border-radius: 8px; background: var(--soft); }
+  .mseen li b { font-weight: 600; } .mseen li .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .mseen li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--map-seen); flex: none; align-self: center; }
+  .mseen li.old::before { opacity: .4; }
+  .brakeset { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 24px; align-items: center; }
+  .brakeset .help { grid-column: 1 / -1; margin: 0; }
   .mapsize summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
   .msform { display: grid; gap: 7px; margin: 10px 0; }
   .msform .field { grid-template-columns: 1fr 110px; }
@@ -890,6 +899,7 @@
   <span class="sep hide-s"></span>
   <button class="si" data-go="controller" title="Controller" id="sbPadItem"><svg class="pad-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b></button>
   <span class="sep"></span>
+  <button class="si hidden" data-go="driving" id="sbBrakeItem" title="Obstacle brake"><span class="dot" id="sbBrakeDot"></span><span id="sbBrake"></span></button>
   <span class="si" id="sbArmItem"><span class="dot" id="sbArmDot"></span><span id="sbArm">Motors off</span><span class="opt" id="sbRate"></span></span>
   <div class="grow"></div>
   <button id="stopBtn" class="stop" title="Stops every motor at once, including test runs. Keyboard: Space or Esc." aria-label="Stop all motors"><span class="sq"></span><span>Stop<span class="long"> motors</span></span><kbd>Space</kbd></button>
@@ -1028,6 +1038,10 @@
           <div class="card-head"><h2>Speed and driving</h2></div>
           <div class="globals" id="globals"></div>
         </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>Obstacle brake</h2><span class="muted" id="brakeNow"></span></div>
+        <div class="brakeset" id="brakeSet"></div>
       </div>
       <div class="sechead"><h2>Motor ports</h2><span class="muted">In the same order as on the brick</span></div>
       <div class="pgrid" id="pgrid" style="margin-top:10px"></div>
@@ -1271,7 +1285,12 @@
         <div class="card mapside">
           <h2>Sensors</h2>
           <ul class="msens" id="mapSensors"></ul>
+          <p class="mbrake" id="mapBrake"></p>
           <p class="note" id="mapHint"></p>
+          <h2>Seen by the camera</h2>
+          <label class="toggle"><input type="checkbox" id="mapSee"><span class="track"></span><span>Recognise things while this page is open</span></label>
+          <ul class="mseen" id="mapSeen"></ul>
+          <p class="note" id="mapSeeNote"></p>
           <details class="mapsize" id="mapSize">
             <summary>Robot size</summary>
             <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
@@ -1284,8 +1303,13 @@
               <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
               <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
               <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
+              <label class="field"><span>Camera ahead</span><input type="number" data-k="camAhead" min="-300" max="300" title="How far ahead of the driven axle the Raspberry Pi camera sits"></label>
+              <label class="field"><span>Camera height</span><input type="number" data-k="camHeight" min="30" max="600" title="The camera lens above the floor"></label>
+              <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
+              <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
             </div>
-            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSaved"></span>
+            <p class="muted">The camera's height and tilt tell the map how far away a recognised thing is, from where it meets the floor in the picture.</p>
+            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSizeSaved"></span>
           </details>
           <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
         </div>
@@ -1654,6 +1678,12 @@ function drawControls(force) {
       ${usesDrive ? `<label class="field"><span>Throttle</span>${axisSel("drive.throttle", m.drive.throttle)}</label>
       <label class="field"><span>Steering</span>${axisSel("drive.steer", m.drive.steer)}</label>
       <label class="field"><span>Turn sharpness</span>${range("drive.turn", m.drive.turn, 0, 100, 5, "%")}</label>` : '<p class="help">Throttle and steering show up here once a port uses two-wheel drive.</p>'}`;
+    const bk = m.brake || { on: true, stop: 15, slow: 40 };
+    $("brakeSet").innerHTML = `
+      <label class="toggle"><input type="checkbox" data-k="brake.on" ${bk.on ? "checked" : ""}><span class="track"></span><span>Brake for obstacles</span></label>
+      <label class="field"><span>Stop short by</span>${range("brake.stop", bk.stop, 5, 40, 1, " cm")}</label>
+      <label class="field"><span>Slow from</span>${range("brake.slow", bk.slow, 20, 70, 5, " cm")}</label>
+      <p class="help">Uses the infrared or ultrasonic sensor facing ahead (or behind). Only driving towards the obstacle is braked, so you can always back away or turn on the spot. Runs on this laptop: switch it off to push things on purpose.</p>`;
     document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === m.name));
   }
   // live output on each card
@@ -1689,7 +1719,7 @@ function onControlChange(e) {
   const el = e.target, key = el.dataset && el.dataset.k; if (!key || !S.mapDraft) return;
   const [a, b] = key.split("."), m = S.mapDraft;
   const val = el.type === "checkbox" ? el.checked : el.type === "range" ? +el.value : el.value;
-  if (el.type === "range") el.nextElementSibling.textContent = el.value + (b === "range" ? "°" : b === "smooth" ? " s" : "%");
+  if (el.type === "range") el.nextElementSibling.textContent = el.value + (b === "range" ? "°" : b === "smooth" ? " s" : a === "brake" ? " cm" : "%");
   if (b === "mode") m.ports[a] = { ...MODE_DEFAULTS[val], ...(val === "drive" ? { side: a === "C" ? "right" : "left" } : {}) };
   else if (MOTOR_PORTS.includes(a)) m.ports[a][b] = val;
   else m[a][b] = val;
@@ -1700,6 +1730,7 @@ function onControlChange(e) {
 $("pgrid").addEventListener("input", onControlChange); $("pgrid").addEventListener("change", onControlChange);
 $("offrow").addEventListener("change", onControlChange);
 $("globals").addEventListener("input", onControlChange); $("globals").addEventListener("change", onControlChange);
+$("brakeSet").addEventListener("input", onControlChange); $("brakeSet").addEventListener("change", onControlChange);
 $("pgrid").addEventListener("click", async (e) => {
   const n = e.target.closest("[data-nudge]"), h = e.target.closest("[data-home]");
   if (n || h) {
@@ -1717,7 +1748,7 @@ $("pgrid").addEventListener("click", async (e) => {
 });
 $("presets").addEventListener("click", (e) => {
   const b = e.target.closest(".preset"); if (!b || !presets[b.dataset.preset]) return;
-  S.mapDraft = { ...JSON.parse(JSON.stringify(presets[b.dataset.preset])), sticks: S.mapDraft && S.mapDraft.sticks };
+  S.mapDraft = { ...JSON.parse(JSON.stringify(presets[b.dataset.preset])), sticks: S.mapDraft && S.mapDraft.sticks, brake: S.mapDraft && S.mapDraft.brake };
   drawControls(true); saveMapping(); $("fitNote").textContent = "";
 });
 // Fit the chosen layout to what's actually plugged in.
@@ -1743,7 +1774,7 @@ $("fitBtn").addEventListener("click", () => {
     if (extra) { m.ports[extra] = { ...presets.tank.ports.A }; notes.push(`${extra} on the right stick`); }
   }
   m.name = isCar ? "car" : "tank";
-  m.sticks = S.mapDraft && S.mapDraft.sticks; S.mapDraft = m; drawControls(true); saveMapping();
+  m.sticks = S.mapDraft && S.mapDraft.sticks; m.brake = S.mapDraft && S.mapDraft.brake; S.mapDraft = m; drawControls(true); saveMapping();
   $("fitNote").textContent = motors.length ? `Fitted ${isCar ? "Car" : "Tank"} to your motors: ${notes.join(", ")}.` : "No motors plugged in yet.";
 });
 
@@ -2395,9 +2426,31 @@ function setArmed(on) {
   S.armed = on; $("armToggle").checked = on; $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
   $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmDot").className = "dot " + (on ? "bad" : "");
   $("stopBtn").classList.toggle("live", on);
-  $("camHud").innerHTML = on ? "<b>●</b> Motors on · Space stops" : "Motors off";
+  drawBrake();
   if (!on) api("/api/stop", {});
   drawNext();
+}
+// The obstacle brake runs in the console (pc/brake.py); this only shows what it's doing.
+function brakeText(k) {
+  if (!k) return "";
+  const d = k.dist != null ? `${Math.round(k.dist)} cm ahead` : "";
+  return k.state === "stop" ? `Stopped: something ${d}` : k.state === "slow" ? `Slowing: something ${d}`
+    : k.state === "blind" ? "Stopped: no sensor reading" : "";
+}
+function drawBrake() {
+  const k = S.link && S.link.connected ? S.link.brake : null;
+  const active = !!k && S.armed && (k.braking || k.state === "blind");
+  $("sbBrakeItem").classList.toggle("hidden", !active);
+  if (active) {
+    $("sbBrake").textContent = k.state === "slow" ? `Slowing · ${Math.round(k.dist)} cm` : k.state === "blind" ? "No reading" : `Stopped · ${Math.round(k.dist)} cm`;
+    $("sbBrakeDot").className = "dot " + (k.state === "slow" ? "warn" : "bad");
+  }
+  setHTML($("camHud"), S.armed ? "<b>●</b> Motors on · Space stops" + (active ? " · " + esc(brakeText(k)) : "") : "Motors off");
+  const now = !k ? "" : k.state === "off" ? "Off" : k.state === "no sensor" ? "No range sensor plugged in"
+    : k.state === "sideways" ? "The range sensor faces sideways" : k.state === "no layout" ? "No motors drive yet"
+    : k.state === "blind" ? "No sensor reading" : k.braking && S.armed ? brakeText(k)
+    : k.dist != null ? `Nearest thing ahead: ${Math.round(k.dist)} cm` : "Clear";
+  if ($("brakeNow").textContent !== now) $("brakeNow").textContent = now;
 }
 function stopAll() { setArmed(false); }
 $("armToggle").addEventListener("change", (e) => setArmed(e.target.checked));
@@ -2534,7 +2587,7 @@ async function pollLink() {
   $("lcdRate").textContent = L.connected ? `${L.rate}Hz` : "";
   $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
   $("fakeToggle").checked = s.fake.running;
-  drawPorts(); drawFacts(); drawProgram(); drawNext();
+  drawPorts(); drawFacts(); drawProgram(); drawNext(); drawBrake();
   if (location.hash === "#driving") drawControls(false);
   if (location.hash === "#setup") drawConnTiles();
 }
@@ -2710,16 +2763,56 @@ function drawMapSide(m) {
       : "Plug the infrared or ultrasonic sensor into any sensor port, facing forward. It's picked up within a few seconds.";
   } else if (!has.includes("col")) hint = "Tip: a colour sensor pointing at the floor paints the floor's colours onto the map.";
   setNote("mapHint", hint);
+  const k = S.link && S.link.connected ? S.link.brake : null;
+  const bt = !k ? "" : k.state === "off" ? "Obstacle brake is off (Driving page)." : k.state === "no sensor" || k.state === "no layout" ? ""
+    : k.state === "sideways" ? "Obstacle brake: the range sensor faces sideways, so it can't brake."
+    : (k.braking || k.state === "blind") && S.armed ? brakeText(k) + "."
+    : `Obstacle brake: on${k.dist != null ? `, nearest thing ahead ${Math.round(k.dist)} cm` : ""}.`;
+  $("mapBrake").className = "mbrake " + (k && (k.braking || k.state === "blind") && S.armed ? (k.state === "slow" ? "slow" : "stop") : "");
+  $("mapBrake").hidden = !bt;
+  if ($("mapBrake").textContent !== bt) $("mapBrake").textContent = bt;
+  drawMapSeen(m);
   const p = m && m.pose;
   $("mapPose").textContent = p && m.updates ? `${Math.round(p.x)} cm ahead, ${Math.abs(Math.round(p.y))} cm ${p.y >= 0 ? "left" : "right"} of the start · facing ${Math.round(((p.heading % 360) + 540) % 360 - 180)}° · ${m.cells.length} cells seen` : "Not moving yet";
 }
 function fillMapSize(r) {
   document.querySelectorAll("#mapSize [data-k]").forEach((el) => { if (document.activeElement !== el) el.value = r[el.dataset.k]; });
 }
+function drawMapSeen(m) {
+  const p = m && m.pose, objs = (m && m.objects) || [];
+  setHTML($("mapSeen"), objs.slice().sort((a, b) => a.seen - b.seen).slice(0, 8).map((o) => {
+    const d = p ? Math.round(Math.hypot(o.x - p.x, o.y - p.y)) : null;
+    const when = o.seen < 3 ? "now" : o.seen < 60 ? `${Math.round(o.seen)} s ago` : `${Math.round(o.seen / 60)} min ago`;
+    return `<li class="${o.seen < 3 ? "" : "old"}"><b>${esc(o.label)}</b>${d != null ? ` ${d} cm away` : ""}<span class="muted">${when}</span></li>`;
+  }).join(""));
+  const r = S.mapSeeRes, c = S.cam;
+  const note = !S.mapSee ? (objs.length ? "" : "Turn this on to put what the camera recognises on the map: people, chairs, cups, pets and more.")
+    : !c || !c.configured ? 'No camera yet. Set one up on the <a href="#setup">Setup page</a>.'
+    : r && r.ok === false && r.missing ? "Object recognition needs a one-time setup on this laptop: see <code>docs/VISION.md</code>."
+    : r && r.error ? esc(r.error)
+    : !r || r.age == null ? "Starting object recognition…"
+    : objs.length ? "" : "Nothing recognised yet. Things show up once they've been seen twice.";
+  setHTML($("mapSeeNote"), note);
+}
+// Recognition runs in the console while some page asks for it (pc/vision.py); what it finds goes on the map.
+S.mapSee = localStorage.getItem("mapSee") === "1"; S.mapSeeRes = null; S.mapSeeBusy = false; S.mapSeeAt = 0;
+$("mapSee").checked = S.mapSee;
+$("mapSee").addEventListener("change", (e) => { S.mapSee = e.target.checked; localStorage.setItem("mapSee", S.mapSee ? "1" : "0"); S.mapSeeRes = null; S.mapSeeAt = 0; pollMapSee(); });
+async function pollMapSee() {
+  const want = S.mapSee && location.hash === "#map" && document.visibilityState === "visible" && S.cam && S.cam.configured;
+  if (!want || S.mapSeeBusy) return; // when this stops asking, the console stops recognising a few seconds later
+  if (S.mapSeeRes && S.mapSeeRes.ok === false && Date.now() - S.mapSeeAt < 3000) return;
+  S.mapSeeBusy = true;
+  try { S.mapSeeRes = await api("/api/vision", { on: true }); S.mapSeeAt = Date.now(); } catch (e) { S.mapSeeRes = null; }
+  finally { S.mapSeeBusy = false; }
+}
+setInterval(pollMapSee, 500);
 async function pollMap() {
   if (location.hash !== "#map") return;
   let m; try { m = await api("/api/map"); } catch (e) { return; }
   S.map = m;
+  const L = S.link;
+  m.brake = L && L.connected && L.brake ? { ...L.brake, stop: L.mapping && L.mapping.brake ? L.mapping.brake.stop : 15, slow: L.mapping && L.mapping.brake ? L.mapping.brake.slow : 40, armed: !!S.armed } : null;
   if (window.Map3D) window.Map3D.update(m);
   if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
   drawMapSide(m);
@@ -2734,7 +2827,7 @@ $("mapSave").addEventListener("click", () => busy($("mapSave"), async () => {
   const robot = {};
   document.querySelectorAll("#mapSize [data-k]").forEach((el) => { robot[el.dataset.k] = Number(el.value); });
   const r = await api("/api/map/robot", { robot });
-  if (r.ok) { fillMapSize(r.robot); setNote("mapSaved", "Saved.", "ok"); } else setNote("mapSaved", "Couldn't save.", "bad");
+  if (r.ok) { fillMapSize(r.robot); setNote("mapSizeSaved", "Saved.", "ok"); } else setNote("mapSizeSaved", "Couldn't save.", "bad");
 }));
 setInterval(pollMap, 250);
 

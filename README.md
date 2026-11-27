@@ -118,6 +118,14 @@ What to expect from the sensors that come with EV3 sets:
 - **Ultrasonic:** up to about 1.5 m, with a narrower beam.
 - **Drift:** each wheel slip adds an error, so the map drifts. **Clear map** starts again from where the robot is.
 
+**Seen by the camera:** with the Raspberry Pi camera and [object recognition](#object-recognition-optional) set up, turn on **Recognise things while this page is open**. What the camera recognises (people, chairs, cups, pets…) appears on the map as a labelled marker where it stands, and stays there as the robot drives on.
+- **Direction:** from where it is across the picture.
+- **Distance:** from where it meets the floor in the picture, so set the camera's height and tilt under **Robot size**. Straight ahead, the infrared sensor's distance is used instead.
+- **Fewer wrong guesses:** a thing has to be seen twice before it's drawn. Something that should be in view but isn't seen any more (a person who walked off) is taken off the map.
+- **Recognition on the Robot page's Camera view** puts things on the map too.
+
+The map also draws the obstacle brake's lines in front of the robot: where it stops, and where it starts slowing. They light up while it brakes.
+
 ![The Map page: the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
 
 ### Driving
@@ -126,6 +134,12 @@ Which stick drives which motor. Pick a starting layout, then fine-tune each moto
 
 - **Steering ports** get a **Centre** control: nudge the wheels straight, then **Set centre here**.
 - **Changes** apply while you drive and are saved.
+- **Obstacle brake** (on unless you switch it off): with an infrared or ultrasonic sensor facing ahead, the robot slows down when something is closer than 40 cm and stops 15 cm short. Both distances can be changed.
+  - **Only driving towards the obstacle is braked.** You can always back away, or turn on the spot.
+  - **It runs on the laptop,** in the same loop that sends the commands, so no brick upload is needed. The sensor reading is up to a quarter of a second old, so the brake allows for how far the robot has driven since.
+  - **No reading for 0.8 s:** it stops driving towards whatever might be there.
+  - **While it brakes,** the status bar, the camera's full-screen view and the Map page say so.
+  - **Pushing something on purpose,** like a ball: switch the brake off.
 
 ![The Driving page: Car layout with steering on A and drive on B and C](docs/screenshots/driving.png)
 
@@ -168,6 +182,7 @@ Everything the robot needs before driving, in the order you need it:
   - when the controller disconnects, or the console page is closed or loses focus
 
   A dropped link also switches **Motors on** off.
+- **The obstacle brake** only ever takes speed away. It's a help, not a guarantee. The infrared sensor misses thin chair legs and dark or shiny things, and sees only straight ahead. Drive slowly near people and pets.
 - **The console** listens only on `127.0.0.1` and answers only its own page. It refuses requests from other machines, from other websites open in your browser, and with a foreign `Host` name (DNS rebinding).
 - **PowerShock on the brick** listens on TCP port 5000 with no password: anyone on the same network could connect and move the motors.
   - Commands are range-limited, and input size is capped.

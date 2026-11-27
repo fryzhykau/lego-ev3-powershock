@@ -26,6 +26,8 @@ import copy
 import json
 import os
 
+import brake
+
 AXES = ("LX", "LY", "RX", "RY", "L2", "R2", "R2-L2", "none")
 MODES = ("off", "drive", "speed", "position")
 PORTS = ("A", "B", "C", "D")
@@ -66,6 +68,7 @@ STICKS = {"deadzone": 8, "curve": 0,
 def default():
     m = copy.deepcopy(TANK)
     m["sticks"] = copy.deepcopy(STICKS)
+    m["brake"] = brake.settings({})
     return m
 
 
@@ -85,7 +88,8 @@ def validate(m):
     """Returns a cleaned copy of a mapping sent by the page, or raises ValueError."""
     if not isinstance(m, dict):
         raise ValueError("mapping must be an object")
-    out = {"name": str(m.get("name", "custom"))[:20], "ports": {}, "sticks": _sticks(m.get("sticks"))}
+    out = {"name": str(m.get("name", "custom"))[:20], "ports": {}, "sticks": _sticks(m.get("sticks")),
+           "brake": brake.settings(m.get("brake"))}
     d = m.get("drive") or {}
     out["drive"] = {"throttle": _axis(d.get("throttle", "LY")), "steer": _axis(d.get("steer", "LX")),
                     "turn": _num(d.get("turn", 100), 0, 100)}

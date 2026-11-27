@@ -279,6 +279,33 @@ Still open: choosing a licence.
 
 **Status:** runs on the real Pi camera, 10 times a second at about 16 ms a picture. Not yet tried while driving.
 
+## Stage 13: an obstacle brake, and the map learns what things are
+
+**Idea:** the first step towards self-driving. The robot slows down and stops by itself for what's in front of it. At the same time, the 3D map shows what the camera recognises, where it stands, as the car drives.
+
+**Where the brake runs:** the first plan was the brick, so it would react without WiFi. The owner chose the laptop instead: one place for all the logic, nothing to upload, and the laptop already sees both the sensors and the camera.
+- **The cost:** the sensor reading is up to a quarter of a second old by the time it's used.
+- **The answer:** the brake works out how far the robot has driven since, and brakes for where the obstacle is now.
+- **The brick's own 0.5 s safety stop** is still there underneath.
+
+**What was built:**
+- **`pc/brake.py`:** sits after the controls mapping in the 50-a-second loop, and only ever takes speed away.
+  - **Slows** from 40 cm and **stops** 15 cm short.
+  - **Only motion towards the obstacle** is braked. For a tank, only the forward part of the command is cut, so turning on the spot still works.
+- **Recognised things on the map** (`WorldMap.see`):
+  - **Direction** from the box's place across the picture.
+  - **Distance** from where its bottom edge meets the floor, given the camera's height and tilt, or from the infrared sensor when it's straight ahead.
+  - **Kept honest:** seen twice before it's drawn, and dropped when it should be in view and isn't.
+- **A test that drives:** the practice robot drives at the box ahead at full speed, and must stop 12–22 cm short.
+
+**What didn't, at first:**
+- **Creeping:** the speed went down smoothly towards zero but never got there. The robot crawled the last few centimetres at 1–2 % speed, which a real motor still turns at. Below 10 % it now stops, and once stopped it waits for a clear margin before starting again, so it doesn't shuffle.
+- **Panic braking:** speed was first worked out from when the sensor lines *arrived*. When two lines arrived together, the robot seemed to have leapt forward, and the brake stopped it 10 cm early. The brick already measures each motor's speed, so that is used instead.
+- **A test that measured the wrong thing:** its distance check used the map's position, which misses the first quarter second after **Clear map**. It now reads the sensor itself.
+- **A line drawn backwards:** the stop line first appeared behind the robot, because of an angle check that tested the wrong way round.
+
+**Status:** works in Practice. Not yet tried on the real robot, whose infrared readings are noisier and depend on the colour of what's ahead.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.
@@ -372,10 +399,11 @@ The hardest problems so far, grouped by where they came from.
 
 - **Upload the new brick program** (0.8, with sensors) and try the map on the real robot.
 - **Finish the Raspberry Pi setup** and drive with the camera, with object recognition on.
-- **Use what's recognised:** mark it on the map, or let the robot turn towards a chosen thing while a button is held.
+- **Use what's recognised:** it's on the map now. Next: let the robot turn towards a chosen thing while a button is held, or slow down for people and pets.
 - **Self-driving around the house** (the end goal: EV3, Pi, camera and power bank on one LEGO car).
-  - **Who does what:** reflexes on the brick (it brakes by itself, without WiFi), eyes on the Pi, planning on the laptop, and the owner holding a button to let it drive.
-  - **First step:** the brick-side brake.
+  - **Who does what:** eyes on the Pi; braking, recognition, the map and planning on the laptop; and the owner holding a button to let it drive.
+  - **First step done:** the obstacle brake, on the laptop (stage 13).
+  - **Next:** a sweeping sensor scan, then exploring by itself while a button is held.
   - **The alternative weighed:** a BrickPi3 board, so the Pi drives the EV3 motors itself. That's one computer on board, but it means new hardware and a rewrite.
 - **Choose a licence.**
 - **Release 0.8.0** once the map and camera are tested on hardware.

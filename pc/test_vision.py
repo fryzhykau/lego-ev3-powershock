@@ -185,7 +185,8 @@ class VisionTest(unittest.TestCase):
         self.addCleanup(self.pi.close)
         self.cam = camera.Camera(os.path.join(tempfile.mkdtemp(), "camera.json"))
         self.cam.set("127.0.0.1", self.pi.port, KEY)
-        self.v = vision.Vision(self.cam)
+        self.found = []
+        self.v = vision.Vision(self.cam, on_result=self.found.append)
 
     def test_runs_while_asked_and_stops_after(self):
         self.start([jpeg()])
@@ -195,6 +196,7 @@ class VisionTest(unittest.TestCase):
         self.assertEqual(r["size"], [640, 480])
         self.assertLess(r["age"], 2)
         self.assertGreater(r["ms"], 0)
+        self.assertTrue(self.found and self.found[-1], "each picture's items go to the listener (the map)")
         self.assertEqual(self.v.poll(False), {"ok": True, "on": False})
         self.assertTrue(wait_for(lambda: self.v.worker is None, 3))
         # the camera view slot is given back

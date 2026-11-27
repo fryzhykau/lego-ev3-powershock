@@ -178,8 +178,9 @@ class Detector:
 class Vision:
     """Recognition for the console: started by the page's polls, stopped when they stop."""
 
-    def __init__(self, cam, model=MODEL, sha256=MODEL_SHA256):
+    def __init__(self, cam, model=MODEL, sha256=MODEL_SHA256, on_result=None):
         self.cam, self.model, self.sha256 = cam, model, sha256
+        self.on_result = on_result  # called with each picture's items, e.g. to put them on the map
         self.lock = threading.Lock()
         self.new_frame = threading.Condition(self.lock)
         self.detector = None
@@ -272,6 +273,11 @@ class Vision:
                     self.result = {"items": items, "size": list(size), "ms": round((t1 - t0) * 1000), "at": t1}
                     self.times = [t for t in self.times if t1 - t < 2.0] + [t1]
                     self.error = None
+                if self.on_result:
+                    try:
+                        self.on_result(items)
+                    except Exception:  # a listener's mistake must not stop recognition
+                        pass
                 rest = 1.0 / MAX_RATE - (time.monotonic() - t0)
                 if rest > 0:
                     time.sleep(rest)

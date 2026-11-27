@@ -60,6 +60,7 @@ The repository is public. Before every commit:
 - **Motors stop** within 500 ms when commands stop (brick watchdog), at once when the connection drops, and when the controller disconnects or the page loses focus.
 - **After a dropped link,** **Motors on** stays off until the user turns it on again.
 - **Stop always wins:** a late input message must not undo it.
+- **The obstacle brake** (`pc/brake.py`) runs after the controls mapping and only ever takes speed away. With no fresh sensor reading, it stops driving towards the obstacle.
 - **Brick-side limits:**
   - Speeds are clamped to ±100, angles to ±720°, and test turns to ±3600° with a time limit.
   - Input lines are capped at 256 characters, and at most 32 tests can be queued.

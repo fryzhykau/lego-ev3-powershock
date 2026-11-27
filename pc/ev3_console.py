@@ -29,6 +29,7 @@ import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
 import version  # noqa: E402
 import worldmap  # noqa: E402
+import brake  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -68,6 +69,7 @@ class Link:
         # Controls mapping: the page sends raw controller input; the mapping turns it into
         # per-port commands here, 50 times a second, with smoothing.
         self.mapper = mapping.Mapper(mapping.load())
+        self.brake = brake.Brake()  # slows and stops for obstacles, after the mapping
         self.inp = None
         self.inp_at = 0.0
         self.out = {}
@@ -204,6 +206,7 @@ class Link:
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
                 "mapping": self.mapper.mapping,
+                "brake": dict(self.brake.state, on=self.mapper.mapping.get("brake", {}).get("on", True)),
                 "rate": round(self.rate),
                 "sent": self.sent,
             }
@@ -216,10 +219,13 @@ class Link:
         while True:
             t0 = time.monotonic()
             dt, last_t = t0 - last_t, t0
+            eye, robot = self.world.eye_now()  # its own lock, taken before ours
             with self.lock:
                 s, want = self.sock, self.want
                 inp = self.inp if t0 - self.inp_at < INPUT_STALE_S else None
+                m = self.mapper.mapping
                 res = self.mapper.step(inp, dt, stop=bool(inp and inp.get("stop")))
+                res = self.brake.apply(res, worldmap.layout(m), eye, m.get("brake") or brake.settings({}), robot, t0)
                 self.out = res
             payload = mapping.line(res)
             if s:
@@ -717,7 +723,7 @@ fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()
 cam = camera.Camera()
-see = vision.Vision(cam)  # object recognition, optional (pc/vision.py)
+see = vision.Vision(cam, on_result=link.world.see)  # object recognition, optional (pc/vision.py); found things go on the map
 
 
 class Handler(BaseHTTPRequestHandler):

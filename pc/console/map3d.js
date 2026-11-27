@@ -1,4 +1,5 @@
-// The live map in 3D (three.js): the floor, what the sensors found, the robot and its trail.
+// The live map in 3D (three.js): the floor, what the sensors found, the robot and its trail,
+// the obstacle brake's stop line, and what the camera recognised.
 // createMap(container) -> { update(snapshot), setView("behind" | "above") }
 // The snapshot comes from /api/map (pc/worldmap.py): centimetres, x ahead, y to the left.
 // In the scene, X = x, Z = -y and Y is up, so the robot starts facing +X.
@@ -38,6 +39,9 @@ export function createMap(container) {
     const css = getComputedStyle(document.documentElement);
     const c = (name, fallback) => new THREE.Color((css.getPropertyValue(name) || "").trim() || fallback);
     night = document.documentElement.dataset.theme !== "day";
+    seenColor.copy(c("--map-seen", "#1f6fd1"));
+    labelInk = night ? "#e6ecf1" : "#0d1218"; labelBack = night ? "#151c24d9" : "#ffffffd9";
+    labels.forEach((l) => { l.text = null; }); // redraw in the new colours
     floor.material.color.copy(c("--map-floor", "#e9ecec"));
     scene.fog.color.copy(c("--map-floor", "#e9ecec"));
     start.material.color.copy(c("--map-start", "#8a949a"));
@@ -47,6 +51,9 @@ export function createMap(container) {
     if (beamMat) { beamMat.blending = night ? THREE.AdditiveBlending : THREE.NormalBlending; beamMat.needsUpdate = true; } // a beam of light at night
   }
   let beamMat = null;
+  const seenColor = new THREE.Color(0x1f6fd1);
+  let labelInk = "#0d1218", labelBack = "#ffffffd9";
+  const labels = [];
   setTheme();
 
   // obstacles: one block per grid cell, darker the surer the map is
@@ -71,6 +78,45 @@ export function createMap(container) {
   const beamGeo = new THREE.ConeGeometry(1, 1, 24, 1, true); beamGeo.translate(0, -0.5, 0); beamGeo.rotateZ(Math.PI / 2);
   const beam = new THREE.Mesh(beamGeo, beamMat); robot.add(beam);
   const dot = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd1242f })); robot.add(dot);
+
+  // the obstacle brake: a line on the floor where it stops, and a fainter one where it starts slowing
+  const zone = new THREE.Group(); robot.add(zone);
+  const arc = (inner, a) => { const g = new THREE.RingGeometry(inner, 1, 40, 1, -a, 2 * a); g.rotateX(-Math.PI / 2); return g; };
+  const stopMat = new THREE.MeshBasicMaterial({ color: 0xff4b55, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
+  const slowMat = new THREE.MeshBasicMaterial({ color: 0xf5a524, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide });
+  const stopLine = new THREE.Mesh(arc(0.94, 0.38), stopMat), slowLine = new THREE.Mesh(arc(0.975, 0.3), slowMat);
+  stopLine.position.y = slowLine.position.y = 0.3; zone.add(stopLine, slowLine); zone.visible = false;
+
+  // what the camera recognised: a glowing post with its name above it
+  const postGeo = new THREE.CylinderGeometry(2.2, 2.2, 1, 20); postGeo.translate(0, 0.5, 0);
+  const ringGeo = new THREE.RingGeometry(5, 7, 32); ringGeo.rotateX(-Math.PI / 2);
+  const things = new THREE.Group(); scene.add(things);
+  function label(l, text, fresh) {
+    if (l.text === text && l.fresh === fresh) return;
+    l.text = text; l.fresh = fresh;
+    const cv = l.canvas, g = cv.getContext("2d"), font = "600 40px Bahnschrift, 'Segoe UI', sans-serif";
+    g.font = font; const w = Math.ceil(g.measureText(text).width) + 36;
+    cv.width = w; cv.height = 64; g.font = font;
+    g.fillStyle = labelBack; g.beginPath(); g.roundRect(0, 0, w, 64, 32); g.fill();
+    g.globalAlpha = fresh ? 1 : 0.6; g.fillStyle = labelInk; g.textBaseline = "middle"; g.fillText(text, 18, 34);
+    l.tex.needsUpdate = true; l.sprite.scale.set(w / 64 * 0.042, 0.042, 1); // the same size on screen, near or far
+  }
+  function thing(n) {
+    while (labels.length <= n) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: seenColor, emissive: seenColor, emissiveIntensity: 0.6, transparent: true });
+      const post = new THREE.Mesh(postGeo, mat); post.scale.y = 14; post.castShadow = true;
+      const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: seenColor, transparent: true, opacity: 0.35, depthWrite: false }));
+      ring.position.y = 0.25;
+      const canvas = document.createElement("canvas"), tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, sizeAttenuation: false }));
+      sprite.position.y = 24; sprite.renderOrder = 2;
+      g.add(post, ring, sprite); things.add(g);
+      labels.push({ group: g, post, ring, sprite, canvas, tex, text: null, fresh: null });
+    }
+    return labels[n];
+  }
 
   // the path driven so far
   const trailPos = new Float32Array(3000 * 3);
@@ -160,6 +206,27 @@ export function createMap(container) {
       const t = s.trail.slice(-3000);
       t.forEach(([x, y], n) => { trailPos[n * 3] = x; trailPos[n * 3 + 1] = 0.4; trailPos[n * 3 + 2] = -y; });
       trailGeo.setDrawRange(0, t.length); trailGeo.attributes.position.needsUpdate = true;
+      // what the camera recognised; older sightings fade
+      const objs = (s.objects || []).slice(0, 50);
+      objs.forEach((o, n) => {
+        const l = thing(n), fresh = o.seen < 3;
+        l.group.visible = true; l.group.position.set(o.x, 0, -o.y);
+        l.post.material.color.copy(seenColor); l.post.material.emissive.copy(seenColor); l.ring.material.color.copy(seenColor);
+        l.post.material.opacity = fresh ? 0.95 : 0.45; l.ring.material.opacity = fresh ? (night ? 0.5 : 0.35) : 0.12;
+        label(l, o.label, fresh);
+      });
+      for (let n = objs.length; n < labels.length; n++) labels[n].group.visible = false;
+      // the brake's lines, ahead of the range sensor; they light up while it brakes
+      const k = s.brake;
+      zone.visible = !!k && !["off", "no sensor", "sideways", "no layout"].includes(k.state);
+      if (zone.visible) {
+        const back = Math.abs(((size.eyeAngle + 540) % 360) - 180) > 150; // the sensor looks backwards
+        zone.position.set(size.eyeAhead / 10, 0, 0); zone.rotation.y = THREE.MathUtils.degToRad(back ? 180 : 0);
+        stopLine.scale.setScalar(k.stop); slowLine.scale.setScalar(k.slow);
+        const live = k.armed && k.braking;
+        stopMat.opacity = live && k.state !== "slow" ? 0.95 : night ? 0.35 : 0.3;
+        slowMat.opacity = live && k.state === "slow" ? 0.8 : night ? 0.18 : 0.14;
+      }
       // the eye's beam: red to what it hit, faint when nothing is in range
       const e = s.eye;
       beam.visible = dot.visible = !!e;

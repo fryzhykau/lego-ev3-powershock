@@ -17,6 +17,7 @@ import json
 import math
 import os
 import threading
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(HERE, "worldmap.json")
@@ -37,13 +38,26 @@ ROBOT = {
     "eyeAngle": 0.0,     # ... and which way it faces: 0 = ahead, 90 = left, -90 = right
     "floorAhead": 40.0,  # colour sensor: mm ahead of the driven axle
     "gyroSign": 1,       # 1 if the gyro counts anticlockwise turns as positive, -1 if not
+    "camAhead": 40.0,    # Raspberry Pi camera: mm ahead of the driven axle
+    "camHeight": 150.0,  # ... mm above the floor
+    "camTilt": 15.0,     # ... degrees it looks down (0 = level)
+    "camFov": 62.0,      # ... degrees it sees across (62 for the Pi camera v2, 54 for v1)
 }
 LIMITS = {"wheel": (20, 200), "track": (40, 400), "base": (40, 400), "steerRatio": (0.05, 3.0),
-          "eyeAhead": (-300, 300), "eyeAngle": (-180, 180), "floorAhead": (-300, 300)}
+          "eyeAhead": (-300, 300), "eyeAngle": (-180, 180), "floorAhead": (-300, 300),
+          "camAhead": (-300, 300), "camHeight": (30, 600), "camTilt": (-10, 60), "camFov": (30, 160)}
 
 IR_RANGE = 70.0   # cm at proximity 100; the EV3 IR sensor is roughly linear up to here
 IR_NOTHING = 95   # proximity at or above this: nothing in range
 US_RANGE = 150.0  # cm; ultrasonic readings beyond this are too wide to place well
+
+# Things the camera recognises, placed on the map
+SEE_SCORE = 0.5     # recognitions less sure than this aren't placed
+SEE_FAR = 400.0     # cm; anything placed further away than this is too uncertain
+SEE_KEEP = 50       # most things kept on the map
+SEE_SHOW = 2        # seen this many times before it's shown, so one wrong guess isn't drawn
+SEE_MISSES = 15     # in view this many times without being seen: it has gone (a person walked off)
+IR_CONE = 12.0      # degrees either side of the IR sensor's line where its distance is used instead
 
 
 def robot_settings(d):
@@ -80,6 +94,16 @@ def layout(mapping):
     return {"type": "car", "drive": drive, "steer": steer}
 
 
+def forward_speed(speeds, lay, robot):
+    """cm/s forward (negative: backwards) from the drive motors' speeds in degrees a second."""
+    if not lay:
+        return 0.0
+    cm_per_deg = math.pi * robot["wheel"] / 10 / 360
+    groups = (lay["left"], lay["right"]) if lay["type"] == "tank" else (lay["drive"],)
+    means = [sum(speeds.get(p, 0) * s for p, s in g.items()) / len(g) for g in groups if g]
+    return sum(means) / len(means) * cm_per_deg if means else 0.0
+
+
 class Odometry:
     """Dead reckoning from wheel motor angles."""
 
@@ -91,6 +115,7 @@ class Odometry:
         self.last = None
         self.gyro0 = None
         self.th0 = 0.0
+        self.ds = 0.0  # cm driven in the last update, forward positive
 
     def relink(self):
         """The brick program restarted: its motor angles start again from 0."""
@@ -99,6 +124,7 @@ class Odometry:
 
     def update(self, tachos, lay, robot, gyro=None):
         """tachos: {port: degrees}. Returns the distance moved (cm)."""
+        self.ds = 0.0
         if self.last is None:
             self.last = dict(tachos)
             if gyro is not None:
@@ -125,6 +151,7 @@ class Odometry:
                 self.gyro0, self.th0 = gyro, self.th
             new_th = self.th0 + math.radians((gyro - self.gyro0) * robot["gyroSign"])
             dth = new_th - self.th
+        self.ds = ds
         mid = self.th + dth / 2
         self.x += ds * math.cos(mid)
         self.y += ds * math.sin(mid)
@@ -211,18 +238,21 @@ class WorldMap:
             self.grid = Grid()
             self.trail = [[0.0, 0.0]]
             self.sensors = {}
-            self.eye = None  # last range reading: {"dist", "hit", "kind"}
+            self.eye = None  # last range reading: {"dist", "hit", "kind", "at", "speed"}
             self.updates = 0
             self.lay = None
+            self.speed = 0.0  # cm/s forward, from the speeds the brick measures at the wheels
+            self.objects = []  # what the camera recognised: {"label", "x", "y", "n", "seen", "miss"}
 
     def relink(self):
         with self.lock:
             self.odo.relink()
 
-    def feed(self, telemetry, mapping):
+    def feed(self, telemetry, mapping, now=None):
         """One status line from the brick (see ev3_brick.parse_telemetry)."""
         if not telemetry:
             return
+        now = time.monotonic() if now is None else now
         lay = layout(mapping)
         motors = telemetry.get("motors") or {}
         sensors = telemetry.get("sensors") or {}
@@ -231,6 +261,11 @@ class WorldMap:
             gyro = next((s["value"] for s in sensors.values() if s["kind"] == "gy"), None)
             self.odo.update({p: m["tacho"] for p, m in motors.items()}, lay, r, gyro)
             self.lay, self.sensors, self.updates = lay, sensors, self.updates + 1
+            # the brick's own speed readings, not angle changes between lines: lines can arrive
+            # bunched up after a WiFi hiccup, and that would look like a sudden burst of speed
+            self.speed = forward_speed({p: m.get("speed", 0) for p, m in motors.items()}, lay, r)
+            if not any(s["kind"] in ("ir", "us") for s in sensors.values()):
+                self.eye = None  # unplugged
             o = self.odo
             if math.hypot(o.x - self.trail[-1][0], o.y - self.trail[-1][1]) >= 1.0:
                 self.trail.append([round(o.x, 1), round(o.y, 1)])
@@ -247,12 +282,79 @@ class WorldMap:
                     ex, ey = o.x + ahead * math.cos(o.th), o.y + ahead * math.sin(o.th)
                     face = o.th + math.radians(r["eyeAngle"])
                     self.grid.ray(ex, ey, face, dist, hit)
-                    self.eye = {"dist": round(dist, 1), "hit": hit, "kind": s["kind"]}
+                    self.eye = {"dist": round(dist, 1), "hit": hit, "kind": s["kind"], "at": now,
+                                "speed": round(self.speed, 1)}
                 elif s["kind"] == "col" and s["value"] >= 0:
                     ahead = r["floorAhead"] / 10
                     self.grid.paint(o.x + ahead * math.cos(o.th), o.y + ahead * math.sin(o.th), s["value"])
 
+    def eye_now(self):
+        """The latest range reading for the brake, with the robot's measured speed, and the robot's settings."""
+        with self.lock:
+            return (dict(self.eye) if self.eye else None), dict(self.robot)
+
+    def see(self, items, now=None):
+        """Places what the camera recognised (vision.decode's items) on the map, around the robot.
+        Which way: from where the box is across the picture. How far: from where its bottom edge
+        meets the floor, given the camera's height and tilt; or the IR sensor's distance, if the
+        thing is straight ahead and the sensor sees something there."""
+        now = time.monotonic() if now is None else now
+        with self.lock:
+            r, o, eye = self.robot, self.odo, self.eye
+            fov = math.radians(r["camFov"])
+            vfov = 2 * math.atan(math.tan(fov / 2) * 3 / 4)  # the camera's pictures are 4:3
+            tilt, height = math.radians(r["camTilt"]), r["camHeight"] / 10
+            cx, cy = o.x + r["camAhead"] / 10 * math.cos(o.th), o.y + r["camAhead"] / 10 * math.sin(o.th)
+            placed = []
+            for t in items:
+                if t.get("score", 0) < SEE_SCORE:
+                    continue
+                x0, y0, x1, y1 = t["box"]
+                bearing = (0.5 - (x0 + x1) / 2) * fov  # left of centre is positive, like the map's turns
+                down = tilt + (min(y1, 1.0) - 0.5) * vfov  # how far below level its bottom edge is
+                if down <= math.radians(2):
+                    continue  # at or above the horizon: it isn't standing on the floor
+                dist = height / math.tan(down)
+                ir_ok = eye and eye["hit"] and eye["kind"] == "ir" and now - eye["at"] < 0.5
+                if ir_ok and abs(math.degrees(bearing) - r["eyeAngle"]) < IR_CONE:
+                    dist = eye["dist"] + (r["eyeAhead"] - r["camAhead"]) / 10
+                if not 5 <= dist <= SEE_FAR:
+                    continue
+                a = o.th + bearing
+                placed.append((t["label"], cx + dist * math.cos(a), cy + dist * math.sin(a), dist))
+            matched = set()
+            for label, x, y, dist in placed:
+                near = max(30.0, dist * 0.25)  # far things are placed less exactly
+                best = None
+                for k, ob in enumerate(self.objects):
+                    d = math.hypot(ob["x"] - x, ob["y"] - y)
+                    if ob["label"] == label and k not in matched and d < near and (best is None or d < best[1]):
+                        best = (k, d)
+                if best:
+                    ob = self.objects[best[0]]
+                    w = 1.0 / min(10, ob["n"] + 1)
+                    ob["x"] += (x - ob["x"]) * w
+                    ob["y"] += (y - ob["y"]) * w
+                    ob["n"], ob["seen"], ob["miss"] = ob["n"] + 1, now, 0
+                    matched.add(best[0])
+                else:
+                    self.objects.append({"label": label, "x": x, "y": y, "n": 1, "seen": now, "miss": 0})
+                    matched.add(len(self.objects) - 1)
+            # things that should be in view but weren't seen this time: after a while, they've gone
+            keep = []
+            for k, ob in enumerate(self.objects):
+                if k not in matched:
+                    dx, dy = ob["x"] - cx, ob["y"] - cy
+                    off = (math.atan2(dy, dx) - o.th + math.pi) % (2 * math.pi) - math.pi
+                    if abs(off) < fov * 0.4 and math.hypot(dx, dy) < 250:
+                        ob["miss"] += 1
+                if ob["miss"] < SEE_MISSES:
+                    keep.append(ob)
+            keep.sort(key=lambda ob: ob["seen"])
+            self.objects = keep[-SEE_KEEP:]
+
     def snapshot(self):
+        now = time.monotonic()
         with self.lock:
             o = self.odo
             return {
@@ -264,6 +366,8 @@ class WorldMap:
                 "robot": dict(self.robot),
                 "layout": self.lay["type"] if self.lay else None,
                 "sensors": self.sensors,
-                "eye": self.eye,
+                "eye": {k: v for k, v in self.eye.items() if k != "at"} if self.eye else None,
+                "objects": [{"label": ob["label"], "x": round(ob["x"], 1), "y": round(ob["y"], 1),
+                             "seen": round(now - ob["seen"], 1)} for ob in self.objects if ob["n"] >= SEE_SHOW],
                 "updates": self.updates,
             }

@@ -75,6 +75,22 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - Feature report `0xA3` holds the firmware build date/time and hardware/firmware version numbers.
 - The DS4 doesn't report Bluetooth signal strength. Sony updates DS4 firmware only through a PS4/PS5; there's no Windows updater (the PC updater is for the DualSense).
 
+## The obstacle brake
+
+- **The robot won't drive forward:** something is closer than the stop distance (15 cm by default), or the sensor reads something that isn't there. The status bar says "Stopped" with the distance. Back away or turn, or switch the brake off on the Driving page.
+- **"No reading":** the brick stopped sending sensor readings for 0.8 s. The link is probably about to drop: check WiFi.
+- **It doesn't brake:**
+  - The infrared or ultrasonic sensor must face straight ahead or straight back. Set which way under **Robot size** on the Map page. A sensor facing sideways isn't used for braking.
+  - The brake needs a driving layout on the Driving page (two-wheel drive, or speed ports on the throttle).
+  - Upload the latest brick program: versions before 0.8 don't send sensor readings.
+- **It stops too late:** make **Slow from** larger, or lower **Normal speed**. The infrared sensor only reads up to about 70 cm, and misses thin chair legs.
+- **It stops too early:** the infrared sensor's distance depends on the colour of what it sees. Dark things read further away, light things nearer. Lower **Stop short by**.
+
+## Things on the map from the camera
+
+- **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Robot size** on the Map page. Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
+- **Nothing appears:** a thing must be seen twice, at least 50% sure. Things seen against the sky or above the horizon (on a shelf high up) aren't placed.
+
 ## Object recognition on the camera
 
 - **"Needs a one-time setup":** install the packages and get the model, as the page shows. The full steps are in [VISION.md](VISION.md).

@@ -180,5 +180,108 @@ class PracticeRoomTest(unittest.TestCase):
         self.assertTrue(all(14 <= i <= 18 for i, _, _ in snap["cells"]), snap["cells"])  # about 70 cm ahead
 
 
+class SeeTest(unittest.TestCase):
+    """Things the camera recognises, placed on the map from where they are in the picture."""
+
+    def setUp(self):
+        self.m = w.WorldMap(os.path.join(tempfile.mkdtemp(), "worldmap.json"))
+        self.r = self.m.robot  # camera 4 cm ahead, 15 cm up, looking 15 degrees down, 62 degrees across
+
+    def bottom_at(self, dist):
+        """Where in the picture the bottom edge of something standing dist cm in front of the camera is."""
+        r = self.r
+        vfov = 2 * math.atan(math.tan(math.radians(r["camFov"]) / 2) * 3 / 4)
+        down = math.atan(r["camHeight"] / 10 / dist)
+        return 0.5 + (down - math.radians(r["camTilt"])) / vfov
+
+    def item(self, label="chair", cx=0.5, dist=100.0, score=0.8):
+        y1 = self.bottom_at(dist)
+        return {"label": label, "score": score, "box": [cx - 0.05, y1 - 0.2, cx + 0.05, y1]}
+
+    def test_shown_once_seen_twice(self):
+        self.m.see([self.item()], now=1.0)
+        self.assertEqual(self.m.snapshot()["objects"], [])  # one sighting may be a wrong guess
+        self.m.see([self.item()], now=1.1)
+        objs = self.m.snapshot()["objects"]
+        self.assertEqual(len(objs), 1)
+        self.assertEqual(objs[0]["label"], "chair")
+        self.assertAlmostEqual(objs[0]["x"], 104, delta=1)  # 100 cm from the camera, which is 4 cm ahead
+        self.assertAlmostEqual(objs[0]["y"], 0, delta=1)
+
+    def test_left_of_the_picture_is_left_of_the_robot(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item(cx=0.2)], now=t)
+        self.assertGreater(self.m.snapshot()["objects"][0]["y"], 20)
+
+    def test_follows_the_robot(self):
+        with self.m.lock:
+            self.m.odo.x, self.m.odo.y, self.m.odo.th = 50.0, 20.0, math.pi / 2  # facing left
+        for t in (1.0, 1.1):
+            self.m.see([self.item(dist=60)], now=t)
+        ob = self.m.snapshot()["objects"][0]
+        self.assertAlmostEqual(ob["x"], 50, delta=1)
+        self.assertAlmostEqual(ob["y"], 20 + 4 + 60, delta=1)
+
+    def test_ir_distance_used_straight_ahead(self):
+        with self.m.lock:
+            self.m.eye = {"dist": 30.0, "hit": True, "kind": "ir", "at": 1.0, "speed": 0.0}
+        for t in (1.0, 1.1):
+            self.m.see([self.item(dist=100)], now=t)  # the picture says 100 cm; the IR sensor says 30
+        self.assertAlmostEqual(self.m.snapshot()["objects"][0]["x"], 30 + 6, delta=1)  # the IR sensor is 6 cm ahead
+
+    def test_unsure_or_in_the_air_is_left_out(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item(score=0.3), {"label": "clock", "score": 0.9, "box": [0.4, 0.05, 0.6, 0.15]}], now=t)  # above the horizon
+        self.assertEqual(self.m.snapshot()["objects"], [])
+
+    def test_two_of_a_kind_apart_stay_two(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item(cx=0.2), self.item(cx=0.8)], now=t)
+        self.assertEqual(len(self.m.snapshot()["objects"]), 2)
+
+    def test_gone_when_in_view_and_not_seen(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item(label="person")], now=t)
+        for n in range(w.SEE_MISSES):
+            self.m.see([], now=2 + n / 10)
+        self.assertEqual(self.m.snapshot()["objects"], [])
+
+    def test_kept_when_out_of_view(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item()], now=t)
+        with self.m.lock:
+            self.m.odo.th = math.pi  # turned round
+        for n in range(w.SEE_MISSES + 5):
+            self.m.see([], now=2 + n / 10)
+        self.assertEqual(len(self.m.snapshot()["objects"]), 1)
+
+    def test_cleared_with_the_map(self):
+        for t in (1.0, 1.1):
+            self.m.see([self.item()], now=t)
+        self.m.reset()
+        self.assertEqual(self.m.snapshot()["objects"], [])
+
+
+class SpeedTest(unittest.TestCase):
+    def test_forward_speed(self):
+        self.assertAlmostEqual(w.forward_speed({"B": 360, "C": -360}, w.layout(mapping.TANK), R), 0.0)  # turning on the spot
+        self.assertAlmostEqual(w.forward_speed({"B": -360, "C": -360}, w.layout(mapping.CAR), R), -360 * CM_PER_DEG)
+        self.assertEqual(w.forward_speed({"B": 360}, None, R), 0.0)
+
+    def test_speed_and_unplugged_sensor(self):
+        m = w.WorldMap(os.path.join(tempfile.mkdtemp(), "worldmap.json"))
+        tel = lambda deg, sensors: {"motors": {"B": {"tacho": deg, "speed": 360}, "C": {"tacho": deg, "speed": 360}},  # noqa: E731
+                                    "sensors": sensors}
+        ir = {"S4": {"kind": "ir", "value": 50}}
+        for n in range(6):
+            m.feed(tel(90 * n, ir), mapping.TANK, now=n * 0.25)
+        m.feed(tel(540, ir), mapping.TANK, now=1.25)  # two lines arriving together don't look like a burst of speed
+        eye, _ = m.eye_now()
+        self.assertAlmostEqual(eye["speed"], 360 * CM_PER_DEG, delta=0.1)
+        self.assertEqual(eye["at"], 1.25)
+        m.feed(tel(450, {}), mapping.TANK, now=1.5)
+        self.assertIsNone(m.eye_now()[0], "unplugged: no reading to brake on")
+
+
 if __name__ == "__main__":
     unittest.main()

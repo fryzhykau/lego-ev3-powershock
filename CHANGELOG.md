@@ -55,6 +55,21 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Guide:** `docs/VISION.md`.
   - **Tests:** decoding the model's output, overlapping boxes, the frame reader, the checked download, and starting and stopping. Tests that need the packages are skipped without them.
   - **Fresh pictures only:** each start waits for a new picture, never one left from an earlier run, which could be from another camera.
+- **Obstacle brake,** on the laptop: with an infrared or ultrasonic sensor facing ahead, the robot slows down near obstacles and stops short of them.
+  - **Settings:** on the Driving page, on by default. It slows from 40 cm and stops 15 cm short.
+  - **Only driving towards the obstacle is braked:** backing away and turning on the spot always work.
+  - **Allows for delay:** it allows for how far the robot has driven since the sensor reading (up to a quarter of a second old), using the speeds the brick measures.
+  - **No reading for 0.8 s:** it stops driving towards whatever might be there.
+  - **Speed comes back gradually** after a stop.
+  - **Shown while braking:** in the status bar, the camera's full-screen view and on the Map page.
+  - **Robot side:** no brick upload is needed. It only ever takes speed away from the commands.
+- **Things the camera recognises on the map:** labelled markers where they stand, kept as the robot drives on.
+  - **Distance:** worked out from the camera's height and tilt (new **Robot size** fields), or from the infrared sensor straight ahead.
+  - **Turning it on:** **Recognise things while this page is open** on the Map page.
+- **The map** draws the brake's stop and slow-down lines in front of the robot.
+
+### Fixed
+- **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
 - **A new look: an instrument cluster at night,** and the old look kept as **Day look**:
