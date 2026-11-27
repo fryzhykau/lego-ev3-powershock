@@ -705,7 +705,33 @@
 
   /* map page */
   .mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
-  .mapstage { padding: 0; overflow: hidden; }
+  .mapstage { padding: 0; overflow: hidden; position: relative; }
+  /* the instrument panel over the 3D map: speed, heading, and what the autopilot decides */
+  .maphud { position: absolute; left: 14px; top: 14px; width: 260px; padding: 12px 14px; border-radius: 12px; background: var(--glass);
+    border: 1px solid var(--edge); backdrop-filter: blur(8px); font-size: 12.5px; line-height: 1.35; pointer-events: none; }
+  .maphud .hud-speed { display: flex; align-items: baseline; gap: 6px; }
+  .maphud .hud-big { font-family: var(--display); font-size: 40px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; min-width: 1.4em; }
+  .maphud .hud-unit { color: var(--muted); }
+  .maphud .hud-dir { margin-left: auto; font-family: var(--display); font-weight: 600; }
+  .maphud .hud-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .maphud .hud-compass { width: 26px; height: 26px; flex: none; }
+  .maphud .hud-compass circle { fill: none; stroke: var(--rule); stroke-width: 1.5; }
+  .maphud .hud-compass path { fill: var(--ink); transition: transform .25s linear; }
+  .maphud .hud-auto { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
+  .maphud .hud-auto .hud-row { margin-top: 0; }
+  .maphud .hud-state { font-family: var(--display); font-weight: 600; font-size: 14px; }
+  .maphud .hud-bar { position: relative; height: 8px; margin: 8px 0 4px; border-radius: 4px; background: var(--track); }
+  .maphud .hud-bar span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
+  .maphud .hud-bar .ask { box-shadow: inset 0 0 0 1.5px var(--muted); }
+  .maphud .hud-bar .give { background: var(--go); }
+  .maphud.slow .hud-bar .give { background: var(--warn); } .maphud.stop .hud-bar .give { background: var(--stop); }
+  .maphud .hud-why { color: var(--muted); margin-top: 2px; }
+  .maphud .hud-log { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--rule); display: grid; gap: 3px; }
+  .maphud .hud-log:empty { display: none; }
+  .maphud .hud-log li { display: grid; grid-template-columns: 34px 1fr; gap: 6px; }
+  .maphud .hud-log li .t { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .maphud .hud-log li.old { color: var(--muted); }
+  @media (max-width: 560px) { .maphud { width: auto; right: 14px; } .maphud .hud-log { display: none; } .maphud .hud-big { font-size: 30px; } }
   .map3d { height: clamp(380px, calc(100vh - 230px), 760px); background: linear-gradient(180deg, var(--well-mid), var(--map-floor)); }
   .mapbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--rule); }
   .mapbar #mapPose { flex: 1; font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -1277,6 +1303,17 @@
       <div class="mapgrid">
         <div class="card mapstage">
           <div class="map3d" id="map3d"><p class="muted" id="map3dmsg" style="padding:20px">Loading the 3D view…</p></div>
+          <div class="maphud" id="mapHud" role="group" aria-label="Live driving data" hidden>
+            <div class="hud-speed"><span class="hud-big" id="hudSpeed">0</span><span class="hud-unit">cm/s</span><span class="hud-dir" id="hudDir">Standing still</span></div>
+            <div class="hud-row"><svg class="hud-compass" viewBox="-13 -13 26 26" aria-hidden="true"><circle r="11.5"></circle><path id="hudNeedle" d="M0 -9 L3.5 3 L0 1 L-3.5 3 Z"></path></svg><span id="hudHeading">Facing the way it started</span></div>
+            <div class="hud-auto">
+              <div class="hud-row"><span class="dot" id="hudDot"></span><span class="hud-state" id="hudState">Autopilot</span></div>
+              <div class="hud-bar" aria-hidden="true"><span class="ask" id="hudAsk"></span><span class="give" id="hudGive"></span></div>
+              <div id="hudPower"></div>
+              <div class="hud-why" id="hudWhy"></div>
+            </div>
+            <ol class="hud-log" id="hudLog" aria-label="What the autopilot decided" aria-live="polite"></ol>
+          </div>
           <div class="mapbar">
             <div class="tabs" role="tablist" id="mapView" aria-label="Camera">
               <button role="tab" aria-selected="true" data-view="behind">Behind</button>
@@ -2755,6 +2792,61 @@ function sensorText(s) {
   if (s.kind === "col") { const c = COLOUR_NAMES[s.value]; return c ? `<span class="sw" style="background:${c[1]}"></span>${c[0]}` : "no colour"; }
   return "";
 }
+// ---------- the instrument panel over the 3D map ----------
+// Speed comes from the wheels (pc/worldmap.py); the autopilot is the obstacle brake for now (pc/brake.py).
+function decisionText(e) {
+  const d = e.dist != null ? `${Math.round(e.dist)} cm ahead` : "ahead", by = e.src === "camera" ? ", camera" : "";
+  if (e.careful) return `Careful: ${e.careful} close by, half speed`;
+  return { slow: `Slowed: ${d}${by}`, stop: `Stopped: ${d}${by}`, clear: "Clear: full speed again",
+    blind: "Stopped: no reading from the sensor or camera", off: "Brake switched off", "no sensor": "No sensor: not braking",
+    sideways: "Sensor faces sideways: not braking", "no layout": "No drive motors: not braking" }[e.what] || e.what;
+}
+function agoText(t) { return t < 1 ? "now" : t < 60 ? `${Math.round(t)} s` : `${Math.round(t / 60)} min`; }
+function drawHud(m) {
+  const L = S.link, hud = $("mapHud");
+  hud.hidden = !(L && L.connected && m);
+  if (hud.hidden) { S.hudPrev = null; return; }
+  const v = m.speed || 0, h = m.pose.heading, now = performance.now();
+  // turn rate from the heading's change, smoothed
+  const p = S.hudPrev;
+  if (p && now - p.t > 50) {
+    const dh = ((h - p.h + 540) % 360) - 180, rate = dh / ((now - p.t) / 1000);
+    S.hudTurn = (S.hudTurn || 0) * 0.5 + rate * 0.5;
+  }
+  S.hudPrev = { h, t: now };
+  const turn = S.hudTurn || 0;
+  $("hudSpeed").textContent = Math.round(Math.abs(v));
+  $("hudDir").textContent = Math.abs(v) < 1 ? (Math.abs(turn) > 8 ? "Turning on the spot" : "Standing still") : v > 0 ? "Forward" : "Backward";
+  $("hudNeedle").style.transform = `rotate(${-h}deg)`;
+  const hh = Math.round(((h % 360) + 540) % 360 - 180);
+  const head = hh === 0 ? "Facing the way it started" : `Facing ${Math.abs(hh)}° ${hh > 0 ? "left" : "right"} of the start`;
+  const tt = Math.abs(turn) > 8 ? ` · turning ${turn > 0 ? "left" : "right"} ${Math.round(Math.abs(turn))}°/s` : "";
+  $("hudHeading").textContent = head + tt;
+  const k = L.brake || {};
+  // stopped or slowing only when it changes the driving: near a box but backing away, it's clear
+  const acting = S.armed && (k.braking || k.state === "blind");
+  const stopped = acting && (k.state === "stop" || k.state === "blind"), slowing = acting && !stopped;
+  const label = { off: "Autopilot off", "no sensor": "Autopilot: no sensor", sideways: "Autopilot: sensor faces sideways", "no layout": "Autopilot: no drive motors" }[k.state]
+    || (k.careful ? `Careful: ${k.careful} ahead` : stopped ? (k.state === "blind" ? "Stopped: can't see" : "Stopped") : slowing ? "Slowing" : "Clear");
+  $("hudState").textContent = label;
+  $("hudDot").className = "dot " + (["off", "no sensor", "sideways", "no layout"].includes(k.state) ? "" : stopped ? "bad" : slowing ? "warn" : "go");
+  hud.classList.toggle("slow", slowing); hud.classList.toggle("stop", stopped);
+  const asked = k.asked, given = k.given;
+  $("hudAsk").style.width = asked == null ? "0" : Math.min(100, Math.abs(asked)) + "%";
+  $("hudGive").style.width = given == null ? "0" : Math.min(100, Math.abs(given)) + "%";
+  const power = asked == null ? "" : !S.armed ? "Motors off" : asked === 0 ? "Not driving" : asked === given
+    ? `Driving at ${Math.abs(asked)}%${asked < 0 ? " backwards" : ""}`
+    : `You ask ${Math.abs(asked)}%, it allows ${Math.abs(given)}%`;
+  if ($("hudPower").textContent !== power) $("hudPower").textContent = power;
+  const src = k.src === "camera" ? "seen by the camera" : k.src ? `by the ${k.src} sensor` : "";
+  const why = ["off", "no sensor", "sideways", "no layout"].includes(k.state) ? ""
+    : k.state === "blind" ? "No fresh reading: it won't drive towards what it can't see."
+    : (k.dist != null ? `Nearest thing ahead: ${Math.round(k.dist)} cm, ${src}.` : "Nothing in the way.")
+      + (k.careful ? " Twice the room, half the speed." : "");
+  if ($("hudWhy").textContent !== why) $("hudWhy").textContent = why;
+  setHTML($("hudLog"), (k.decisions || []).slice(0, 3).map((e) =>
+    `<li class="${e.ago > 20 ? "old" : ""}"><span class="t">${agoText(e.ago)}</span><span>${esc(decisionText(e))}</span></li>`).join(""));
+}
 function drawMapSide(m) {
   const t = S.link && S.link.telemetry, ports = (t && t.ports) || {}, sens = (m && m.sensors) || {};
   const role = { ir: "range ahead", us: "range ahead", col: "floor colour", gy: "heading" };
@@ -2880,6 +2972,7 @@ async function pollMap() {
   const mb = (L && L.mapping && L.mapping.brake) || { stop: 15, slow: 40 };
   m.brake = L && L.connected && L.brake ? { ...L.brake, stop: L.brake.stop ?? mb.stop, slow: L.brake.slow ?? mb.slow, armed: !!S.armed } : null;
   if (window.Map3D) window.Map3D.update(m);
+  drawHud(m);
   if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
   drawMapSide(m);
 }

@@ -126,6 +126,12 @@ What to expect from the sensors that come with EV3 sets:
 
 The map also draws the obstacle brake's lines in front of the robot: where it stops, and where it starts slowing. They light up while it brakes.
 
+**The instrument panel** in the corner of the map shows, live while the robot is linked:
+- **Speed** in cm/s, from the wheels, and whether it's going forward or backward. An arrow on the floor shows where the robot will be in a second.
+- **Heading:** a compass needle and how far it has turned from where the map started, and how fast it's turning.
+- **The autopilot:** what it's doing (clear, slowing, stopped, careful), how much speed you ask for against how much it allows, and why: the nearest thing ahead and which sensor saw it.
+- **Its last decisions,** such as "Slowed: 32 cm ahead, camera", with how long ago. Only changes to the driving are listed, not everything it sees. For now, the autopilot is the obstacle brake.
+
 **The floor the camera sees:** while the console is linked to the robot and **Use the camera too** is on (Driving page), the camera watches the floor. It needs only Pillow, not the recognition model.
 - **On the map:** a green fan shows where the floor is free, in about 30 directions at once. Where something stands on the floor, the fan ends in a red edge, and the map marks it, as the infrared sensor does. The camera counts half as much as the sensor.
 - **The camera on the robot:** drawn where it sits, with lines to the corners of the floor it can see. Change its height or tilt under **Robot size**, and the lines move.

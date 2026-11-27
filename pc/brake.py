@@ -24,6 +24,8 @@ STALE = 0.8               # s: a reading older than this is too old to drive on
 RISE = 2.0                # how fast speed may come back, in full speed per second
 FACING = 30.0             # degrees: a sensor within this of straight ahead (or behind) counts
 CAREFUL_SPEED = 0.5       # most of the speed allowed near a person or pet
+LOG_KEEP = 12             # decisions kept for the page
+SETTLE = 0.3              # s a decision must hold before it's logged, so the edge of the slow zone doesn't flicker
 
 
 def settings(d):
@@ -74,6 +76,17 @@ def _sides(res, lay):
     return out
 
 
+def forward(res, lay):
+    """How fast the commands drive forward, in percent (negative: backwards), or None with no layout."""
+    sides = _sides(res, lay)
+    if not lay:
+        return None
+    mean = lambda v: sum(v) / len(v) if v else 0.0  # noqa: E731
+    if lay["type"] == "tank":
+        return (mean([v for s, v, _ in sides.values() if s == "left"]) + mean([v for s, v, _ in sides.values() if s == "right"])) / 2
+    return mean([v for _, v, _ in sides.values()])
+
+
 class Brake:
     """Keeps how much speed was allowed last time, so speed comes back gradually after a stop."""
 
@@ -81,6 +94,32 @@ class Brake:
         self.allowed = 1.0
         self.last = None
         self.state = {"state": "off", "dist": None, "allowed": 1.0}
+        self.log = []          # decisions, newest last: {"at", "what", "dist", "src", "careful"}
+        self.logged = None     # the decision last logged
+        self.pending = None    # (decision, since) not held long enough yet
+
+    def _note(self, what, now):
+        """Logs what the brake decided, when it changes and holds: clear, slow, stop, blind, careful, off..."""
+        st = self.state
+        key = (what, st.get("careful"))
+        if key == self.logged:
+            self.pending = None
+            return
+        if what == "clear" and not st.get("careful") and (self.logged is None or self.logged[0] not in ("slow", "stop", "blind")
+                                                          and not self.logged[1]):
+            self.logged = key  # only coming back from braking is worth saying
+            return
+        if self.pending is None or self.pending[0] != key:
+            self.pending = (key, now)
+        if what in ("stop", "blind") or now - self.pending[1] >= SETTLE:
+            self.log.append({"at": now, "what": what, "dist": st.get("dist"), "src": st.get("src"),
+                             "careful": st.get("careful")})
+            del self.log[:-LOG_KEEP]
+            self.logged, self.pending = key, None
+
+    def decisions(self, now):
+        """The logged decisions for the page, newest first, with how long ago each was."""
+        return [dict({k: v for k, v in e.items() if k != "at"}, ago=round(now - e["at"], 1)) for e in reversed(self.log)]
 
     def apply(self, res, lay, eye, conf, robot, now, cam=None):
         """res: one tick's port commands (mapping.Mapper.step). eye: the latest range reading
@@ -99,7 +138,10 @@ class Brake:
             self.allowed = 1.0
             why = ("off" if not conf["on"] else "no layout" if not lay
                    else "no sensor" if eye is None else "sideways")
-            self.state = {"state": why, "dist": None, "allowed": 1.0}
+            fwd = forward(res, lay)
+            self.state = {"state": why, "dist": None, "allowed": 1.0,
+                          "asked": None if fwd is None else round(fwd), "given": None if fwd is None else round(fwd)}
+            self._note(why, now)
             return res
         stop, slow, top = conf["stop"], conf["slow"], 1.0
         careful = cam.get("careful") if cam else None
@@ -161,5 +203,8 @@ class Brake:
         self.state = {"state": name, "dist": None if dist is None else round(max(0.0, dist), 1),
                       "allowed": round(a, 2), "braking": moving and a < 1.0, "src": src,
                       "careful": careful, "camera": cam is not None and bool(cam.get("good")),
-                      "stop": stop, "slow": slow}
+                      "stop": stop, "slow": slow,
+                      "asked": round(forward(res, lay)), "given": round(forward(out, lay))}
+        # what it decided: only a change to the robot's driving counts, not what it merely sees
+        self._note(name if moving and a < 1.0 or name == "blind" else "clear", now)
         return out

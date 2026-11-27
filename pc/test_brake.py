@@ -158,6 +158,60 @@ class BrakeTest(unittest.TestCase):
                 self.assertLessEqual(abs(out["C"][1]), max(abs(l), abs(r)))
 
 
+class DecisionTest(unittest.TestCase):
+    """What the brake decided, for the map's instrument panel."""
+
+    def setUp(self):
+        self.k = b.Brake()
+
+    def step(self, res, e, now, cam=None):
+        return self.k.apply(res, TANK, e, ON, ROBOT, now, cam)
+
+    def test_asked_and_given(self):
+        self.step(tank(80, 80), eye(27.5), NOW)
+        self.assertEqual((self.k.state["asked"], self.k.state["given"]), (80, 40))
+        self.step(tank(-60, -60), eye(5), NOW + 0.02)  # backing away isn't braked
+        self.assertEqual((self.k.state["asked"], self.k.state["given"]), (-60, -60))
+        self.k.apply(tank(50, 50), TANK, None, ON, ROBOT, NOW + 0.04)
+        self.assertEqual(self.k.state["asked"], 50)
+
+    def test_nothing_logged_while_clear(self):
+        for n in range(10):
+            self.step(tank(80, 80), eye(70, hit=False), NOW + n * 0.02)
+        self.assertEqual(self.k.decisions(NOW), [])
+
+    def test_stop_is_logged_at_once_and_slowing_once_it_holds(self):
+        t = NOW
+        self.step(tank(80, 80), eye(30), t)
+        self.assertEqual(self.k.decisions(t), [])  # slowing, but not for long enough yet
+        for n in range(1, 20):
+            self.step(tank(80, 80), eye(30), t + n * 0.02)
+        self.step(tank(80, 80), eye(5), t + 0.5)
+        d = self.k.decisions(t + 1.0)
+        self.assertEqual([e["what"] for e in d], ["stop", "slow"])  # newest first
+        self.assertEqual(d[0]["dist"], 5.0)
+        self.assertAlmostEqual(d[0]["ago"], 0.5)
+
+    def test_only_what_changes_the_driving_counts(self):
+        # something close ahead, but the robot isn't driving at it: nothing decided
+        for n in range(30):
+            self.step(tank(0, 0), eye(10), NOW + n * 0.02)
+        self.assertEqual(self.k.decisions(NOW + 1), [])
+
+    def test_flicker_at_the_edge_isnt_logged(self):
+        for n in range(30):
+            self.step(tank(80, 80), eye(39.5 if n % 2 else 41), NOW + n * 0.02)
+        self.assertEqual(self.k.decisions(NOW + 1), [])
+
+    def test_keeps_the_latest(self):
+        t = NOW
+        for n in range(30):
+            for _ in range(2):
+                self.step(tank(80, 80), eye(5 if n % 2 else 70, hit=n % 2 == 1, age=NOW - t), t)  # a fresh reading
+                t += 0.5
+        self.assertEqual(len(self.k.decisions(t)), b.LOG_KEEP)
+
+
 def view(dist, age=0.0, good=True, careful=None, speed=0.0):
     """What the camera sees in the robot's way (worldmap.WorldMap.camera_now)."""
     return {"dist": dist, "at": NOW - age, "good": good, "careful": careful, "speed": speed}

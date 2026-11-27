@@ -207,7 +207,8 @@ class Link:
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
                 "mapping": self.mapper.mapping,
-                "brake": dict(self.brake.state, on=self.mapper.mapping.get("brake", {}).get("on", True)),
+                "brake": dict(self.brake.state, on=self.mapper.mapping.get("brake", {}).get("on", True),
+                              decisions=self.brake.decisions(time.monotonic())),
                 "rate": round(self.rate),
                 "sent": self.sent,
             }

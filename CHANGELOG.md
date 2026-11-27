@@ -73,6 +73,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **In Practice,** a pretend camera sees the practice room.
 - **More room for people and pets:** with object recognition set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.
 - **The camera on the 3D robot,** with lines to the corners of the floor it can see, so its height and tilt can be checked by eye.
+- **An instrument panel on the map:** live speed, heading and turn rate, an arrow showing where the robot will be in a second, and what the autopilot (the obstacle brake, for now) decides: what you ask for against what it allows, why, and its last few decisions.
 - **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.
 
 ### Fixed

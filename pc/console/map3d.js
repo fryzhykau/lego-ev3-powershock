@@ -147,6 +147,17 @@ export function createMap(container) {
   const sightMat = new THREE.LineBasicMaterial({ color: freeColor, transparent: true, opacity: 0.35 });
   const sight = new THREE.LineSegments(sightGeo, sightMat); sight.frustumCulled = false; robot.add(sight);
 
+  // where the robot will be in a second: an arrow on the floor, as long as the speed, coloured by the brake
+  const arrow = new THREE.Group(); robot.add(arrow); arrow.visible = false;
+  const arrowMat = new THREE.MeshBasicMaterial({ color: freeColor, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
+  const shaftGeo = new THREE.PlaneGeometry(1, 2.2); shaftGeo.rotateX(-Math.PI / 2); shaftGeo.translate(0.5, 0, 0);
+  const shaft = new THREE.Mesh(shaftGeo, arrowMat);
+  const headShape = new THREE.Shape(); headShape.moveTo(0, -3.6); headShape.lineTo(6, 0); headShape.lineTo(0, 3.6); headShape.closePath();
+  const headGeo = new THREE.ShapeGeometry(headShape); headGeo.rotateX(-Math.PI / 2);
+  const head = new THREE.Mesh(headGeo, arrowMat);
+  shaft.position.y = head.position.y = 1.2; arrow.add(shaft, head);
+  const warnColor = new THREE.Color(0xf5a524), stopColor = new THREE.Color(0xff4b55);
+
   // the path driven so far
   const trailPos = new Float32Array(3000 * 3);
   const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3)); trailGeo.setDrawRange(0, 0);
@@ -284,6 +295,16 @@ export function createMap(container) {
         const live = k.armed && k.braking;
         stopMat.opacity = live && k.state !== "slow" ? 0.95 : night ? 0.35 : 0.3;
         slowMat.opacity = live && k.state === "slow" ? 0.8 : night ? 0.18 : 0.14;
+      }
+      // the speed arrow: where the robot will be in a second
+      const sp = s.speed || 0, len = Math.min(120, Math.abs(sp));
+      arrow.visible = len >= 2;
+      if (arrow.visible) {
+        const fwd = sp > 0, startX = fwd ? Math.max(8, size.eyeAhead / 10 + 2) : -8;
+        arrow.position.set(startX, 0, 0); arrow.rotation.y = fwd ? 0 : Math.PI;
+        shaft.scale.x = Math.max(0.1, len - 6); head.position.x = Math.max(0.1, len - 6);
+        const bk = s.brake, acting = bk && bk.armed && bk.braking;
+        arrowMat.color.set(acting && bk.state === "slow" ? warnColor : acting ? stopColor : labelInk);
       }
       // the eye's beam: red to what it hit, faint when nothing is in range
       const e = s.eye;

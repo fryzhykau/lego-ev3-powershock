@@ -526,6 +526,7 @@ class WorldMap:
                         "pts": [pt(b, near) + pt(b, max(near, d)) + [1 if hit else 0] for b, d, hit in v["dirs"]]}
             return {
                 "pose": {"x": round(o.x, 1), "y": round(o.y, 1), "heading": round(math.degrees(o.th), 1)},
+                "speed": round(self.speed, 1),  # cm/s forward, from the wheels
                 "trail": list(self.trail),
                 "cells": self.grid.cells(),
                 "floor": [[i - self.grid.half, j - self.grid.half, c] for (i, j), c in self.grid.floor.items()],

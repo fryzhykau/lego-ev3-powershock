@@ -326,6 +326,8 @@ Still open: choosing a licence.
 - **The camera brakes a little early while moving:** its pictures are taken to be 0.15 s old, as a real camera's are. The pretend camera's aren't, so in Practice it stops a few centimetres sooner than needed. On the real robot that allowance is right.
 - **Placement from far readings only** gets the tilt right but the height rough: from 36–66 cm the practice camera came out 13 cm high instead of 15. Nearer stops fix that.
 
+**The instrument panel:** a panel over the 3D map shows speed, heading and the autopilot's decisions as they happen. The brake keeps its own short log, and only logs what changes the driving. Merely seeing a box while backing away from it isn't a decision. A decision must also hold for 0.3 s, so driving along the edge of the slow-down zone doesn't fill the log. Stops are logged at once.
+
 **Status:** works in Practice. The real floor, lighting and rugs will decide how well it works at home.
 
 ## Side ideas
