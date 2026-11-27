@@ -109,6 +109,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **Notices sit in a strip right under the top bar,** across the whole width, instead of a card on each page. What the controller needs (a button press, waking up) is the tooltip of its amber icon in the top bar, with its battery.
 - **Stop looks inactive** (grey) while nothing can move: Motors off, no motor turning, no calibration drive. It still works then (click, Space or Esc), and turns red the moment anything can move.
 - **The Devices list** (test each motor, which motors work together) moved into the **Your robot** card, under the drawing; with the brick out of reach it hides instead of repeating that.
 - **The Gearing page's 3D gears** look like LEGO's: gears from 20 teeth have a full-width toothed rim, a thinner web with the holes in it and a raised hub round the axle, in slightly glossy plastic; the double-bevel gears are black.
