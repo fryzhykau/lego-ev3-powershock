@@ -25,6 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import camera  # noqa: E402
 import vision  # noqa: E402
 import floor  # noqa: E402
+import calibrate  # noqa: E402
+import copy  # noqa: E402
 import ds4_hid  # noqa: E402
 import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
@@ -79,6 +81,9 @@ class Link:
         self.lost_at = None    # when the link dropped while still wanted
         self.find_at = 0.0     # when the brick was last looked for at a new address
         self.moved = None      # {"from", "to"}: the brick came back at a new address
+        self.cal = calibrate.Calibration()  # the car's measured limits (pc/calibrate.py)
+        self.turn_job = None   # the turning-circle drive while it runs
+        self.cal_port = None   # the steering port while its end stops are found: the controls leave it alone
         threading.Thread(target=self._run, daemon=True).start()
 
     def set_input(self, inp):
@@ -139,6 +144,109 @@ class Link:
             self.error = None
         threading.Thread(target=self._read, args=(s,), daemon=True).start()
         return True
+
+    # ---------- car calibration (pc/calibrate.py) ----------
+    def tacho(self, port):
+        with self.lock:
+            t = self.telemetry if self.sock and time.monotonic() - self.telemetry_at < 1.5 else None
+        m = ((t or {}).get("motors") or {}).get(port)
+        return m["tacho"] if m else None
+
+    def calibrate_steer(self):
+        """Feels for the steering's end stops, sets centre, and fits the steering range inside them."""
+        with self.lock:
+            m, connected = self.mapper.mapping, self.sock is not None
+        port = next((p for p, c in sorted(m["ports"].items()) if c["mode"] == "position"), None)
+        if not connected:
+            return {"ok": False, "error": "Connect to the brick first."}
+        if port is None:
+            return {"ok": False, "error": "No steering: set a port to Steering (angle) on the Driving page first."}
+        job = self.cal.snapshot()["job"]
+        if job and job.get("state") == "running":
+            return {"ok": False, "error": "A calibration is already running."}
+
+        def work():
+            with self.lock:
+                self.cal_port = port
+            try:
+                r = self.cal.find_steer(port, self.send_line, lambda: self.tacho(port))
+                with self.lock:
+                    m2 = copy.deepcopy(self.mapper.mapping)
+                if m2["ports"][port]["mode"] == "position":
+                    m2["ports"][port]["range"] = r["range"]
+                    m2["name"] = "custom"
+                    m2 = mapping.validate(m2)
+                    mapping.save(m2)
+                    self.set_mapping(m2)
+                self.cal.set_job(what="steer", state="done",
+                                 note=f"The steering turns {r['eachWay']}° each way. Centre is set, and the steering now "
+                                      f"turns up to {r['range']}°, {calibrate.MARGIN}° short of the stops.")
+            except RuntimeError as e:
+                self.cal.set_job(what="steer", state="failed", note=str(e))
+            finally:
+                with self.lock:
+                    self.cal_port = None
+        self.cal.set_job(what="steer", state="running", note="Starting…")
+        threading.Thread(target=work, name="calibrate-steer", daemon=True).start()
+        return {"ok": True}
+
+    def turn(self, action, side=None):
+        """The turning circle: start (side left or right), keep (the page is still there), done, cancel."""
+        now = time.monotonic()
+        with self.lock:
+            m, connected = self.mapper.mapping, self.sock is not None
+            armed = self.inp is not None and now - self.inp_at < INPUT_STALE_S
+            tj = self.turn_job
+        lay = worldmap.layout(m)
+        if action == "start":
+            if side not in ("left", "right"):
+                return {"ok": False, "error": "Left or right?"}
+            if not connected:
+                return {"ok": False, "error": "Connect to the brick first."}
+            if not lay or lay["type"] != "car" or not lay["steer"]:
+                return {"ok": False, "error": "This needs a car: drive motors and a steering motor, set on the Driving page."}
+            if not armed:
+                return {"ok": False, "error": "Switch Motors on first: the car will drive a slow circle."}
+            sp, ssign = lay["steer"]
+            c = m["ports"][sp] if m["ports"][sp]["mode"] == "position" else m["ports"][m["ports"][sp]["leader"]]
+            lock = c["range"]
+            with self.lock:
+                self.turn_job = {"side": side, "start": now, "keep": now, "travel0": self.world.travelled(),
+                                 "steer": (sp, int(round((1 if side == "right" else -1) * lock * ssign)), int(c["speed"])),
+                                 "drive": {p: int(calibrate.TURN_SPEED * sg) for p, sg in lay["drive"].items()},
+                                 "lock": lock}
+            self.cal.set_job(what="turn", state="running", side=side,
+                             note="Driving a slow circle at full lock. Press Back where it started when it gets there.")
+            return {"ok": True}
+        if action == "keep":
+            with self.lock:
+                if self.turn_job:
+                    self.turn_job["keep"] = now
+            return {"ok": True, "running": tj is not None}
+        if action == "cancel":
+            with self.lock:
+                self.turn_job = None
+            self.cal.set_job(what="turn", state="stopped", side=side, note="Stopped.")
+            return {"ok": True}
+        if action == "done":
+            if not tj:
+                return {"ok": False, "error": "The circle isn't running."}
+            with self.lock:
+                self.turn_job = None
+            travelled = self.world.travelled() - tj["travel0"]
+            try:
+                r = self.cal.turn_result(tj["side"], travelled, tj["lock"], self.world.robot["base"] / 10)
+            except RuntimeError as e:
+                self.cal.set_job(what="turn", state="failed", side=tj["side"], note=str(e))
+                return {"ok": False, "error": str(e)}
+            ratio = self.cal.steer_ratio()
+            if ratio:
+                self.world.set_robot(dict(self.world.robot, steerRatio=ratio))  # the map turns as the car really does
+            self.cal.set_job(what="turn", state="done", side=tj["side"],
+                             note=f"Turning {tj['side']}: a circle {r['across']:.0f} cm across, the front wheels at {r['wheel']:.0f}°. "
+                                  f"The map's steering ratio is now {ratio}.")
+            return {"ok": True, "result": r}
+        return {"ok": False, "error": "unknown action"}
 
     def _find(self):
         with self.lock:
@@ -245,8 +353,30 @@ class Link:
                 inp = self.inp if t0 - self.inp_at < INPUT_STALE_S else None
                 m = self.mapper.mapping
                 res = self.mapper.step(inp, dt, stop=bool(inp and inp.get("stop")))
-                res = self.brake.apply(res, worldmap.layout(m), eye, m.get("brake") or brake.settings({}), robot, t0, view)
+                lay = worldmap.layout(m)
+                if self.cal_port:
+                    res = dict(res, **{self.cal_port: None})  # the steering calibration owns it
+                tj = self.turn_job
+                if tj:
+                    # measuring the turning circle: full lock, slow, only while the page keeps asking
+                    # and Motors is on; Stop or anything else ends it. The brake still applies below.
+                    if inp is None or inp.get("stop") or t0 - tj["keep"] > calibrate.KEEP:
+                        self.turn_job = None
+                        self.cal.set_job(what="turn", state="stopped", side=tj["side"],
+                                         note="Stopped before the circle was finished. Start again when ready.")
+                    else:
+                        res = dict(res)
+                        p, deg, spd = tj["steer"]
+                        res[p] = ("p", deg, spd)
+                        moving = t0 - tj["start"] >= calibrate.TURN_STEER_FIRST  # wheels at full lock first
+                        for q, v in tj["drive"].items():
+                            res[q] = ("s", v if moving else 0)
+                res = self.brake.apply(res, lay, eye, m.get("brake") or brake.settings({}), robot, t0, view)
                 self.out = res
+                volts = ((self.telemetry or {}).get("battery") or {}).get("volts") if s and t0 - self.telemetry_at < 1.5 else None
+                power, straight = self.brake.state.get("given"), _straight(res, lay, m) and not tj
+            # top speed against the battery, learned from driving straight at full power
+            self.cal.observe(power, straight, self.world.speed, volts, t0)
             payload = mapping.line(res)
             if s:
                 try:
@@ -288,6 +418,23 @@ class Link:
                     self.rate = window_count / (t0 - window_start)
                 window_start, window_count = t0, 0
             time.sleep(max(0.0, period - (time.monotonic() - t0)))
+
+
+def _straight(res, lay, m):
+    """Whether these commands drive the robot straight: the steering near centre (car), or both
+    sides at the same speed (tank)."""
+    if not lay:
+        return False
+    if lay["type"] == "car":
+        if not lay["steer"]:
+            return True
+        p = lay["steer"][0]
+        r, c = res.get(p), m["ports"].get(p) or {}
+        rng = c.get("range") or (m["ports"].get(c.get("leader")) or {}).get("range") or 45
+        return not r or r[0] != "p" or abs(r[1]) <= calibrate.TOP_STRAIGHT * rng
+    side = lambda ports: [res[p][1] * s for p, s in ports.items() if res.get(p) and res[p][0] == "s"]  # noqa: E731
+    left, right = side(lay["left"]), side(lay["right"])
+    return bool(left and right) and abs(sum(left) / len(left) - sum(right) / len(right)) <= 10
 
 
 def _abort(s):
@@ -333,6 +480,9 @@ def practice_sensors(x, y, th):
     col = 2 if 120 <= fx <= 126 else 0 if (150 <= fx <= 205 and 30 <= fy <= 80) else 6  # blue tape, red mat, white floor
     return ir, col
 
+
+# The practice robot's steering motor (D) meets end stops this far each way, and starts this far off centre
+PRACTICE_STOP, PRACTICE_OFF_CENTRE = 55.0, 12.0
 
 # What the practice robot's camera sees: a light floor, blue walls and brown boxes
 PRACTICE_FLOOR, PRACTICE_WALL, PRACTICE_BOX = (196, 190, 178), (112, 140, 186), (168, 104, 58)
@@ -405,8 +555,8 @@ class FakeEV3:
             threading.Thread(target=self._client, args=(conn,), daemon=True).start()
 
     def _client(self, conn):
-        """Simulates the receiver: a robot with a medium motor on A, large motors on B and C,
-        a touch sensor on 1, a colour sensor on 3 facing the floor and an infrared sensor on 4
+        """Simulates the receiver: a robot with a medium motor on A, large motors on B and C, a
+        medium steering motor on D that meets end stops at 55° each way (PRACTICE_STOP), a touch sensor on 1, a colour sensor on 3 facing the floor and an infrared sensor on 4
         facing ahead, in a small room (PRACTICE_ROOM). Understands mapping lines (P), tests (M)
         and the old format."""
         with self.lock:
@@ -419,9 +569,12 @@ class FakeEV3:
             return
         last_t = time.monotonic()
         last_status = 0.0
-        tacho = {"A": 0.0, "B": 0.0, "C": 0.0}
-        speeds = {"A": 0.0, "B": 0.0, "C": 0.0}
-        max_dps = {"A": 1300.0, "B": 900.0, "C": 900.0}  # roughly medium / large motor top speed
+        tacho = {"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}
+        speeds = {"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}
+        max_dps = {"A": 1300.0, "B": 900.0, "C": 900.0, "D": 1300.0}  # roughly medium / large motor top speed
+        # D's steering: where its end stops are, from where the motor's count started (a little off centre)
+        stop_lo, stop_hi = -PRACTICE_STOP - PRACTICE_OFF_CENTRE, PRACTICE_STOP - PRACTICE_OFF_CENTRE
+        stalled = {k: False for k in tacho}
         tests = {}  # port -> {"pct", "until"} for held runs, or {"pct", "left"} for exact turns
         pcmd, pcmd_at = {}, 0.0  # latest mapping line
         truth = worldmap.Odometry()  # the pretend robot's real position, for its sensors
@@ -454,9 +607,13 @@ class FakeEV3:
                             top = c[2] / 100 * max_dps[k]
                             v = max(-top, min(top, err / dt if dt else 0))
                     elif legacy and not mapped:
-                        v = {"B": legacy[0], "C": legacy[1], "A": legacy[2]}[k] / 100 * max_dps[k]
+                        v = {"B": legacy[0], "C": legacy[1], "A": legacy[2]}.get(k, 0) / 100 * max_dps[k]
                     else:
                         v = 0.0
+                    stalled[k] = False
+                    if k == "D" and not stop_lo <= tacho[k] + v * dt <= stop_hi:
+                        v, stalled[k] = 0.0, v != 0  # pushing against the end stop
+                        tacho[k] = max(stop_lo, min(stop_hi, tacho[k]))
                     speeds[k] = v
                     tacho[k] += v * dt
                 # where the pretend robot really is in the practice room, using the default robot size
@@ -465,7 +622,8 @@ class FakeEV3:
                     lay = {"type": "car", "drive": {k: 1 for k, c in pcmd.items() if c[0] == "s"}, "steer": (steer, 1)}
                 else:
                     lay = {"type": "tank", "left": {"B": 1}, "right": {"C": 1}}
-                truth.update(dict(tacho), lay, worldmap.ROBOT)
+                # the wheels point where the steering really is: halfway between its end stops is straight
+                truth.update(dict(tacho, D=tacho["D"] - (stop_lo + stop_hi) / 2), lay, worldmap.ROBOT)
                 with self.lock:
                     self.pose = (truth.x, truth.y, truth.th)
                 if now - last_status >= 0.25:
@@ -473,11 +631,11 @@ class FakeEV3:
                     last_status = now
                     load = sum(abs(speeds[k]) / max_dps[k] for k in speeds) / 3
                     volts = 8.35 - 0.4 * load
-                    motors = " ".join(f"m{k}={int(tacho[k])}:{int(speeds[k])}:0:-" for k in ("A", "B", "C"))
+                    motors = " ".join(f"m{k}={int(tacho[k])}:{int(speeds[k])}:{int(stalled[k])}:-" for k in ("A", "B", "C", "D"))
                     wifi = -48 - int(abs(truth.x) / 10)  # weaker the further it drives, like a real one
                     ir, col = practice_sensors(truth.x, truth.y, truth.th)
                     conn.sendall((f"T {volts:.2f} {0.15 + 0.6 * load:.3f} {0.55 * load:.3f} "
-                                  "A=125:8h B=125:7h C=125:7h D=126:126 1=121:16 2=126:126 3=122:29h 4=122:33h "
+                                  "A=125:8h B=125:7h C=125:7h D=125:8h 1=121:16 2=126:126 3=122:29h 4=122:33h "
                                   f"{motors} s3=col:{col} s4=ir:{ir} w={wifi}\n").encode())
                     with self.lock:
                         self.motors_now = {k: round(speeds[k] / max_dps[k] * 100) for k in speeds}
@@ -499,6 +657,8 @@ class FakeEV3:
                             for k in ([port] if port in tacho else list(tacho)):
                                 tests.pop(k, None)
                         elif port in tacho and action == "zero":
+                            if port == "D":  # the end stops stay where they are; only the count starts again
+                                stop_lo, stop_hi = stop_lo - tacho[port], stop_hi - tacho[port]
                             tacho[port] = 0.0
                         elif port in tacho and action == "run":
                             tests[port] = {"pct": clamp100(val), "until": now + 0.4}
@@ -940,6 +1100,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(cam.status())
         elif self.path == "/api/vision":
             self._json(see.status())
+        elif self.path == "/api/calibration":
+            with link.lock:
+                t = link.telemetry if link.sock else None
+            self._json(link.cal.snapshot(((t or {}).get("battery") or {}).get("volts")))
         elif self.path.split("?")[0] == "/api/camera/stream":
             self._camera_stream()
         elif self.path.split("?")[0] == "/api/camera/snapshot":
@@ -1044,6 +1208,20 @@ class Handler(BaseHTTPRequestHandler):
             if flo:
                 out["floor"] = see.watch_floor()
             self._json(out)
+        elif self.path == "/api/calibration/steer":
+            self._json(link.calibrate_steer())
+        elif self.path == "/api/calibration/stop":
+            link.cal.abort.set()
+            link.turn("cancel")
+            self._json({"ok": True})
+        elif self.path == "/api/calibration/turn":
+            action, side = str(b.get("action", "")), b.get("side")
+            if action not in ("start", "keep", "done", "cancel"):
+                return self._json({"ok": False, "error": "bad calibration command"})
+            self._json(link.turn(action, side if side in ("left", "right") else None))
+        elif self.path == "/api/calibration/forget":
+            what = str(b.get("what", ""))
+            self._json({"ok": link.cal.forget(what)})
         elif self.path == "/api/vision/choose":
             # {"model": "nano|tiny|s|m", "chip": "auto|gpu|cpu"}: which recognition model, and where it runs
             self._json(see.choose(str(b.get("model", "")), str(b.get("chip", ""))))

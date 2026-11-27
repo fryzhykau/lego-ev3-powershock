@@ -150,6 +150,10 @@ The map also draws the obstacle brake's lines in front of the robot: where it st
 Which stick drives which motor. Pick a starting layout, then fine-tune each motor port.
 
 - **Steering ports** get a **Centre** control: nudge the wheels straight, then **Set centre here**.
+- **Car calibration:** what the car can really do, measured on the car. Repeat it any time, for example after rebuilding the steering. Results are kept in `pc/calibration.json`, with their dates.
+  - **Find steering limits:** the steering motor turns slowly each way until it meets its end stop. Centre is set halfway between, and the steering's **Turns up to** is set 4° short of the stops.
+  - **Measure left turn / right turn:** with Motors on and about a metre of clear floor, the car drives slowly at full lock. Press **Back where it started** when it gets there. The distance the wheels measured gives the turning circle and the front wheels' real angle, and the map's steering ratio is set from it. It stops at once if the page closes, Motors goes off, or you press Stop, and the obstacle brake still works.
+  - **Top speed:** learned by itself whenever you drive straight at full power, against the battery voltage, and shown for the battery now. A motor's top speed falls as the battery drains.
 - **Motors that work together** (two large motors on one axle, say): on the Robot page's **Devices** list, set **Works with** on one of them to the other, or on this page set the second port to **Same as A**. Grouped motors are joined by a bar in the Devices list. It gets exactly what A gets, after smoothing, so the two always start, stop and change speed together. Turn on its **Reversed** if it's mounted facing the other way, or the two would fight. The test buttons on the Robot page move the whole group, and the obstacle brake and the map count both as driving.
 - **Changes** apply while you drive and are saved.
 - **Obstacle brake** (on unless you switch it off): with an infrared or ultrasonic sensor facing ahead, the robot slows down when something is closer than 40 cm and stops 15 cm short. Both distances can be changed.

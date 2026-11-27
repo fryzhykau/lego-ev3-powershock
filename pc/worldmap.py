@@ -301,6 +301,7 @@ class WorldMap:
             self.speed = 0.0  # cm/s forward, from the speeds the brick measures at the wheels
             self.objects = []  # what the camera recognised: {"label", "x", "y", "n", "seen", "miss"}
             self.view = None  # the camera's latest free floor (surround)
+            self.travel = 0.0  # cm the wheels have driven, either way, since the map started
 
     def relink(self):
         with self.lock:
@@ -318,6 +319,7 @@ class WorldMap:
             r = self.robot
             gyro = next((s["value"] for s in sensors.values() if s["kind"] == "gy"), None)
             self.odo.update({p: m["tacho"] for p, m in motors.items()}, lay, r, gyro)
+            self.travel += abs(self.odo.ds)
             self.lay, self.sensors, self.updates = lay, sensors, self.updates + 1
             # the brick's own speed readings, not angle changes between lines: lines can arrive
             # bunched up after a WiFi hiccup, and that would look like a sudden burst of speed
@@ -345,6 +347,11 @@ class WorldMap:
                 elif s["kind"] == "col" and s["value"] >= 0:
                     ahead = r["floorAhead"] / 10
                     self.grid.paint(o.x + ahead * math.cos(o.th), o.y + ahead * math.sin(o.th), s["value"])
+
+    def travelled(self):
+        """cm the wheels have driven, either way, since the map started (for the turning circle)."""
+        with self.lock:
+            return self.travel
 
     def eye_now(self):
         """The latest range reading for the brake, with the robot's measured speed, and the robot's settings."""

@@ -765,6 +765,14 @@
   .mseen li b { font-weight: 600; } .mseen li .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
   .mseen li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--map-seen); flex: none; align-self: center; }
   .mseen li.old::before { opacity: .4; }
+  .calrows { display: grid; gap: 2px; }
+  .calrow { display: grid; grid-template-columns: 130px 1fr auto; gap: 6px 14px; align-items: center; padding: 8px 0; font-size: 13px; }
+  .calrow + .calrow { border-top: 1px solid var(--rule); }
+  .calrow > span:nth-child(2) { color: var(--muted); }
+  .calacts { display: inline-flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .caljob { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--soft); font-size: 13px; }
+  .caljob.bad { background: var(--stop-tint); } .caljob.ok { background: var(--go-soft); }
+  @media (max-width: 640px) { .calrow { grid-template-columns: 1fr; } .calacts { justify-content: flex-start; } }
   .brakeset { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 24px; align-items: center; }
   .brakeset .help { grid-column: 1 / -1; margin: 0; }
   .mapsize summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
@@ -1086,6 +1094,20 @@
         <div class="card-head"><h2>Obstacle brake</h2><span class="muted" id="brakeNow"></span></div>
         <div class="brakeset" id="brakeSet"></div>
       </div>
+      <div class="card" style="margin-top:16px" id="calCard">
+        <div class="card-head"><h2>Car calibration</h2><span class="muted">What the car can really do. Repeat any time, for example after rebuilding the steering.</span></div>
+        <div class="calrows">
+          <div class="calrow"><b>Steering limits</b><span id="calSteer"></span>
+            <span class="calacts"><button class="btn" id="calSteerBtn">Find steering limits</button></span></div>
+          <div class="calrow"><b>Turning circle</b><span id="calTurn"></span>
+            <span class="calacts"><button class="btn" data-turn="left">Measure left turn</button><button class="btn" data-turn="right">Measure right turn</button></span></div>
+          <div class="calrow"><b>Top speed</b><span id="calSpeed"></span>
+            <span class="calacts"><button class="link" id="calSpeedForget">Forget</button></span></div>
+        </div>
+        <div class="caljob hidden" id="calJob" role="status"><span id="calJobNote"></span>
+          <span class="calacts"><button class="btn go hidden" id="calTurnDone">Back where it started</button><button class="btn" id="calStop">Stop</button></span></div>
+        <p class="help">Finding the steering limits turns the steering motor slowly each way until it meets its end stop, then sets the centre halfway. The turning circle needs Motors on and about a metre of clear floor: the car drives slowly at full lock, and you press Back where it started when it gets there. Top speed is learned by itself whenever you drive straight at full power, and falls as the battery drains.</p>
+      </div>
       <div class="sechead"><h2>Motor ports</h2><span class="muted">In the same order as on the brick</span></div>
       <div class="pgrid" id="pgrid" style="margin-top:10px"></div>
       <div class="offrow hidden" id="offrow"></div>
@@ -1189,7 +1211,7 @@
         </div>
         <div class="ctile" id="tilePractice">
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
-          <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, a medium motor, and touch, colour and infrared sensors.</div>
+          <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, two medium motors (one steers, with end stops), and touch, colour and infrared sensors.</div>
           <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
         </div>
         <div class="ctile" id="tileCam">
@@ -2932,6 +2954,65 @@ function sensorText(s) {
   if (s.kind === "col") { const c = COLOUR_NAMES[s.value]; return c ? `<span class="sw" style="background:${c[1]}"></span>${c[0]}` : "no colour"; }
   return "";
 }
+// ---------- car calibration (pc/calibrate.py) ----------
+S.cal = null; S.calBusy = false;
+const calDate = (t) => t ? new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "";
+async function pollCal(force) {
+  const job = S.cal && S.cal.job, running = job && job.state === "running";
+  if (!force && !running && location.hash !== "#driving") return;
+  if (S.calBusy) return;
+  S.calBusy = true;
+  try { S.cal = await api("/api/calibration"); } catch (e) { S.calBusy = false; return; }
+  S.calBusy = false;
+  drawCal();
+}
+function drawCal() {
+  const c = S.cal; if (!c) return;
+  const st = c.steer, t = c.turn || {}, sp = c.speed || {}, job = c.job;
+  $("calSteer").textContent = st ? `${st.eachWay}° each way (motor ${st.port}); the steering turns up to ${st.range}°. Measured ${calDate(st.at)}.` : "Not measured yet.";
+  const side = (k) => t[k] ? `${k === "left" ? "Left" : "Right"}: ${Math.round(t[k].across)} cm across, wheels at ${Math.round(t[k].wheel)}° (${calDate(t[k].at)})` : "";
+  $("calTurn").textContent = [side("left"), side("right")].filter(Boolean).join(" · ") || "Not measured yet.";
+  $("calSpeed").textContent = sp.now != null ? `About ${Math.round(sp.now)} cm/s now, at ${sp.volts.toFixed(1)} V (from ${sp.samples} moments of full-power driving, at ${sp.from[0] === sp.from[1] ? sp.from[0] : sp.from[0] + "–" + sp.from[1]} V).`
+    : sp.samples ? `Learned from ${sp.samples} moments; connect to see it for the battery now.` : "Not learned yet: drive straight at full power for a few seconds.";
+  const running = job && job.state === "running";
+  $("calJob").classList.toggle("hidden", !job);
+  $("calJob").className = "caljob" + (!job ? " hidden" : job.state === "failed" ? " bad" : job.state === "done" ? " ok" : "");
+  if (job) $("calJobNote").textContent = job.note || "";
+  $("calTurnDone").classList.toggle("hidden", !(running && job.what === "turn"));
+  $("calStop").textContent = running ? "Stop" : "Close";
+  const busy = running || !(S.link && S.link.connected);
+  $("calSteerBtn").disabled = busy;
+  document.querySelectorAll("[data-turn]").forEach((b) => { b.disabled = busy || !S.armed; b.title = S.armed ? "" : "Switch Motors on first"; });
+}
+$("calSteerBtn").addEventListener("click", () => busy($("calSteerBtn"), async () => {
+  const r = await api("/api/calibration/steer", {});
+  if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "steer", state: "failed", note: r.error } }; drawCal(); }
+  await pollCal(true);
+}));
+document.querySelectorAll("[data-turn]").forEach((b) => b.addEventListener("click", () => busy(b, async () => {
+  const r = await api("/api/calibration/turn", { action: "start", side: b.dataset.turn });
+  if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "turn", state: "failed", note: r.error } }; drawCal(); }
+  await pollCal(true);
+})));
+$("calTurnDone").addEventListener("click", () => busy($("calTurnDone"), async () => {
+  const r = await api("/api/calibration/turn", { action: "done" });
+  if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "turn", state: "failed", note: r.error } }; drawCal(); }
+  await pollCal(true);
+}));
+$("calStop").addEventListener("click", async () => {
+  const job = S.cal && S.cal.job;
+  if (job && job.state === "running") await api("/api/calibration/stop", {});
+  else if (S.cal) { S.cal.job = null; drawCal(); return; }
+  await pollCal(true);
+});
+$("calSpeedForget").addEventListener("click", async () => { await api("/api/calibration/forget", { what: "speed" }); pollCal(true); });
+// While the car drives its circle, this page keeps saying it's still here: if it closes or loses
+// focus (Motors off), the console stops the car within about half a second.
+setInterval(() => {
+  const job = S.cal && S.cal.job;
+  if (job && job.state === "running" && job.what === "turn" && S.armed && document.visibilityState === "visible") api("/api/calibration/turn", { action: "keep" }).catch(() => {});
+}, 200);
+setInterval(pollCal, 1000); pollCal(true);
 // ---------- the instrument panel over the 3D map ----------
 // Speed comes from the wheels (pc/worldmap.py); the autopilot is the obstacle brake for now (pc/brake.py).
 function decisionText(e) {

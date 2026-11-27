@@ -18,6 +18,8 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ## [Unreleased]
 
 ### Added
+- **Car calibration,** repeatable, on the Driving page: **Find steering limits** (feels for both end stops, sets centre, keeps the steering 4° inside them), **Measure left/right turn** (drives a slow circle at full lock; gives the turning circle, the wheels' real angle and the map's steering ratio), and **Top speed**, learned while driving straight at full power and shown for the battery voltage now. Kept in `pc/calibration.json`.
+- **Practice brick:** a medium steering motor on D, with end stops at 55° each way, starting a little off centre.
 - **Bigger recognition models, and the graphics chip:** choose Fast (nano), Balanced (tiny), Better (s) or Best (m) under **Recognition model** on the Map page, and whether it runs on the processor or the graphics chip.
   - **Downloads:** `python pc/tools/get_model.py --all` (or `--model s`), each checked against a pinned checksum. All four are YOLOX, Apache-2.0.
   - **The graphics chip** needs `onnxruntime-directml` instead of `onnxruntime`. With two graphics chips, the console times each and uses the faster.

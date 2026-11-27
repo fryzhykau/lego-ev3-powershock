@@ -380,6 +380,20 @@ Still open: choosing a licence.
 - **A chip that isn't there** made onnxruntime print a large error before falling back to the processor. The search now stops quietly at the first missing chip.
 - **0 ms:** nano on the RTX was so quick that a picture's time rounded to 0, which a test took as "not running".
 
+## Stage 18: measuring the car
+
+**Idea:** before the app can plan a reverse or a three-point turn, it has to know the car: how far the steering really turns, how tight a circle that makes, and how fast the car goes, which changes as the battery drains. Measure each on the car, in a way that can be repeated.
+
+**What was built** (`pc/calibrate.py`, the Car calibration card):
+- **Steering limits:** the steering motor runs gently each way until its angle stops changing: the end stop. Centre is halfway; the steering range is set 4° short of the stops.
+- **Turning circle:** the car drives slowly at full lock while the page keeps asking (Motors on, page open, no Stop), with the obstacle brake still underneath. The owner presses Back where it started. The wheels' distance is the circle; a bicycle model turns that and the axle spacing into the front wheels' angle, and so the steering ratio the map uses.
+- **Top speed:** whenever the car drives straight at 95% power or more for over a second, its measured speed and the battery voltage are noted. Speed per volt is the fit through zero, since a motor's top speed is close to proportional to its voltage.
+- **The practice brick** got a steering motor with end stops, starting 12° off centre, and its pretend car steers from the true centre. So an uncalibrated practice car drifts, as a real one would.
+
+**What didn't, at first:** the steering check found the steering "hardly moved". It had: but the moment it stopped at an end stop, the controls sent the steering back to centre, so the reading came back as 0. While the steering is being calibrated, the controls now leave that port alone.
+
+**Next:** a planner that uses these numbers to choose between turning forward, reversing, or a multi-point turn.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

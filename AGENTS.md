@@ -47,7 +47,7 @@ The repository is public. Before every commit:
    - **Files:**
      - `sd_lejos/`, `sd_backup*`, `lib/*.jar` and anything from the leJOS SD card. Oracle's Java runtime may not be redistributed.
      - `out/` (build output).
-     - `pc/mapping.json` (a user's own controls).
+     - `pc/mapping.json` (a user's own controls), `pc/calibration.json` (their car's measurements), `pc/vision.json` (their model choice).
      - `pc/camera.json` (the Pi's address and access key), `pc/models/` (downloaded models).
      - `docs/DEVICE_LOG.md` (a user's own brick history).
      - `.private-terms`.
