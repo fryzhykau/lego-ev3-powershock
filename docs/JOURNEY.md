@@ -348,7 +348,11 @@ Still open: choosing a licence.
 
 **What we learned about this house:** the router and its extender give addresses from the same router, so they are one network. Addresses should survive a switch, and the laptop can reach the robot on either floor.
 
-**Status:** the code is tested with fakes (nmcli output, the brick's config, a local pretend brick). It isn't on the brick or the Pi yet: that needs the owner's go-ahead.
+**On the real hardware:**
+- **A damaged library on the brick:** the new program wouldn't start: leJOS's own `jna.jar` on the SD card was damaged, probably by switching off without shutting down (leJOS mounts the card unchecked). An intact copy sat next to it.
+- **Sensors were never read on a real brick:** the sensor code opened sensors by the type the brick's port detection reports. The practice brick reported it, but on a real brick leJOS leaves it unknown. Now the brick asks the sensor its name ("COL-REFLECT", "IR-PROX"…).
+- **Scans dropped the link:** a scan every 30 s at a weak signal stalled the radio long enough for the console to drop the link each time. Now it scans at most every two minutes, only while standing still, and only with somewhere else to go.
+- **A weak dongle:** at about -70 dBm, a quarter of the pings to the brick were lost, while the router answered every one. On the car, the brick's 2.4 GHz dongle is the weak link; the Pi, on 5 GHz next to it, had -51 dBm.
 
 ## Side ideas
 

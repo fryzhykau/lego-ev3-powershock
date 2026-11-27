@@ -2,6 +2,7 @@ package powershock;
 
 import lejos.hardware.port.Port;
 import lejos.hardware.port.SensorPort;
+import lejos.hardware.port.UARTPort;
 import lejos.hardware.sensor.EV3ColorSensor;
 import lejos.hardware.sensor.EV3GyroSensor;
 import lejos.hardware.sensor.EV3IRSensor;
@@ -49,7 +50,7 @@ final class Sensors implements Runnable {
             for (int i = 0; i < 4; i++) {
                 try {
                     if (open[i] == null && now >= retryAt[i]) {
-                        tryOpen(i);
+                        tryOpen(i, now);
                     }
                     if (mode[i] != null) {
                         mode[i].fetchSample(sample, 0);
@@ -72,12 +73,53 @@ final class Sensors implements Runnable {
         }
     }
 
-    private void tryOpen(int i) {
+    /**
+     * What an EV3 sensor says it is, from the name of its first mode ("IR-PROX", "COL-REFLECT",
+     * "US-DIST-CM", "GYRO-ANG"). Under leJOS the connection manager leaves the type of EV3
+     * sensors unknown (125), so the sensor itself is asked. Takes up to a second or two.
+     */
+    private static int askType(Port p) {
+        UARTPort u = p.open(UARTPort.class);
+        try {
+            if (!u.initialiseSensor(0)) {
+                return 0;
+            }
+            String name = u.getModeName(0);
+            if (name == null) {
+                return 0;
+            }
+            if (name.startsWith("IR-")) {
+                return TYPE_IR;
+            }
+            if (name.startsWith("COL-")) {
+                return TYPE_COLOR;
+            }
+            if (name.startsWith("US-")) {
+                return TYPE_US;
+            }
+            if (name.startsWith("GYRO-") || name.startsWith("GYR")) {
+                return TYPE_GYRO;
+            }
+            return 0;
+        } finally {
+            u.close();
+        }
+    }
+
+    private void tryOpen(int i, long now) {
         int[] c = PortWatch.sensorCodes(i);
         if (c[0] != CONN_UART) {
             return;
         }
-        switch (c[1]) {
+        int type = c[1];
+        if (type != TYPE_IR && type != TYPE_COLOR && type != TYPE_US && type != TYPE_GYRO) {
+            type = askType(PORTS[i]);
+            if (type == 0) {
+                retryAt[i] = now + RETRY_MS; // not one the map uses, or still starting up
+                return;
+            }
+        }
+        switch (type) {
             case TYPE_IR: {
                 EV3IRSensor s = new EV3IRSensor(PORTS[i]);
                 open[i] = s;

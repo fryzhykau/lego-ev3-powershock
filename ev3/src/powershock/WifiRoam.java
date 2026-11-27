@@ -20,16 +20,17 @@ import java.util.Map;
  *   - below that, switch only to one at least 8 dB stronger;
  *   - after a switch, stay at least a minute, so it never flaps between two.
  *
- * Looking for networks takes the radio off its channel for a moment, which would trip the
- * motors' 500 ms watchdog while driving. So it only looks while the robot stands still, or when
- * the signal is so weak that the link is failing anyway. A switch drops the link for a few
- * seconds; the motors stop (watchdog) and the console connects again.
+ * Looking for networks takes the radio off its channel for a second or two: long enough to trip
+ * the motors' 500 ms watchdog, and for the console to drop the link. So it only looks while the
+ * robot stands still, at most every two minutes, and only with two or more saved networks to
+ * choose between (on the real brick, a scan every 30 s dropped the link each time). A switch
+ * drops the link for a few seconds; the motors stop (watchdog) and the console connects again.
  *
  * Also reports the signal for the status line: " w=-62" (dBm).
  */
 final class WifiRoam implements Runnable {
-    static final int GOOD = -60, MARGIN = 8, POOR = -75;
-    static final long HOLD_MS = 60000, CHECK_MS = 5000, RESCAN_MS = 30000, STILL_MS = 3000;
+    static final int GOOD = -60, MARGIN = 8;
+    static final long HOLD_MS = 60000, CHECK_MS = 5000, RESCAN_MS = 120000, STILL_MS = 3000;
 
     private volatile String line = "";
     private volatile boolean running = true;
@@ -65,11 +66,9 @@ final class WifiRoam implements Runnable {
         if (level >= GOOD || level >= 0 || now - lastSwitch < HOLD_MS || now - lastScan < RESCAN_MS) {
             return;
         }
-        boolean still = now - DS4Receiver.movingAt > STILL_MS;
-        if (!still && level > POOR) {
+        if (now - DS4Receiver.movingAt < STILL_MS) {
             return; // scanning now would stall the driving link; wait until it stands still
         }
-        lastScan = now;
         Map<String, String> status = keyValues(wpa("status"));
         String bssid = status.get("bssid");
         if (bssid == null || !"COMPLETED".equals(status.get("wpa_state"))) {
@@ -82,6 +81,10 @@ final class WifiRoam implements Runnable {
                 saved.put(p[1], p[0]);
             }
         }
+        if (saved.size() < 2) {
+            return; // nowhere else to go: don't stall the link for nothing
+        }
+        lastScan = now;
         wpa("scan");
         Thread.sleep(4000);
         String bestSsid = null, bestBssid = null;

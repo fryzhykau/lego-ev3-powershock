@@ -94,10 +94,11 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 ## Moving between WiFi networks
 
 - **It doesn't switch:**
-  - The brick only looks for a better network while it stands still, and only when its signal is below -60 dBm. The Pi looks whenever the signal is below -60 dBm.
+  - The brick only looks for a better network while it stands still, only when its signal is below -60 dBm, at most every two minutes, and only with two or more networks saved. The Pi looks whenever the signal is below -60 dBm.
   - Only saved networks are used. On the brick, add each network under **Set up WiFi**. On the Pi, use `sudo nmcli --ask device wifi connect <name>`.
   - The brick's WiFi dongle only sees 2.4 GHz networks.
   - Upload brick program 0.8 or later.
+- **The link keeps dropping for a few seconds:** check the brick's signal on the Map page. Below about -70 dBm, the EV3's WiFi dongle loses many packets (ping the brick to see), and the console treats 1.5 s without news from the brick as a lost link. Move the dongle where the robot's motors and brick don't shield it (a short USB extension helps), or add a closer 2.4 GHz network.
 - **The link drops for a few seconds on a switch:** that's normal. The motors stop (the brick's 0.5 s safety stop), and the console connects again. Drive on once **Motors on** is back on.
 - **The console doesn't find the brick after a switch:** the laptop must be on the same home network. A second router (not an extender or mesh) makes a separate network, which the laptop can't reach. Put it in access point mode (its settings may call it "AP mode" or "bridge mode"), so all the floors share one network.
 - **The Pi's switching:** `journalctl -u powershock-wifi` says what it did and why.
