@@ -108,6 +108,9 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **The 3D brick** shows the WiFi dongle (a USB stick with a blue light) and the SD card when the brick reports them, and now faces you with that side. On smaller screens the 3D brick, controller and Pi take a fifth less room.
+- **The 3D controller's labels** sit next to the stick or button they describe, with a thin line to it, and follow the model as you turn it; on narrow screens they stay in a row below.
+- **Car and Tank** are picked with small top-view drawings; the Robot tab has a robot icon.
 - **Your robot,** a new card on the Robot page: the car (or tank) from above, drawn to its saved sizes, with each motor, sensor and the camera where it sits, wired to its port on the brick and coloured by how it's doing. Below it: weight, wheels and gearing, size, top speed, turning circle and steering. **Car / Tank / Fit to my motors** and the robot's sizes moved here from the Driving and Map pages; replacing your own controls with a plain layout now asks first. The Robot tab has a car icon.
 - **Driving page:** no Normal speed slider (it's the Motors slider in the top bar).
 - **Controller colour** is one swatch: each click moves on to the next colour.

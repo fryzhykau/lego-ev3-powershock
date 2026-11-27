@@ -319,6 +319,9 @@ export function createDS4(container) {
     mesh(tg, trigMat, hinge);
     triggers[name] = { hinge, mat: trigMat };
   }
+  // the parts the page pins its labels to (see anchors())
+  const anchorObjs = { L: sticks.L, R: sticks.R, R2: triggers.R.hinge, cross: face.cross.g, circle: face.circle.g, options };
+  const anchorV = new THREE.Vector3();
 
   // ----- view: drag to turn, sized to the container -----
   const HOME = { yaw: -0.38, pitch: 0.32 };
@@ -373,5 +376,14 @@ export function createDS4(container) {
       if (light) { lightMat.color.set(light); lightMat.emissive.set(light); lightMat.emissiveIntensity = light === "#5b6266" ? 0.15 : 1.8; }
     },
     setColor(hex) { shellMat.color.set(hex); },
+    // Where the controls are on screen (px in the container), so labels can be pinned next to them.
+    anchors() {
+      const w = container.clientWidth, h = container.clientHeight, out = {};
+      for (const [k, o] of Object.entries(anchorObjs)) {
+        o.getWorldPosition(anchorV).project(camera);
+        out[k] = { x: (anchorV.x + 1) / 2 * w, y: (1 - anchorV.y) / 2 * h };
+      }
+      return out;
+    },
   };
 }

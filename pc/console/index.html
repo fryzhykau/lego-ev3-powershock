@@ -178,7 +178,11 @@
   @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "rob" "brick" "cam" "dev"; gap: 12px; } }
   /* Your robot: the car from above, each device wired to its port on the brick */
   .robotcard .card-head { margin-bottom: 8px; }
-  .rtype { margin-bottom: 4px; } .rtype .preset { padding: 8px 12px; } .rtype .preset span { font-size: 12px; }
+  .rtype { margin-bottom: 4px; gap: 8px; } .rtype .preset { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 10px; flex: 0 0 auto; min-width: 0; }
+  .rtype .btn { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .rtico { width: 44px; height: 26px; flex: none; } .rtico.fit { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .rtico .rb { fill: var(--soft); stroke: var(--muted); stroke-width: 1.5; } .rtico .rw { fill: var(--muted); } .rtico .ra { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+  .rtype .preset[aria-pressed="true"] .rb { stroke: var(--ink); } .rtype .preset[aria-pressed="true"] .rw { fill: var(--ink); }
   #presetNote:empty { display: none; }
   .robotsvg svg { display: block; width: 100%; height: auto; max-height: 340px; }
   .robotsvg .rs-body { fill: var(--soft); stroke: var(--rule); stroke-width: 1.5; }
@@ -332,6 +336,8 @@
   .dsstick.on .top { background: radial-gradient(circle, #3a4249 45%, #56606a 47%, #3b434a 62%, #262b2f); }
   .bumper.on { background: #7d8a92; }
   .ds3gl { position: relative; aspect-ratio: 16 / 9; max-height: 360px; width: 100%; }
+  /* the 3D views take a fifth less room on smaller screens */
+  @media (max-width: 1280px) { .ds3gl { max-height: 288px; } .pi3d { height: 240px; } .scene { height: clamp(340px, calc(var(--sw, 900px) * 0.86), 610px); } }
   .ds3gl canvas { border-radius: 10px; }
   .ds3msg { position: absolute; inset: 0; display: grid; place-items: center; }
   .swatches { display: flex; gap: 6px; margin-left: auto; }
@@ -342,6 +348,11 @@
   .dslegend { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
   .dslegend > span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--soft); border: 1px solid var(--rule); color: var(--muted); transition: background .1s, color .1s, border-color .1s; }
   .dslegend > span.act { background: var(--go-soft); border-color: var(--go); color: var(--go); }
+  /* pinned onto the 3D controller, each label next to its stick or button, with a thin line to it */
+  .ds3gl .dslegend.pinned { position: absolute; inset: 0; display: block; pointer-events: none; }
+  .ds3gl .dslegend.pinned > span { position: absolute; left: 0; top: 0; white-space: nowrap; background: var(--face); box-shadow: 0 2px 8px #0003; }
+  .ds3gl .dslines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .ds3gl .dslines line { stroke: var(--muted); stroke-width: 1; opacity: .7; } .ds3gl .dslines circle { fill: var(--ink); }
   .gets { display: grid; gap: 6px; background: var(--soft); border-radius: 10px; padding: 10px 12px; }
   .gets h3 { margin: 0 0 2px; }
   .get { display: grid; grid-template-columns: 92px 1fr 40px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
@@ -393,7 +404,7 @@
 
   /* the brick: front = the screen side, top end = motor ports, bottom end = sensor ports */
   .brick { --W: 212px; --H: 333px; --D: 134px; width: var(--W); height: var(--H); position: relative; transform-style: preserve-3d;
-    transform: rotateX(var(--rx, 24deg)) rotateY(var(--ry, -26deg)); }
+    transform: rotateX(var(--rx, 24deg)) rotateY(var(--ry, 26deg)); }
   .brick.intro { animation: arrive 1.2s cubic-bezier(.2,.8,.2,1) both; }
   @keyframes arrive { from { transform: rotateX(40deg) rotateY(-80deg) scale(.9); opacity: 0; } }
   .f { position: absolute; transform-style: preserve-3d; }
@@ -463,10 +474,21 @@
   .holes { position: absolute; display: grid; grid-template-columns: repeat(3, 11px); gap: 5px; }
   .holes i { width: 11px; height: 11px; border-radius: 50%; background: #d2d6d6; box-shadow: inset 0 1px 2px #0005; }
   .usb { position: absolute; left: 50%; top: 42%; width: 30px; height: 13px; margin-left: -15px; background: #202427; border-radius: 2px; transform-style: preserve-3d; }
-  .sd { position: absolute; left: 50%; top: 60%; width: 30px; height: 4px; margin-left: -15px; background: #202427; border-radius: 2px; }
+  .sd { position: absolute; left: 50%; top: 60%; width: 30px; height: 4px; margin-left: -15px; background: #202427; border-radius: 2px; transform-style: preserve-3d; }
+  .f.left .side-plate { transform-style: preserve-3d; }
   .sidelbl { position: absolute; left: 0; right: 0; text-align: center; font: 700 8px/1 var(--ui); color: #a8adae; }
-  .dongle { position: absolute; left: -4px; top: -6px; width: 38px; height: 25px; border-radius: 4px; background: linear-gradient(90deg, #15181a, #2d3337); transform: translateZ(48px); box-shadow: 0 0 0 1px #000; }
-  .dongle::after { content: ""; position: absolute; right: 6px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: #3d8bff; box-shadow: 0 0 9px #3d8bff; }
+  /* the WiFi dongle: a small box sticking out of the USB port, so it shows from the front too */
+  .dongle, .sdcard { position: absolute; left: 0; top: 0; width: 30px; height: 13px; transform-style: preserve-3d; --len: 40px; }
+  .dongle.hidden, .sdcard.hidden { display: none; }
+  .dg { position: absolute; display: block; background: #23282b; }
+  .dg.cap { left: 0; top: 0; width: 100%; height: 100%; transform: translateZ(var(--len)); background: #2f3539; border-radius: 2px; }
+  .dg.t, .dg.b { left: 0; width: 100%; height: var(--len); transform-origin: top; transform: rotateX(90deg); }
+  .dg.t { top: 0; background: #2b3134; } .dg.b { top: 100%; background: #15181a; }
+  .dg.l, .dg.r { top: 0; height: 100%; width: var(--len); transform-origin: left; transform: rotateY(-90deg); background: #1d2124; }
+  .dg.l { left: 0; } .dg.r { left: 100%; }
+  .dongle .cap::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #3d8bff; box-shadow: 0 0 8px #3d8bff; }
+  .dongle .dg.l::after { content: "WiFi"; position: absolute; left: 6px; top: 1px; font: 700 7px/11px var(--ui); color: #7c8a95; letter-spacing: .05em; }
+  .sdcard { height: 3px; top: 0.5px; --len: 6px; } .sdcard .dg { background: #1f4b8f; } .sdcard .dg.cap { background: #2a5fae; }
   .grille { position: absolute; left: 50%; top: 50%; width: 46px; height: 30px; margin: -15px 0 0 -23px; background: repeating-linear-gradient(180deg, #5b6164 0 2px, transparent 2px 5px); border-radius: 50%; }
 
   /* things plugged into ports: drawn in a plane facing the viewer, out past the end of the brick */
@@ -1052,7 +1074,7 @@
 
 <div class="shell">
   <nav>
-    <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5V12l2.2-4.4A2 2 0 0 1 7 6.5h10a2 2 0 0 1 1.8 1.1L21 12v3.5"/><path d="M3 12h18M3 15.5h1.6M8.4 15.5h7.2M19.4 15.5H21"/><circle cx="6.5" cy="15.5" r="2"/><circle cx="17.5" cy="15.5" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
+    <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1.2"/><circle cx="9.5" cy="13" r="1.2" fill="currentColor"/><circle cx="14.5" cy="13" r="1.2" fill="currentColor"/><path d="M9.5 16.5h5M3 12v3M21 12v3"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
     <a href="#map" data-page="map" title="Map: what the sensors found around the robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Map</span></a>
     <a href="#driving" data-page="driving" title="Driving: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Driving</span></a>
     <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
@@ -1099,9 +1121,9 @@
         <div class="card robotcard" id="robotCard">
           <div class="card-head"><h2>Your robot</h2><span class="muted" id="robotSub"></span></div>
           <div class="presets rtype" id="presets" role="group" aria-label="What kind of robot">
-            <button class="preset" data-preset="car"><b>Car</b><span>Left stick steers, right stick is the throttle</span></button>
-            <button class="preset" data-preset="tank"><b>Tank</b><span>Left stick drives B and C like a tank</span></button>
-            <button class="btn" id="fitBtn" title="Give each motor plugged in a job, for the kind of robot chosen">Fit to my motors</button>
+            <button class="preset" data-preset="car" title="Car: one motor steers the front wheels, the others drive. Left stick steers, right stick is the throttle"><svg class="rtico" viewBox="0 0 48 28" aria-hidden="true"><rect class="rb" x="6" y="5" width="36" height="18" rx="5"/><rect class="rw" x="9" y="1.5" width="8" height="4" rx="1.5"/><rect class="rw" x="9" y="22.5" width="8" height="4" rx="1.5"/><rect class="rw" x="31" y="1.5" width="8" height="4" rx="1.5" transform="rotate(-14 35 3.5)"/><rect class="rw" x="31" y="22.5" width="8" height="4" rx="1.5" transform="rotate(-14 35 24.5)"/><path class="ra" d="M44 14h3"/></svg><b>Car</b></button>
+            <button class="preset" data-preset="tank" title="Tank: a motor on each side, steering by driving them at different speeds. Left stick drives"><svg class="rtico" viewBox="0 0 48 28" aria-hidden="true"><rect class="rb" x="8" y="6" width="32" height="16" rx="4"/><rect class="rw" x="5" y="1.5" width="38" height="5" rx="2.5"/><rect class="rw" x="5" y="21.5" width="38" height="5" rx="2.5"/><path class="ra" d="M44 14h3"/></svg><b>Tank</b></button>
+            <button class="btn" id="fitBtn" title="Give each motor plugged in a job, for the kind of robot chosen"><svg class="rtico fit" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19l9-9M14 5v3M17 7.5l-2 2M19 11h-3M9 4l1 2M20 15l-2-1"/></svg>Fit to my motors</button>
           </div>
           <p class="help" id="presetNote"></p>
           <div class="robotsvg" id="robotSvg" role="img" aria-label="The robot from above, with each motor and sensor wired to its port on the brick"></div>
@@ -1141,8 +1163,8 @@
                 <div class="side-plate">
                   <div class="holes" style="left:8px;top:8px"><i></i><i></i><i></i></div>
                   <div class="holes" style="right:8px;bottom:8px"><i></i><i></i><i></i></div>
-                  <div class="usb" id="usb"><div class="dongle hidden" id="dongle" title="WiFi dongle"></div></div><div class="sidelbl" style="top:49%">USB</div>
-                  <div class="sd"></div><div class="sidelbl" style="top:64%">SD</div>
+                  <div class="usb" id="usb"><div class="dongle hidden" id="dongle" title="WiFi dongle"><i class="dg cap"></i><i class="dg t"></i><i class="dg b"></i><i class="dg l"></i><i class="dg r"></i></div></div><div class="sidelbl" style="top:49%">USB</div>
+                  <div class="sd"><div class="sdcard hidden" id="sdcard" title="SD card: leJOS runs from it"><i class="dg cap"></i><i class="dg t"></i><i class="dg l"></i><i class="dg r"></i></div></div><div class="sidelbl" style="top:64%">SD</div>
                 </div>
               </div>
               <div class="f right">
@@ -1668,7 +1690,7 @@ function setMeters(sending) {
 setMeters({});
 (() => {
   const brick = $("brick"), scene = $("scene");
-  const HOME = { rx: 24, ry: -26 };
+  const HOME = { rx: 24, ry: 26 };  // the left side faces you: the USB port (WiFi dongle) and the SD card
   let rx = HOME.rx, ry = HOME.ry, drag = null;
   const apply = () => { brick.style.setProperty("--rx", rx + "deg"); brick.style.setProperty("--ry", ry + "deg"); };
   const reset = () => { rx = HOME.rx; ry = HOME.ry; apply(); };
@@ -1687,7 +1709,7 @@ setMeters({});
     const w = scene.clientWidth || 700, h = (scene.clientHeight || 760) - 44;
     scene.style.setProperty("--sw", w + "px");
     // fit the brick plus what hangs off both ends (motors above, sensors below)
-    brick.style.scale = Math.max(0.45, Math.min(1, w / 720, h / 880)).toFixed(3);
+    brick.style.scale = Math.max(0.45, Math.min(1, w / 720, h / 880)).toFixed(3);  // smaller screens: a lower scene, a smaller brick
   }).observe(scene);
 })();
 
@@ -2600,7 +2622,6 @@ function drawFacts() {
       ${w.ip ? `<dt>Network</dt><dd>${esc(w.ssid)}</dd><dt>Address</dt><dd>${esc(w.ip)}</dd>` : `<dt>Set up for</dt><dd>${esc(w.saved || "nothing yet")} · <a class="link" href="#connection">change</a></dd>`}
       <dt>Dongle</dt><dd>${esc(w.dongle ? w.dongle.replace(/ Rev:\d+/, "") + " (Netgear WNA1100)" : "none")}</dd></dl></div>`);
   $("brickAge").textContent = S.brick.busy ? "Updating…" : "Updates every few seconds";
-  $("dongle").classList.toggle("hidden", !w.present);
 }
 function drawSpecs() {
   const cp = currentPorts(), m = cp.motors || {};
@@ -3119,7 +3140,13 @@ async function pollLinkOnce() {
   $("sbLinkItem").classList.toggle("up", !!L.connected);
   setMeters(L.connected ? L.sending : {});
   $("lcdHost").textContent = L.connected ? (practice ? "PRACTICE" : (L.via === "Bluetooth" ? "BT " : "WIFI ") + L.host) : "EV3";
-  const lcdMsg = BRICK_LCD[brickState()] || "";
+  // the WiFi dongle and SD card on the 3D brick: only what the brick reports now
+  const bst = brickState(), bd = S.brick && S.brick.details, tel = L.connected && L.telemetry;
+  const practiceNow = !!(S.fake && S.fake.running);
+  const dongle = !practiceNow && ((tel && tel.wifi != null) || !!(["idle", "ready", "live", "starting"].includes(bst) && bd && bd.ok && bd.wifi && bd.wifi.present));
+  $("dongle").classList.toggle("hidden", !dongle);
+  $("sdcard").classList.toggle("hidden", practiceNow || !["idle", "ready", "live", "starting"].includes(bst));
+  const lcdMsg = BRICK_LCD[bst] || "";
   $("lcdMsg").textContent = lcdMsg; $("lcdMsg").classList.toggle("hidden", !lcdMsg); $("meters").classList.toggle("hidden", !!lcdMsg);
   $("lcdRate").textContent = L.connected ? `${L.rate}Hz` : "";
   $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
@@ -3685,6 +3712,33 @@ try {
   };
   show(saved);
   btn.addEventListener("click", () => { saved = names[(names.indexOf(saved) + 1) % names.length]; show(saved); });
+  // the labels sit on the model, next to what they describe, while there's room; else in a row below
+  const legend = document.querySelector(".dslegend"), home = legend.parentNode, after = legend.nextSibling;
+  const lines = document.createElementNS("http://www.w3.org/2000/svg", "svg"); lines.setAttribute("class", "dslines"); lines.setAttribute("aria-hidden", "true");
+  const PIN = { coL: ["L", -78, 70], coR: ["R", 78, 70], coR2: ["R2", 96, -30], coX: ["cross", 92, 34], coO: ["circle", 96, -10], coOpt: ["options", -70, -62] };
+  let pinned = null, lastSvg = "";
+  const place = () => {
+    requestAnimationFrame(place);
+    if (box.offsetParent === null) return;  // its page isn't showing
+    const w = box.clientWidth, h = box.clientHeight, want = w >= 460;
+    if (want !== pinned) {
+      pinned = want; legend.classList.toggle("pinned", want);
+      if (want) box.append(lines, legend);
+      else { lines.remove(); home.insertBefore(legend, after); legend.querySelectorAll("span").forEach((x) => { x.style.transform = ""; }); }
+    }
+    if (!want) return;
+    const a = window.DS4.anchors();
+    let svg = "";
+    for (const [id, [k, dx, dy]] of Object.entries(PIN)) {
+      const el = document.getElementById(id), at = a[k]; if (!el || !at) continue;
+      const lw = el.offsetWidth, lh = el.offsetHeight;
+      const x = Math.max(lw / 2 + 4, Math.min(w - lw / 2 - 4, at.x + dx)), y = Math.max(lh / 2 + 4, Math.min(h - lh / 2 - 4, at.y + dy));
+      el.style.transform = `translate(${Math.round(x - lw / 2)}px, ${Math.round(y - lh / 2)}px)`;
+      svg += `<line x1="${at.x.toFixed(1)}" y1="${at.y.toFixed(1)}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/><circle cx="${at.x.toFixed(1)}" cy="${at.y.toFixed(1)}" r="2"/>`;
+    }
+    if (svg !== lastSvg) { lines.innerHTML = svg; lastSvg = svg; }
+  };
+  requestAnimationFrame(place);
 } catch (e) {
   document.getElementById("ds3msg").textContent = "This browser can't show the 3D controller (WebGL is off).";
   sel.hidden = true;
