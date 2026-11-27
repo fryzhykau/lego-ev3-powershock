@@ -71,6 +71,9 @@
   .stop { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--stop); background: var(--face); color: var(--stop); font: inherit; font-weight: 650; font-size: 13.5px;
     padding: 6px 8px 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
   .stop .sq { width: 10px; height: 10px; border-radius: 2px; background: currentColor; flex: none; }
+  /* nothing moving: Stop looks inactive, but still works (click, Space or Esc), so it's never off when it's needed */
+  .stop.idle:not(.live) { border-color: var(--rule); color: var(--muted); }
+  .stop.idle:not(.live):hover { border-color: var(--stop); color: var(--stop); }
   .stop kbd { font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 4px; border: 1px solid currentColor; opacity: .7; }
   .stop:hover { background: var(--stop-soft); }
   .stop.live { background: var(--stop); color: #fff; box-shadow: 0 2px 0 #8f1820; }
@@ -1589,6 +1592,7 @@
     <footer class="appfoot">
       <span><b>PowerShock</b> <span id="footVer"></span></span>
       <a class="link" href="https://github.com/fryzhykau/lego-ev3-powershock" target="_blank" rel="noopener">Source on GitHub</a>
+      <span>A <a class="link" href="https://fiodar.ai" target="_blank" rel="noopener">fiodar.ai</a> project</span>
       <span>All rights reserved: no licence chosen yet. three.js is MIT; the optional YOLOX recognition models are Apache-2.0.</span>
       <span>LEGO, MINDSTORMS and EV3 are trademarks of the LEGO Group, and DualShock of Sony; this project isn't made or endorsed by either.</span>
     </footer>
@@ -3169,6 +3173,12 @@ async function pollLinkOnce() {
   drawPorts(); drawFacts(); drawProgram(); drawNext(); drawBrake();
   if (location.hash === "#driving") drawControls(false);
   if (location.hash === "#setup") drawConnTiles();
+  // Stop looks inactive while nothing can move: Motors off, no motor turning, no calibration drive
+  const turning = !!(L.connected && L.telemetry && Object.values(L.telemetry.motors || {}).some((m) => Math.abs(m.speed) > 5));
+  const calRunning = !!(S.cal && S.cal.job && S.cal.job.state === "running");
+  const idle = !S.armed && !turning && !calRunning;
+  $("stopBtn").classList.toggle("idle", idle);
+  $("stopBtn").title = idle ? "Nothing is moving. Stop still works: it stops every motor at once (Space or Esc)." : "Stops every motor at once, including test runs. Keyboard: Space or Esc.";
   // the bar shows icons on narrower screens: the words go in each item's tooltip
   for (const [item, what, txt] of [["sbLinkItem", "Connection", "sbLink"], ["sbWifiItem", "Brick WiFi", "sbWifi"], ["sbProgItem", "", "sbProg"]]) {
     const t = (what ? what + ": " : "") + $(txt).textContent;
