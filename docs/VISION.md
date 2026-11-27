@@ -65,6 +65,14 @@ What's recognised can also go on the **Map** page, as labelled markers where thi
 - **Wrong guesses:** a thing has to be seen twice before it's drawn. One that should be in view but isn't seen for about 1.5 seconds is taken off.
 - **Things on a table** are placed as if they stood on the floor behind it, as the picture can't tell the difference.
 
+## The floor, without the model
+
+The console also uses the camera's pictures to see where the floor is free (`pc/floor.py`). That needs only Pillow, not numpy, onnxruntime or the model. It runs while the console is linked to the robot and **Use the camera too** is on (Driving page), and feeds the obstacle brake and the map. See [Map](../README.md#map) in the README.
+
+- **How:** it shrinks each picture to 64 × 48, learns what the floor just in front of the robot looks like, and follows 32 columns upwards until they stop looking like floor. Colour and brightness are compared apart, so a shadow is still floor.
+- **Speed:** about 2 ms a picture, up to 10 a second.
+- **With recognition set up,** it recognises at the same time, so the brake can give people and pets more room.
+
 ## What to expect
 
 - **What it knows:** 80 kinds of thing, from the COCO set: people, animals (cat, dog, bird, horse…), vehicles, furniture (chair, sofa, table, bed), kitchen things (cup, bottle, bowl, fork…), electronics (TV, laptop, phone, keyboard), and toys and sport (ball, teddy bear, kite…). It doesn't know LEGO bricks, walls or doors.
@@ -79,7 +87,8 @@ What's recognised can also go on the **Map** page, as labelled markers where thi
 | File | What it is | In git? |
 |---|---|---|
 | `pc/vision.py` | reads frames from the camera, runs the model, keeps the newest result | yes |
-| `pc/worldmap.py` | places what's recognised on the map (`WorldMap.see`) | yes |
+| `pc/worldmap.py` | places what's recognised on the map (`WorldMap.see`), and the free floor (`WorldMap.surround`) | yes |
+| `pc/floor.py` | finds where the floor ends in each direction; Pillow only | yes |
 | `pc/tools/get_model.py` | downloads and checks the model | yes |
 | `pc/requirements-vision.txt` | the three packages | yes |
 | `pc/models/yolox_nano.onnx` | the model | **no**: `pc/models/` is ignored |

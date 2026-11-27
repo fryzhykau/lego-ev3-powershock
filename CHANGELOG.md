@@ -67,6 +67,13 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **Distance:** worked out from the camera's height and tilt (new **Robot size** fields), or from the infrared sensor straight ahead.
   - **Turning it on:** **Recognise things while this page is open** on the Map page.
 - **The map** draws the brake's stop and slow-down lines in front of the robot.
+- **The camera watches the floor** (`pc/floor.py`, needs only Pillow): in about 30 directions, how far the floor is free before something stands on it.
+  - **For the brake:** the nearest thing across the robot's whole width counts, not just along the infrared sensor's line. **Use the camera too** on the Driving page, on by default.
+  - **On the map:** a green fan of free floor and a red edge where things stand, marked on the map like the infrared sensor's finds.
+  - **In Practice,** a pretend camera sees the practice room.
+- **More room for people and pets:** with object recognition set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.
+- **The camera on the 3D robot,** with lines to the corners of the floor it can see, so its height and tilt can be checked by eye.
+- **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.
 
 ### Fixed
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.

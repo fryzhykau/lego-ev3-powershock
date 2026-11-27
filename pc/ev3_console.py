@@ -24,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import camera  # noqa: E402
 import vision  # noqa: E402
+import floor  # noqa: E402
 import ds4_hid  # noqa: E402
 import ev3_brick  # noqa: E402
 import mapping  # noqa: E402
@@ -220,12 +221,13 @@ class Link:
             t0 = time.monotonic()
             dt, last_t = t0 - last_t, t0
             eye, robot = self.world.eye_now()  # its own lock, taken before ours
+            view = self.world.camera_now(t0)
             with self.lock:
                 s, want = self.sock, self.want
                 inp = self.inp if t0 - self.inp_at < INPUT_STALE_S else None
                 m = self.mapper.mapping
                 res = self.mapper.step(inp, dt, stop=bool(inp and inp.get("stop")))
-                res = self.brake.apply(res, worldmap.layout(m), eye, m.get("brake") or brake.settings({}), robot, t0)
+                res = self.brake.apply(res, worldmap.layout(m), eye, m.get("brake") or brake.settings({}), robot, t0, view)
                 self.out = res
             payload = mapping.line(res)
             if s:
@@ -305,11 +307,43 @@ def practice_sensors(x, y, th):
     return ir, col
 
 
+# What the practice robot's camera sees: a light floor, blue walls and brown boxes
+PRACTICE_FLOOR, PRACTICE_WALL, PRACTICE_BOX = (196, 190, 178), (112, 140, 186), (168, 104, 58)
+
+
+def practice_view(x, y, th, w=floor.W, h=floor.H):
+    """The practice room as the practice robot's camera would see it (default robot size), as a
+    small picture for the free-floor scan. Walls and boxes stand on the floor and reach above the
+    camera."""
+    r = worldmap.ROBOT
+    fov, _ = worldmap.cam_angles(r)
+    cx, cy = x + r["camAhead"] / 10 * math.cos(th), y + r["camAhead"] / 10 * math.sin(th)
+    cols = []
+    for i in range(w):
+        a = th + (0.5 - (i + 0.5) / w) * fov
+        d = _range(cx, cy, a, PRACTICE_ROOM, 2000)
+        if d is None:
+            cols.append((None, PRACTICE_WALL))
+            continue
+        hx, hy = cx + d * math.cos(a), cy + d * math.sin(a)
+        wall = min(abs(hx + 60), abs(hx - 220), abs(hy + 90), abs(hy - 90)) < 0.5
+        cols.append((d, PRACTICE_WALL if wall else PRACTICE_BOX))
+    px = []
+    for row in range(h):
+        g = worldmap.ground((row + 0.5) / h, r)
+        for i, (d, colour) in enumerate(cols):
+            c = PRACTICE_FLOOR if g is not None and (d is None or g < d) else colour
+            n = (i * 7 + row * 13) % 9 - 4  # a little noise, like a real picture
+            px.append((c[0] + n, c[1] + n, c[2] + n))
+    return floor.Picture(w, h, px)
+
+
 class FakeEV3:
     """A stand-in for DS4Receiver on 127.0.0.1:5000, for testing without the brick."""
 
     def __init__(self):
         self.lock = threading.Lock()
+        self.pose = None  # where the practice robot really is: (x, y, heading), for its camera
         self.srv = None
         self.motors = (0, 0, 0)
         self.last_at = 0.0
@@ -405,6 +439,8 @@ class FakeEV3:
                 else:
                     lay = {"type": "tank", "left": {"B": 1}, "right": {"C": 1}}
                 truth.update(dict(tacho), lay, worldmap.ROBOT)
+                with self.lock:
+                    self.pose = (truth.x, truth.y, truth.th)
                 if now - last_status >= 0.25:
                     # Same status line the real receiver sends.
                     last_status = now
@@ -472,6 +508,13 @@ class FakeEV3:
             conn.close()
             with self.lock:
                 self.clients -= 1
+                self.pose = None
+
+    def picture(self):
+        """What the practice robot's camera sees, while Practice runs and the console is linked to it."""
+        with self.lock:
+            pose = self.pose if self.srv else None
+        return practice_view(*pose) if pose else None
 
     def status(self):
         with self.lock:
@@ -723,7 +766,9 @@ fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()
 cam = camera.Camera()
-see = vision.Vision(cam, on_result=link.world.see)  # object recognition, optional (pc/vision.py); found things go on the map
+# object recognition and the free-floor scan, optional (pc/vision.py, pc/floor.py): what's found goes on the map
+see = vision.Vision(cam, on_result=link.world.see, practice=fake.picture,
+                    on_floor=lambda scan: link.world.surround(scan) if scan else link.world.end_view())
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -928,15 +973,22 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/vision":
             # {"on": true} while the Camera view shows recognition (it stops a few seconds after the
             # last one), {"on": false} when the page is done. Answers with what was found.
-            on = b.get("on")
-            if not isinstance(on, bool):
+            # {"floor": true} keeps the free-floor scan going in the same way; either or both.
+            on, flo = b.get("on"), b.get("floor")
+            if (on is not None and not isinstance(on, bool)) or flo not in (None, True) or (on is None and not flo):
                 return self._json({"ok": False, "error": "bad vision command"})
-            self._json(see.poll(on))
+            out = see.poll(on) if on is not None else {"ok": True}
+            if flo:
+                out["floor"] = see.watch_floor()
+            self._json(out)
         elif self.path == "/api/camera/forget":
             cam.forget()
             self._json({"ok": True})
         elif self.path == "/api/map/reset":
             link.world.reset()
+            self._json({"ok": True})
+        elif self.path == "/api/map/placement/forget":
+            link.world.forget_placement()
             self._json({"ok": True})
         elif self.path == "/api/map/robot":
             self._json({"ok": True, "robot": link.world.set_robot(b.get("robot"))})

@@ -126,6 +126,14 @@ What to expect from the sensors that come with EV3 sets:
 
 The map also draws the obstacle brake's lines in front of the robot: where it stops, and where it starts slowing. They light up while it brakes.
 
+**The floor the camera sees:** while the console is linked to the robot and **Use the camera too** is on (Driving page), the camera watches the floor. It needs only Pillow, not the recognition model.
+- **On the map:** a green fan shows where the floor is free, in about 30 directions at once. Where something stands on the floor, the fan ends in a red edge, and the map marks it, as the infrared sensor does. The camera counts half as much as the sensor.
+- **The camera on the robot:** drawn where it sits, with lines to the corners of the floor it can see. Change its height or tilt under **Robot size**, and the lines move.
+- **Where the camera sits, worked out:** not sure how high the camera is, or how far it looks down? Stand the robot with its infrared sensor facing a box or wall, and stop at a few distances between 20 and 60 cm, holding still for a moment at each. The map compares where the camera sees the floor end with what the sensor measures, and suggests a tilt and height. **Use these** saves them.
+- **How it works:** it learns what the floor looks like just in front of the robot, then follows each column of the picture up until it stops looking like floor. Shadows still count as floor.
+- **Weak spots:** a patterned rug, things the same colour as the floor, white skirting on a white floor. The Map page says when the floor is too patterned to judge, and the brake then uses only the sensor.
+- **In Practice,** a pretend camera sees the practice room.
+
 ![The Map page: the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
 
 ### Driving
@@ -140,6 +148,9 @@ Which stick drives which motor. Pick a starting layout, then fine-tune each moto
   - **No reading for 0.8 s:** it stops driving towards whatever might be there.
   - **While it brakes,** the status bar, the camera's full-screen view and the Map page say so.
   - **Pushing something on purpose,** like a ball: switch the brake off.
+  - **Use the camera too** (on by default, with a camera set up): the camera watches the floor across the robot's whole width, not just the sensor's narrow line. The nearer of the two counts. It works without an infrared sensor too, but then only for driving forward.
+  - **People and pets:** with [object recognition](#object-recognition-optional) set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.
+  - **If the camera stops** while it's the only thing watching, the brake stops the robot, as it does without a sensor reading.
 
 ![The Driving page: Car layout with steering on A and drive on B and C](docs/screenshots/driving.png)
 
@@ -182,7 +193,7 @@ Everything the robot needs before driving, in the order you need it:
   - when the controller disconnects, or the console page is closed or loses focus
 
   A dropped link also switches **Motors on** off.
-- **The obstacle brake** only ever takes speed away. It's a help, not a guarantee. The infrared sensor misses thin chair legs and dark or shiny things, and sees only straight ahead. Drive slowly near people and pets.
+- **The obstacle brake** only ever takes speed away. It's a help, not a guarantee. The infrared sensor misses thin chair legs and dark or shiny things, and sees only straight ahead. The camera misses things the colour of the floor, and can't see what's right under its nose. Drive slowly near people and pets.
 - **The console** listens only on `127.0.0.1` and answers only its own page. It refuses requests from other machines, from other websites open in your browser, and with a foreign `Host` name (DNS rebinding).
 - **PowerShock on the brick** listens on TCP port 5000 with no password: anyone on the same network could connect and move the motors.
   - Commands are range-limited, and input size is capped.

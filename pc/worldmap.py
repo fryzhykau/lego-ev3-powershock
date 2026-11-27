@@ -9,6 +9,10 @@ Two parts:
   says how far away the nearest thing is. Cells along that line are probably free, the cell at
   the end is probably taken. Each cell keeps a running score (log-odds), so one bad reading
   doesn't draw a wall. The colour sensor, facing the floor, paints the floor's colour.
+  The camera adds what it sees of the floor (pc/floor.py): free up to where something stands on
+  it, in about 30 directions at once, trusted half as much as the infrared sensor.
+- Where the camera sits on the robot: its height and tilt can be worked out by comparing where
+  the camera sees the floor end with what the infrared sensor measures (fit_camera).
 
 Units: centimetres and radians; x is forward from where the map started, y is to the left,
 the heading turns anticlockwise. The robot's size is in millimetres, as LEGO parts are.
@@ -58,6 +62,56 @@ SEE_KEEP = 50       # most things kept on the map
 SEE_SHOW = 2        # seen this many times before it's shown, so one wrong guess isn't drawn
 SEE_MISSES = 15     # in view this many times without being seen: it has gone (a person walked off)
 IR_CONE = 12.0      # degrees either side of the IR sensor's line where its distance is used instead
+
+# The camera's free floor (pc/floor.py)
+CAM_FAR = 200.0     # cm; free floor further than this isn't trusted
+CAM_QUALITY = 0.7   # below this the floor in front is too patterned to trust the camera
+CAM_LATENCY = 0.15  # s: a picture is about this old by the time it has been read and scanned
+CAM_WEIGHT = 0.5    # how much the camera counts in the map, against the infrared sensor's 1
+CAM_FRESH = 1.5     # s: an older camera view isn't shown or used
+CAREFUL = ("person", "cat", "dog", "bird")  # things the brake gives more room to
+CAREFUL_NEAR = 150.0  # cm
+FIT_BIN = 5.0       # cm: one placement sample is kept per this much distance
+FIT_KEEP = 20       # most placement samples kept
+
+
+def cam_angles(r):
+    """The camera's view across and up-down, in radians (its pictures are 4:3)."""
+    fov = math.radians(r["camFov"])
+    return fov, 2 * math.atan(math.tan(fov / 2) * 3 / 4)
+
+
+def ground(y, r, tilt=None, height=None):
+    """How far from the camera (cm, along the floor) row y of the picture (0 top, 1 bottom) meets
+    the floor, or None if that row is at or above the horizon."""
+    _, vfov = cam_angles(r)
+    tilt = math.radians(r["camTilt"]) if tilt is None else tilt
+    height = r["camHeight"] / 10 if height is None else height
+    down = tilt + (min(y, 1.0) - 0.5) * vfov
+    if down <= math.radians(2):
+        return None
+    return height / math.tan(down)
+
+
+def fit_camera(samples, vfov, height=None):
+    """The camera's tilt (and height, if not given) that best explain where it saw the floor end,
+    given how far away the infrared sensor said the thing was.
+    samples: [(cm from the camera along the floor, row 0..1)]. height in cm.
+    Returns (tilt in radians, height in cm, rms error in radians)."""
+    def tilt_for(h):
+        ts = [math.atan(h / d) - (y - 0.5) * vfov for d, y in samples]
+        t = sum(ts) / len(ts)
+        return t, math.sqrt(sum((x - t) ** 2 for x in ts) / len(ts))
+    if height is not None:
+        t, err = tilt_for(height)
+        return t, height, err
+    best = None
+    for k in range(12, 241):  # 3 to 60 cm, in quarter centimetres
+        h = k / 4
+        t, err = tilt_for(h)
+        if best is None or err < best[2]:
+            best = (t, h, err)
+    return best
 
 
 def robot_settings(d):
@@ -177,20 +231,20 @@ class Grid:
         self.lo[k] = max(LO_MIN, min(LO_MAX, self.lo[k] + v))
         self.touched.add(k)
 
-    def ray(self, x, y, th, dist, hit):
-        """A range reading from (x, y) facing th: free up to dist, and taken at dist if hit."""
+    def ray(self, x, y, th, dist, hit, start=0.0, weight=1.0):
+        """A range reading from (x, y) facing th: free from start up to dist, and taken at dist if hit."""
         end = self.index(x + dist * math.cos(th), y + dist * math.sin(th)) if hit else None
         seen = set()
         steps = int(dist / (self.cell / 2))
-        for n in range(steps):
+        for n in range(int(start / (self.cell / 2)), steps):
             r = n * self.cell / 2
             ij = self.index(x + r * math.cos(th), y + r * math.sin(th))
             if ij is None or ij == end or ij in seen:
                 continue
             seen.add(ij)
-            self._add(ij, LO_FREE)
+            self._add(ij, LO_FREE * weight)
         if end is not None:
-            self._add(end, LO_HIT)
+            self._add(end, LO_HIT * weight)
 
     def paint(self, x, y, colour):
         ij = self.index(x, y)
@@ -212,6 +266,7 @@ class WorldMap:
         self.lock = threading.Lock()
         self.config = config
         self.robot = self._load()
+        self.fit = {}  # placement samples by distance: {bin: (infrared cm, row)}, kept when the map is cleared
         self.reset()
 
     def _load(self):
@@ -243,6 +298,7 @@ class WorldMap:
             self.lay = None
             self.speed = 0.0  # cm/s forward, from the speeds the brick measures at the wheels
             self.objects = []  # what the camera recognised: {"label", "x", "y", "n", "seen", "miss"}
+            self.view = None  # the camera's latest free floor (surround)
 
     def relink(self):
         with self.lock:
@@ -301,9 +357,7 @@ class WorldMap:
         now = time.monotonic() if now is None else now
         with self.lock:
             r, o, eye = self.robot, self.odo, self.eye
-            fov = math.radians(r["camFov"])
-            vfov = 2 * math.atan(math.tan(fov / 2) * 3 / 4)  # the camera's pictures are 4:3
-            tilt, height = math.radians(r["camTilt"]), r["camHeight"] / 10
+            fov, _ = cam_angles(r)
             cx, cy = o.x + r["camAhead"] / 10 * math.cos(o.th), o.y + r["camAhead"] / 10 * math.sin(o.th)
             placed = []
             for t in items:
@@ -311,10 +365,9 @@ class WorldMap:
                     continue
                 x0, y0, x1, y1 = t["box"]
                 bearing = (0.5 - (x0 + x1) / 2) * fov  # left of centre is positive, like the map's turns
-                down = tilt + (min(y1, 1.0) - 0.5) * vfov  # how far below level its bottom edge is
-                if down <= math.radians(2):
+                dist = ground(y1, r)  # where its bottom edge meets the floor
+                if dist is None:
                     continue  # at or above the horizon: it isn't standing on the floor
-                dist = height / math.tan(down)
                 ir_ok = eye and eye["hit"] and eye["kind"] == "ir" and now - eye["at"] < 0.5
                 if ir_ok and abs(math.degrees(bearing) - r["eyeAngle"]) < IR_CONE:
                     dist = eye["dist"] + (r["eyeAhead"] - r["camAhead"]) / 10
@@ -353,10 +406,124 @@ class WorldMap:
             keep.sort(key=lambda ob: ob["seen"])
             self.objects = keep[-SEE_KEEP:]
 
+    def surround(self, scan, now=None):
+        """The camera's free floor (floor.Scanner.scan) into the map, around the robot: free up to
+        where something stands in each direction. Also keeps the nearest thing in the robot's way,
+        for the brake, and compares with the infrared sensor to learn where the camera sits."""
+        now = time.monotonic() if now is None else now
+        with self.lock:
+            r, o = self.robot, self.odo
+            fov, _ = cam_angles(r)
+            cols = scan["cols"]
+            n = len(cols)
+            cx, cy = o.x + r["camAhead"] / 10 * math.cos(o.th), o.y + r["camAhead"] / 10 * math.sin(o.th)
+            near = ground(1.0, r)  # the nearest floor in the picture: anything closer is out of view
+            top = ground(0.0, r)
+            far = CAM_FAR if top is None else min(CAM_FAR, top)
+            dirs = []
+            for i, e in enumerate(cols):
+                b = (0.5 - (i + 0.5) / n) * fov  # left of centre is positive
+                d = None if e is None else ground(e, r)
+                hit = d is not None and d <= CAM_FAR
+                dirs.append((b, d if hit else far, hit))
+            good = scan["quality"] >= CAM_QUALITY and near is not None
+            if good:
+                for b, d, hit in dirs:
+                    if d > near:
+                        self.grid.ray(cx, cy, o.th + b, d, hit, start=near, weight=CAM_WEIGHT)
+            # the nearest thing in the robot's way: straight ahead, within its width
+            half = r["track"] / 20 + 3
+            ahead = None
+            for b, d, hit in dirs:
+                if hit and abs(d * math.sin(b)) <= half:
+                    f = d * math.cos(b)
+                    ahead = f if ahead is None else min(ahead, f)
+            self.view = {"at": now - CAM_LATENCY, "seen": now, "dirs": dirs, "near": near, "good": good,
+                         "quality": scan["quality"], "ahead": ahead, "cam": (cx, cy, o.th)}
+            self._sample(cols, fov, scan["quality"], now)
+
+    def _sample(self, cols, fov, quality, now):
+        """One placement sample, when the infrared sensor straight ahead and the camera both see
+        the same thing, and the robot stands still (so the two readings are of the same moment)."""
+        r, eye = self.robot, self.eye
+        if not eye or not eye["hit"] or now - eye["at"] > 0.3 or abs(self.speed) > 2 or quality < CAM_QUALITY:
+            return
+        if abs(r["eyeAngle"]) > 10:
+            return
+        n = len(cols)
+        line = [cols[i] for i in range(n) if abs(math.degrees((0.5 - (i + 0.5) / n) * fov) - r["eyeAngle"]) <= 6]
+        if not line or any(e is None for e in line) or max(line) - min(line) > 0.06:
+            return
+        self.fit[int(eye["dist"] // FIT_BIN)] = (eye["dist"], sorted(line)[len(line) // 2])
+        while len(self.fit) > FIT_KEEP:
+            self.fit.pop(next(iter(self.fit)))
+
+    def placement(self):
+        """Where the camera sits, as the camera and infrared sensor see it:
+        {"samples", "ready", "tilt" (degrees), "height" (mm, or None if the samples can't tell), "error" (degrees)}."""
+        with self.lock:
+            r, fit = self.robot, list(self.fit.values())
+        out = {"samples": len(fit), "ready": False}
+        if len(fit) < 3:
+            return out
+        _, vfov = cam_angles(r)
+        pts = [(d + (r["eyeAhead"] - r["camAhead"]) / 10, y) for d, y in fit]
+        pts = [(d, y) for d, y in pts if d > 3]
+        if len(pts) < 3:
+            return out
+        ds = [d for d, _ in pts]
+        spread = max(ds) / min(ds) >= 1.6 and len(pts) >= 4  # near and far: enough to tell the height too
+        tilt, height, err = fit_camera(pts, vfov, None if spread else r["camHeight"] / 10)
+        out.update({"ready": True, "tilt": round(math.degrees(tilt), 1), "height": round(height * 10) if spread else None,
+                    "error": round(math.degrees(err), 1), "from": [round(min(ds)), round(max(ds))]})
+        return out
+
+    def forget_placement(self):
+        with self.lock:
+            self.fit = {}
+
+    def camera_now(self, now=None):
+        """The camera's nearest thing in the robot's way, for the brake: {"dist" (cm from the camera,
+        or None), "at", "good", "careful" (a person or pet close ahead, or None), "speed"}, or None
+        when the camera isn't watching the floor."""
+        now = time.monotonic() if now is None else now
+        with self.lock:
+            v = self.view
+            careful = None
+            if self.objects:
+                r, o = self.robot, self.odo
+                cx, cy = o.x + r["camAhead"] / 10 * math.cos(o.th), o.y + r["camAhead"] / 10 * math.sin(o.th)
+                for ob in self.objects:
+                    if ob["label"] in CAREFUL and ob["n"] >= SEE_SHOW and now - ob["seen"] < 2.0:
+                        dx, dy = ob["x"] - cx, ob["y"] - cy
+                        off = (math.atan2(dy, dx) - o.th + math.pi) % (2 * math.pi) - math.pi
+                        if math.hypot(dx, dy) < CAREFUL_NEAR and abs(off) < math.radians(50):
+                            careful = ob["label"]
+                            break
+            if not v:
+                return None
+            # an old view is still returned: the brake must know the camera stopped while it was watching
+            return {"dist": None if v["ahead"] is None else round(v["ahead"], 1), "at": v["at"],
+                    "good": v["good"], "careful": careful, "speed": round(self.speed, 1)}
+
+    def end_view(self):
+        """The camera stopped watching the floor on purpose (the page stopped asking)."""
+        with self.lock:
+            self.view = None
+
     def snapshot(self):
+        place = self.placement()  # takes the lock itself
         now = time.monotonic()
         with self.lock:
             o = self.odo
+            v = self.view if self.view and now - self.view["seen"] < CAM_FRESH else None
+            view = None
+            if v:
+                cx, cy, th = v["cam"]
+                near = v["near"] or 0.0
+                pt = lambda b, d: [round(cx + d * math.cos(th + b), 1), round(cy + d * math.sin(th + b), 1)]  # noqa: E731
+                view = {"good": v["good"], "quality": v["quality"], "ahead": None if v["ahead"] is None else round(v["ahead"], 1),
+                        "pts": [pt(b, near) + pt(b, max(near, d)) + [1 if hit else 0] for b, d, hit in v["dirs"]]}
             return {
                 "pose": {"x": round(o.x, 1), "y": round(o.y, 1), "heading": round(math.degrees(o.th), 1)},
                 "trail": list(self.trail),
@@ -369,5 +536,7 @@ class WorldMap:
                 "eye": {k: v for k, v in self.eye.items() if k != "at"} if self.eye else None,
                 "objects": [{"label": ob["label"], "x": round(ob["x"], 1), "y": round(ob["y"], 1),
                              "seen": round(now - ob["seen"], 1)} for ob in self.objects if ob["n"] >= SEE_SHOW],
+                "view": view,
+                "placement": place,
                 "updates": self.updates,
             }

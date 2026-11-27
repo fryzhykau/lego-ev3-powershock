@@ -91,6 +91,17 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Robot size** on the Map page. Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
 - **Nothing appears:** a thing must be seen twice, at least 50% sure. Things seen against the sky or above the horizon (on a shelf high up) aren't placed.
 
+## The camera and the floor
+
+- **"Watching the floor needs Pillow":** run `python -m pip install pillow` (or the whole `pc/requirements-vision.txt`).
+- **"The floor is too patterned to judge":** a rug or tiles with strong patterns. The brake then uses only the infrared sensor. Nothing to fix; on a plainer floor it comes back by itself.
+- **The robot stops for nothing:**
+  - A line on the floor (tape, a rug's edge, a strong shadow edge) looks like something standing there.
+  - The robot itself is in the picture: point the camera up a little, so the bottom of the picture is floor.
+  - Switch off **Use the camera too** on the Driving page to brake with the sensor only.
+- **The free floor on the map is too short or too long:** set the camera's height and tilt under **Robot size**, or let the map work them out (see the README's Map section).
+- **The worked-out height is missing:** it needs stops both near (about 20 cm) and further away (50 cm or more).
+
 ## Object recognition on the camera
 
 - **"Needs a one-time setup":** install the packages and get the model, as the page shows. The full steps are in [VISION.md](VISION.md).

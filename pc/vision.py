@@ -7,6 +7,10 @@ missing; the imports happen only when recognition starts.
 
 Recognition runs only while the page keeps asking for it, so it costs nothing otherwise. Frames
 come from the Pi through camera.Camera.frames(); nothing leaves the laptop.
+
+The same frames also feed the free-floor scan (pc/floor.py), which needs only Pillow. It runs
+while the page asks for it (watch_floor), with or without recognition. In Practice, the floor
+scan watches the practice room instead, through a pretend camera (Vision's practice argument).
 """
 import hashlib
 import importlib.util
@@ -16,6 +20,7 @@ import threading
 import time
 
 import camera
+import floor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL = os.path.join(HERE, "models", "yolox_nano.onnx")
@@ -178,9 +183,14 @@ class Detector:
 class Vision:
     """Recognition for the console: started by the page's polls, stopped when they stop."""
 
-    def __init__(self, cam, model=MODEL, sha256=MODEL_SHA256, on_result=None):
+    def __init__(self, cam, model=MODEL, sha256=MODEL_SHA256, on_result=None, on_floor=None, practice=None):
         self.cam, self.model, self.sha256 = cam, model, sha256
         self.on_result = on_result  # called with each picture's items, e.g. to put them on the map
+        self.on_floor = on_floor    # called with each free-floor scan, and with None when the scan stops
+        self.practice = practice    # returns a floor.Picture of the practice room while Practice is on, else None
+        self.scanner = floor.Scanner()
+        self.floor_until = 0.0
+        self.floor_result, self.floor_error, self.floor_times = None, None, []
         self.lock = threading.Lock()
         self.new_frame = threading.Condition(self.lock)
         self.detector = None
@@ -222,12 +232,49 @@ class Vision:
             r.pop("at", None)
             return r
 
-    def _wanted(self):
+    def _floor_missing(self):
+        return importlib.util.find_spec("PIL") is None and not (self.practice and self.practice() is not None)
+
+    def watch_floor(self):
+        """The page asks for the free-floor scan to keep going. Returns its latest result."""
+        now = time.monotonic()
+        if self._floor_missing():
+            return {"ok": False, "error": "Watching the floor needs Pillow on this laptop.", "setup": SETUP}
         with self.lock:
-            if time.monotonic() <= self.until:
-                return True
-            self.worker = None  # under the lock, so the next poll starts a fresh worker
-            return False
+            was = now <= self.floor_until
+            self.floor_until = now + KEEP_ALIVE
+            if not was:
+                self.floor_result, self.floor_error, self.floor_times = None, None, []
+                self.scanner.reset()  # the floor's look is learned again: it may be another room
+            if self.worker is None:
+                self.worker = threading.Thread(target=self._work, name="vision", daemon=True)
+                self.worker.start()
+            r = dict(self.floor_result or {})
+            recent = [t for t in self.floor_times if now - t < 2.0]
+            r.update({"ok": True, "on": True, "error": self.floor_error or (self.error if not r else None),
+                      "fps": round(len(recent) / 2.0, 1), "age": round(now - r["at"], 2) if "at" in r else None})
+            r.pop("at", None)
+            return r
+
+    def _wanted(self):
+        """(recognition wanted, floor scan wanted). When neither is, the worker ends."""
+        now = time.monotonic()
+        with self.lock:
+            recog, flo = now <= self.until, now <= self.floor_until
+            if not (recog or flo):
+                self.worker = None  # under the lock, so the next poll starts a fresh worker
+            return recog, flo
+
+    def _read_practice(self, stop):
+        """The practice room through the pretend camera, 10 pictures a second."""
+        while not stop.is_set():
+            pic = self.practice() if self.practice else None
+            if pic is None:
+                return
+            with self.new_frame:
+                self.frame, self.seq = pic, self.seq + 1
+                self.new_frame.notify_all()
+            stop.wait(0.1)
 
     def _read(self, stop):
         """Keeps only the newest frame: recognition is slower than the video and must not fall behind."""
@@ -243,48 +290,113 @@ class Vision:
             with self.lock:
                 self.error = str(e)
 
+    def _recognise(self, jpeg):
+        """One picture through the model. False if the model wouldn't load or run: recognition
+        then stops, and the next poll may try again after a few seconds."""
+        try:
+            if self.detector is None:
+                if time.monotonic() - self.failed_at < FAIL_WAIT:
+                    return True  # it failed a moment ago: keep its error readable for a while
+                self.detector = Detector(self.model, self.sha256)
+            t0 = time.monotonic()
+            try:
+                items, size = self.detector(jpeg)
+            except (OSError, ValueError, SyntaxError):
+                return True  # a frame Pillow can't read; the next one will do
+        except Exception as e:
+            with self.lock:
+                self.error = str(e) if isinstance(e, VisionError) else f"Object recognition stopped: {e}"
+                self.until = 0.0
+                self.failed_at = time.monotonic()
+            return False
+        t1 = time.monotonic()
+        with self.lock:
+            self.result = {"items": items, "size": list(size), "ms": round((t1 - t0) * 1000), "at": t1}
+            self.times = [t for t in self.times if t1 - t < 2.0] + [t1]
+            self.error = None
+        if self.on_result:
+            try:
+                self.on_result(items)
+            except Exception:  # a listener's mistake must not stop recognition
+                pass
+        return True
+
+    def _scan(self, frame):
+        t0 = time.monotonic()
+        try:
+            pic = frame if isinstance(frame, floor.Picture) else floor.from_jpeg(frame)
+        except (OSError, ValueError, SyntaxError):
+            return  # a frame Pillow can't read
+        except ImportError:
+            with self.lock:
+                self.floor_error = "Watching the floor needs Pillow on this laptop."
+            return
+        scan = self.scanner.scan(pic)
+        t1 = time.monotonic()
+        with self.lock:
+            self.floor_result = dict(scan, ms=round((t1 - t0) * 1000), at=t1,
+                                     source="practice" if isinstance(frame, floor.Picture) else "camera")
+            self.floor_times = [t for t in self.floor_times if t1 - t < 2.0] + [t1]
+            self.floor_error = None
+        if self.on_floor:
+            try:
+                self.on_floor(scan)
+            except Exception:  # a listener's mistake must not stop the scan
+                pass
+
     def _work(self):
-        stop, reader, next_try = threading.Event(), None, 0.0
+        stop, reader, next_try, source = threading.Event(), None, 0.0, None
         with self.lock:
             # a frame left from an earlier run may be from another camera, or minutes old
             self.frame, seen = None, self.seq
+        scanned = False
         try:
-            if self.detector is None:
-                self.detector = Detector(self.model, self.sha256)
-            while self._wanted():
+            while True:
+                recog, flo = self._wanted()
+                if not (recog or flo):
+                    break
+                # Practice watches the practice room: the real camera sees another room than the pretend robot's
+                want = "practice" if self.practice and self.practice() is not None else "camera"
+                if want != source:
+                    stop.set()
+                    reader, next_try, source = None, 0.0, want
                 if reader is None or not reader.is_alive():
                     if time.monotonic() >= next_try:
                         stop = threading.Event()
-                        reader = threading.Thread(target=self._read, args=(stop,), name="vision-camera", daemon=True)
+                        read = self._read_practice if source == "practice" else self._read
+                        reader = threading.Thread(target=read, args=(stop,), name="vision-camera", daemon=True)
                         reader.start()
                         next_try = time.monotonic() + RETRY
                 with self.new_frame:
-                    self.new_frame.wait_for(lambda: self.seq != seen or time.monotonic() > self.until, timeout=0.5)
+                    self.new_frame.wait_for(lambda: self.seq != seen or time.monotonic() > max(self.until, self.floor_until),
+                                            timeout=0.5)
                     if self.seq == seen:
                         continue
-                    jpeg, seen = self.frame, self.seq
+                    frame, seen = self.frame, self.seq
                 t0 = time.monotonic()
-                try:
-                    items, size = self.detector(jpeg)
-                except (OSError, ValueError, SyntaxError):
-                    continue  # a frame Pillow can't read; the next one will do
-                t1 = time.monotonic()
-                with self.lock:
-                    self.result = {"items": items, "size": list(size), "ms": round((t1 - t0) * 1000), "at": t1}
-                    self.times = [t for t in self.times if t1 - t < 2.0] + [t1]
-                    self.error = None
-                if self.on_result:
-                    try:
-                        self.on_result(items)
-                    except Exception:  # a listener's mistake must not stop recognition
-                        pass
+                if recog and isinstance(frame, bytes) and not self._recognise(frame):
+                    if not flo:
+                        break
+                if flo:
+                    self._scan(frame)
+                    scanned = True
+                elif scanned:
+                    scanned = False
+                    self._floor_ended()
                 rest = 1.0 / MAX_RATE - (time.monotonic() - t0)
                 if rest > 0:
                     time.sleep(rest)
-        except Exception as e:  # the model wouldn't load or run: say so, and let the next poll try again
-            with self.lock:
-                self.error = str(e) if isinstance(e, VisionError) else f"Object recognition stopped: {e}"
-                self.worker = None
-                self.failed_at = time.monotonic()
         finally:
             stop.set()
+            with self.lock:
+                if self.worker is threading.current_thread():
+                    self.worker = None  # not one a newer poll has started meanwhile
+            if scanned:
+                self._floor_ended()
+
+    def _floor_ended(self):
+        if self.on_floor:
+            try:
+                self.on_floor(None)  # the scan stopped on purpose: the map and brake stop using it
+            except Exception:
+                pass

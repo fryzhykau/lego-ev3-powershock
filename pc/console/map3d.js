@@ -1,5 +1,6 @@
 // The live map in 3D (three.js): the floor, what the sensors found, the robot and its trail,
-// the obstacle brake's stop line, and what the camera recognised.
+// the obstacle brake's stop line, what the camera recognised, the floor the camera sees free,
+// and the camera itself on the robot with what it can see.
 // createMap(container) -> { update(snapshot), setView("behind" | "above") }
 // The snapshot comes from /api/map (pc/worldmap.py): centimetres, x ahead, y to the left.
 // In the scene, X = x, Z = -y and Y is up, so the robot starts facing +X.
@@ -40,6 +41,7 @@ export function createMap(container) {
     const c = (name, fallback) => new THREE.Color((css.getPropertyValue(name) || "").trim() || fallback);
     night = document.documentElement.dataset.theme !== "day";
     seenColor.copy(c("--map-seen", "#1f6fd1"));
+    freeColor.copy(c("--map-free", "#2f9e57")); edgeColor.copy(c("--map-edge", "#d1242f"));
     labelInk = night ? "#e6ecf1" : "#0d1218"; labelBack = night ? "#151c24d9" : "#ffffffd9";
     labels.forEach((l) => { l.text = null; }); // redraw in the new colours
     floor.material.color.copy(c("--map-floor", "#e9ecec"));
@@ -48,10 +50,11 @@ export function createMap(container) {
     if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
     grid = new THREE.GridHelper(800, 40, c("--map-grid-1", "#c3cacd"), c("--map-grid-2", "#d6dbdd"));
     grid.position.y = 0.05; scene.add(grid);
+    if (freeMat) freeMat.opacity = night ? 0.3 : 0.26;
     if (beamMat) { beamMat.blending = night ? THREE.AdditiveBlending : THREE.NormalBlending; beamMat.needsUpdate = true; } // a beam of light at night
   }
-  let beamMat = null;
-  const seenColor = new THREE.Color(0x1f6fd1);
+  let beamMat = null, freeMat = null;
+  const seenColor = new THREE.Color(0x1f6fd1), freeColor = new THREE.Color(0x2f9e57), edgeColor = new THREE.Color(0xd1242f);
   let labelInk = "#0d1218", labelBack = "#ffffffd9";
   const labels = [];
   setTheme();
@@ -118,6 +121,32 @@ export function createMap(container) {
     return labels[n];
   }
 
+  // the floor the camera sees free: a fan from the nearest floor in view to where something stands
+  const COLS = 64;
+  const freePos = new Float32Array(COLS * 6 * 3), edgePos = new Float32Array(COLS * 3), edgeLine = new Float32Array(COLS * 2 * 3);
+  const freeGeo = new THREE.BufferGeometry(); freeGeo.setAttribute("position", new THREE.BufferAttribute(freePos, 3)); freeGeo.setDrawRange(0, 0);
+  freeMat = new THREE.MeshBasicMaterial({ color: freeColor, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
+  const free = new THREE.Mesh(freeGeo, freeMat); free.position.y = 0.15; free.frustumCulled = false; scene.add(free);
+  const edgeGeo = new THREE.BufferGeometry(); edgeGeo.setAttribute("position", new THREE.BufferAttribute(edgePos, 3)); edgeGeo.setDrawRange(0, 0);
+  const edges = new THREE.Points(edgeGeo, new THREE.PointsMaterial({ color: edgeColor, size: 3.2, transparent: true, opacity: 0.9, depthWrite: false }));
+  edges.frustumCulled = false; scene.add(edges);
+  const edgeLineGeo = new THREE.BufferGeometry(); edgeLineGeo.setAttribute("position", new THREE.BufferAttribute(edgeLine, 3)); edgeLineGeo.setDrawRange(0, 0);
+  const edgeLines = new THREE.LineSegments(edgeLineGeo, new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 0.7 }));
+  edgeLines.frustumCulled = false; scene.add(edgeLines);
+
+  // the camera on the robot, and lines to the corners of the floor it can see
+  const camBody = new THREE.Group(); robot.add(camBody);
+  const camBox = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 2.6), new THREE.MeshStandardMaterial({ color: 0x2a3138, roughness: 0.5 }));
+  const lensGeo = new THREE.CylinderGeometry(0.75, 0.75, 1.2, 18); lensGeo.rotateZ(Math.PI / 2); lensGeo.translate(1.6, 0, 0);
+  const lens = new THREE.Mesh(lensGeo, new THREE.MeshStandardMaterial({ color: 0x0c1014, roughness: 0.2, metalness: 0.6 }));
+  camBox.castShadow = true; camBody.add(camBox, lens);
+  const mastGeo = new THREE.CylinderGeometry(0.45, 0.45, 1, 10); mastGeo.translate(0, 0.5, 0);
+  const mast = new THREE.Mesh(mastGeo, grey); robot.add(mast); // what holds the camera up
+  const sightPos = new Float32Array(8 * 3), sightGeo = new THREE.BufferGeometry();
+  sightGeo.setAttribute("position", new THREE.BufferAttribute(sightPos, 3));
+  const sightMat = new THREE.LineBasicMaterial({ color: freeColor, transparent: true, opacity: 0.35 });
+  const sight = new THREE.LineSegments(sightGeo, sightMat); sight.frustumCulled = false; robot.add(sight);
+
   // the path driven so far
   const trailPos = new Float32Array(3000 * 3);
   const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3)); trailGeo.setDrawRange(0, 0);
@@ -132,6 +161,19 @@ export function createMap(container) {
     const axles = layout === "car" ? [0, size.base / 10] : [0, 0];
     wheels.forEach((w, i) => { w.scale.set(wr, 2.8, wr); w.position.set(axles[i >> 1], wr, (i & 1 ? 1 : -1) * (W / 2 - 1.4)); w.visible = layout === "car" || i < 2; });
     eye.position.set(size.eyeAhead / 10, wr + 3, 0); eye.rotation.y = THREE.MathUtils.degToRad(size.eyeAngle);
+    // the camera: where it sits, how far it looks down, and the floor it can see (as pc/worldmap.py works it out)
+    const ca = (size.camAhead ?? 40) / 10, ch = (size.camHeight ?? 150) / 10, tilt = THREE.MathUtils.degToRad(size.camTilt ?? 15);
+    const fov = THREE.MathUtils.degToRad(size.camFov ?? 62), vfov = 2 * Math.atan(Math.tan(fov / 2) * 3 / 4);
+    camBody.position.set(ca, ch, 0); camBody.rotation.z = -tilt;
+    const top = wr + 2; mast.position.set(ca, top, 0); mast.scale.y = Math.max(0.01, ch - 1.2 - top); mast.visible = ch - 1.2 > top;
+    const ground = (y) => { const d = tilt + (y - 0.5) * vfov; return d <= THREE.MathUtils.degToRad(2) ? null : ch / Math.tan(d); };
+    const near = ground(1) ?? 0, far = Math.min(200, ground(0) ?? 200);
+    let n = 0;
+    [[near, 1], [near, -1], [far, 1], [far, -1]].forEach(([d, side]) => {
+      const b = side * fov / 2;
+      sightPos.set([ca, ch, 0, ca + d * Math.cos(b), 0.2, -d * Math.sin(b)], n); n += 6;
+    });
+    sightGeo.attributes.position.needsUpdate = true;
   }
   shapeRobot();
 
@@ -177,7 +219,8 @@ export function createMap(container) {
     update(s) {
       if (!s) return;
       const c = s.cell || 4;
-      if (s.robot && (s.robot.wheel !== size.wheel || s.robot.track !== size.track || s.robot.base !== size.base || s.robot.eyeAhead !== size.eyeAhead || s.robot.eyeAngle !== size.eyeAngle || (s.layout || "tank") !== layout)) {
+      const keys = ["wheel", "track", "base", "eyeAhead", "eyeAngle", "camAhead", "camHeight", "camTilt", "camFov"];
+      if (s.robot && (keys.some((k) => s.robot[k] !== size[k]) || (s.layout || "tank") !== layout)) {
         size = s.robot; layout = s.layout || "tank"; shapeRobot();
       }
       pose.x = s.pose.x; pose.z = -s.pose.y; pose.h = THREE.MathUtils.degToRad(s.pose.heading);
@@ -216,6 +259,21 @@ export function createMap(container) {
         label(l, o.label, fresh);
       });
       for (let n = objs.length; n < labels.length; n++) labels[n].group.visible = false;
+      // the floor the camera sees free, and where something stands on it
+      const v = s.view, pts = v ? v.pts.slice(0, COLS) : [];
+      let nf = 0, ne = 0, nl = 0;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [ax, ay, bx, by] = pts[i], [cx, cy, dx, dy] = pts[i + 1];
+        freePos.set([ax, 0, -ay, bx, 0, -by, dx, 0, -dy, ax, 0, -ay, dx, 0, -dy, cx, 0, -cy], nf); nf += 18;
+        if (pts[i][4] && pts[i + 1][4] && Math.hypot(bx - dx, by - dy) < 25) { edgeLine.set([bx, 1, -by, dx, 1, -dy], nl); nl += 6; }
+      }
+      pts.forEach((q) => { if (q[4]) { edgePos.set([q[2], 1, -q[3]], ne); ne += 3; } });
+      freeGeo.setDrawRange(0, nf / 3); freeGeo.attributes.position.needsUpdate = true;
+      edgeGeo.setDrawRange(0, ne / 3); edgeGeo.attributes.position.needsUpdate = true;
+      edgeLineGeo.setDrawRange(0, nl / 3); edgeLineGeo.attributes.position.needsUpdate = true;
+      free.visible = edges.visible = edgeLines.visible = !!v;
+      freeMat.opacity = (night ? 0.3 : 0.26) * (v && v.good ? 1 : 0.4); // a patterned floor: shown faintly, not used
+      sightMat.opacity = v ? 0.5 : 0.22;
       // the brake's lines, ahead of the range sensor; they light up while it brakes
       const k = s.brake;
       zone.visible = !!k && !["off", "no sensor", "sideways", "no layout"].includes(k.state);

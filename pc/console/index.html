@@ -20,7 +20,7 @@
     --go: #36d27f; --go-soft: #12301f; --warn: #f5a524; --warn-soft: #33260f; --stop: #ff4b55; --stop-soft: #3a1519;
     --warn-tint: #1f1b13; --stop-tint: #241619; --amber-soft: #3a2a10; --track: #2a3541; --tick: #6b7a87; --on-go: #052313; --badge: #26313c; --badge-ink: #b4c0ca; --stall: #c8141e;
     --well-hi: #2b3846; --well-mid: #18212b; --well-lo: #0f151c;
-    --map-floor: #18202a; --map-grid-1: #3b4957; --map-grid-2: #26303b; --map-start: #6b7a87; --map-seen: #5ab8ff;
+    --map-floor: #18202a; --map-grid-1: #3b4957; --map-grid-2: #26303b; --map-start: #6b7a87; --map-seen: #5ab8ff; --map-free: #35d39a; --map-edge: #ff6b5a;
     --ev3-white: #f6f7f7; --ev3-grey: #b8bcbd; --ev3-grey-2: #a3a8a9; --ev3-dark: #1e2224; --ev3-key: #c6cacb;
     --lcd: #c4cfbd; --lcd-ink: #263022; --hub: #c9301f;
     --r-s: 8px; --r-l: 16px;
@@ -38,7 +38,7 @@
     --go: #2e8a57; --go-soft: #e3f2ea; --warn: #b0650a; --warn-soft: #fbf0e1; --stop: #d1242f; --stop-soft: #fbe6e7;
     --warn-tint: #fffaf3; --stop-tint: #fff7f7; --amber-soft: #fff6e6; --track: #e3e7e7; --tick: #aeb5b8; --on-go: #fff; --badge: #e3e7e7; --badge-ink: #59636a; --stall: #ffb3ad;
     --well-hi: #ffffff; --well-mid: #f2f4f4; --well-lo: #e8ebeb;
-    --map-floor: #e9ecec; --map-grid-1: #c3cacd; --map-grid-2: #d6dbdd; --map-start: #8a949a; --map-seen: #1f6fd1;
+    --map-floor: #e9ecec; --map-grid-1: #c3cacd; --map-grid-2: #d6dbdd; --map-start: #8a949a; --map-seen: #1f6fd1; --map-free: #2f9e57; --map-edge: #d1242f;
   }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; background: var(--room); color: var(--ink); font: 14.5px/1.5 var(--ui); font-variant-numeric: tabular-nums; display: grid; grid-template-rows: auto 1fr; }
@@ -719,6 +719,10 @@
   .mapsize { margin: 12px 0; border-top: 1px solid var(--rule); padding-top: 10px; }
   .mbrake { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--soft); font-size: 13px; }
   .mbrake.slow { background: var(--warn-tint); } .mbrake.stop { background: var(--stop-tint); }
+  .mfloor::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--map-free); flex: none; }
+  .mfloor.off::before { background: var(--muted); }
+  .mplace { margin: 10px 0; padding: 10px; border-radius: 8px; background: var(--soft); font-size: 13px; }
+  .mplace p { margin: 0 0 8px; } .mplace p:last-child { margin-bottom: 0; }
   .mseen { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
   .mseen li { display: flex; gap: 8px; align-items: baseline; padding: 5px 9px; border-radius: 8px; background: var(--soft); }
   .mseen li b { font-weight: 600; } .mseen li .muted { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -1286,6 +1290,7 @@
           <h2>Sensors</h2>
           <ul class="msens" id="mapSensors"></ul>
           <p class="mbrake" id="mapBrake"></p>
+          <p class="mbrake mfloor" id="mapFloor" hidden></p>
           <p class="note" id="mapHint"></p>
           <h2>Seen by the camera</h2>
           <label class="toggle"><input type="checkbox" id="mapSee"><span class="track"></span><span>Recognise things while this page is open</span></label>
@@ -1308,7 +1313,8 @@
               <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
               <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
             </div>
-            <p class="muted">The camera's height and tilt tell the map how far away a recognised thing is, from where it meets the floor in the picture.</p>
+            <p class="muted">The camera's height and tilt tell the map how far away things are, from where they meet the floor in the picture. The 3D view shows the camera on the robot, with lines to the corners of the floor it can see.</p>
+            <div class="mplace" id="mapPlace"></div>
             <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSizeSaved"></span>
           </details>
           <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
@@ -1683,7 +1689,9 @@ function drawControls(force) {
       <label class="toggle"><input type="checkbox" data-k="brake.on" ${bk.on ? "checked" : ""}><span class="track"></span><span>Brake for obstacles</span></label>
       <label class="field"><span>Stop short by</span>${range("brake.stop", bk.stop, 5, 40, 1, " cm")}</label>
       <label class="field"><span>Slow from</span>${range("brake.slow", bk.slow, 20, 70, 5, " cm")}</label>
-      <p class="help">Uses the infrared or ultrasonic sensor facing ahead (or behind). Only driving towards the obstacle is braked, so you can always back away or turn on the spot. Runs on this laptop: switch it off to push things on purpose.</p>`;
+      <label class="toggle"><input type="checkbox" data-k="brake.camera" ${bk.camera !== false ? "checked" : ""}><span class="track"></span><span>Use the camera too</span></label>
+      <p class="help">Uses the infrared or ultrasonic sensor facing ahead (or behind). Only driving towards the obstacle is braked, so you can always back away or turn on the spot. Runs on this laptop: switch it off to push things on purpose.</p>
+      <p class="help">With the camera: it watches the floor across the robot's whole width, not just the sensor's narrow line. With object recognition set up, people and pets close ahead get twice the room, at half the speed. A patterned rug confuses it; then only the sensor counts.</p>`;
     document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === m.name));
   }
   // live output on each card
@@ -2433,23 +2441,26 @@ function setArmed(on) {
 // The obstacle brake runs in the console (pc/brake.py); this only shows what it's doing.
 function brakeText(k) {
   if (!k) return "";
-  const d = k.dist != null ? `${Math.round(k.dist)} cm ahead` : "";
-  return k.state === "stop" ? `Stopped: something ${d}` : k.state === "slow" ? `Slowing: something ${d}`
-    : k.state === "blind" ? "Stopped: no sensor reading" : "";
+  const what = k.dist != null ? `something ${Math.round(k.dist)} cm ahead${k.src === "camera" ? ", seen by the camera" : ""}`
+    : k.careful ? `${k.careful} ahead` : "something ahead";
+  const care = k.careful && k.dist != null ? ` (${k.careful} close by: more room, half speed)` : k.careful ? " (more room, half speed)" : "";
+  return k.state === "stop" ? `Stopped: ${what}${care}` : k.state === "slow" ? `Slowing: ${what}${care}`
+    : k.state === "blind" ? "Stopped: no reading from the sensor or camera" : "";
 }
 function drawBrake() {
   const k = S.link && S.link.connected ? S.link.brake : null;
   const active = !!k && S.armed && (k.braking || k.state === "blind");
   $("sbBrakeItem").classList.toggle("hidden", !active);
   if (active) {
-    $("sbBrake").textContent = k.state === "slow" ? `Slowing · ${Math.round(k.dist)} cm` : k.state === "blind" ? "No reading" : `Stopped · ${Math.round(k.dist)} cm`;
+    const d = k.dist != null ? `${Math.round(k.dist)} cm` : k.careful || "";
+    $("sbBrake").textContent = k.state === "slow" ? `Slowing · ${d}` : k.state === "blind" ? "No reading" : `Stopped · ${d}`;
     $("sbBrakeDot").className = "dot " + (k.state === "slow" ? "warn" : "bad");
   }
   setHTML($("camHud"), S.armed ? "<b>●</b> Motors on · Space stops" + (active ? " · " + esc(brakeText(k)) : "") : "Motors off");
   const now = !k ? "" : k.state === "off" ? "Off" : k.state === "no sensor" ? "No range sensor plugged in"
     : k.state === "sideways" ? "The range sensor faces sideways" : k.state === "no layout" ? "No motors drive yet"
     : k.state === "blind" ? "No sensor reading" : k.braking && S.armed ? brakeText(k)
-    : k.dist != null ? `Nearest thing ahead: ${Math.round(k.dist)} cm` : "Clear";
+    : (k.dist != null ? `Nearest thing ahead: ${Math.round(k.dist)} cm` : "Clear") + (k.camera ? ", camera watching" : "");
   if ($("brakeNow").textContent !== now) $("brakeNow").textContent = now;
 }
 function stopAll() { setArmed(false); }
@@ -2772,9 +2783,42 @@ function drawMapSide(m) {
   $("mapBrake").hidden = !bt;
   if ($("mapBrake").textContent !== bt) $("mapBrake").textContent = bt;
   drawMapSeen(m);
+  drawMapFloor(m);
+  drawPlace(m.placement);
   const p = m && m.pose;
   $("mapPose").textContent = p && m.updates ? `${Math.round(p.x)} cm ahead, ${Math.abs(Math.round(p.y))} cm ${p.y >= 0 ? "left" : "right"} of the start · facing ${Math.round(((p.heading % 360) + 540) % 360 - 180)}° · ${m.cells.length} cells seen` : "Not moving yet";
 }
+function drawMapFloor(m) {
+  const v = m && m.view, r = S.floorRes, L = S.link, b = L && L.mapping && L.mapping.brake;
+  const wanted = floorWanted();
+  const t = v ? (v.good ? `Camera: floor clear for ${v.ahead != null ? Math.round(v.ahead) + " cm" : "2 m or more"} ahead`
+      : "Camera: the floor is too patterned to judge, so only the sensor counts")
+    : !L || !L.connected ? ""
+    : b && b.camera === false ? "Camera: not used (Use the camera too is off on the Driving page)"
+    : !(S.cam && S.cam.configured) && !(S.fake && S.fake.running) ? ""
+    : r && r.ok === false ? `Camera: ${r.error}` : r && r.error ? `Camera: ${r.error}`
+    : wanted ? "Camera: starting to watch the floor…" : "";
+  const el = $("mapFloor");
+  el.hidden = !t; el.classList.toggle("off", !v);
+  if (el.textContent !== t) el.textContent = t;
+}
+function drawPlace(pl) {
+  if (!pl) return setHTML($("mapPlace"), "");
+  const howTo = "With the camera watching, face a box or wall with the infrared sensor and stop at a few distances between 20 and 60 cm. Hold still for a moment at each.";
+  setHTML($("mapPlace"), !pl.ready
+    ? `<p>Not sure of the camera's height or tilt? The map can work them out. ${howTo}</p>${pl.samples ? `<p class="muted">${pl.samples} of 3 readings so far.</p>` : ""}`
+    : `<p>From the camera and infrared sensor (${pl.samples} readings, ${pl.from[0]}–${pl.from[1]} cm away): the camera looks down about <b>${pl.tilt}°</b>${pl.height != null ? `, about <b>${Math.round(pl.height / 10)} cm</b> above the floor` : ""}.</p>`
+      + (pl.height == null ? '<p class="muted">Its height needs readings from nearer and further away too.</p>' : "")
+      + (pl.error > 3 ? `<p class="muted">The readings disagree by about ${pl.error}°. Check the camera is fixed firmly, and the sensor faces straight ahead.</p>` : "")
+      + `<p><button class="btn" data-place="use">Use ${pl.height != null ? "these" : "this tilt"}</button> <button class="btn" data-place="forget">Start again</button></p>`);
+}
+$("mapPlace").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-place]"), pl = S.map && S.map.placement; if (!btn || !pl) return;
+  if (btn.dataset.place === "forget") return busy(btn, async () => { await api("/api/map/placement/forget", {}); pollMap(); });
+  const set = (k, v) => { const el = document.querySelector(`#mapSize [data-k="${k}"]`); if (el) el.value = v; };
+  set("camTilt", pl.tilt); if (pl.height != null) set("camHeight", pl.height);
+  $("mapSave").click();
+});
 function fillMapSize(r) {
   document.querySelectorAll("#mapSize [data-k]").forEach((el) => { if (document.activeElement !== el) el.value = r[el.dataset.k]; });
 }
@@ -2807,12 +2851,34 @@ async function pollMapSee() {
   finally { S.mapSeeBusy = false; }
 }
 setInterval(pollMapSee, 500);
+// The camera watches the floor while linked to a robot, for the brake and the map (pc/floor.py).
+// With object recognition set up, it recognises too, so the brake can give people and pets more room.
+S.floorRes = null; S.floorBusy = false; S.floorAt = 0; S.visionOk = null;
+function floorWanted() {
+  const L = S.link, b = L && L.mapping && L.mapping.brake;
+  return !!(L && L.connected) && !(b && b.camera === false) && document.visibilityState === "visible"
+    && !!((S.cam && S.cam.configured) || (S.fake && S.fake.running));
+}
+async function pollFloor() {
+  if (!floorWanted()) { S.floorRes = null; return; } // the console stops watching a few seconds later
+  if (S.floorBusy || (S.floorRes && S.floorRes.ok === false && Date.now() - S.floorAt < 3000)) return;
+  S.floorBusy = true;
+  try {
+    if (S.visionOk === null) S.visionOk = !!(await api("/api/vision")).available;
+    const practice = !!(S.fake && S.fake.running); // the practice camera has no picture to recognise
+    const r = await api("/api/vision", S.visionOk && !practice ? { floor: true, on: true } : { floor: true });
+    S.floorRes = r.floor || null; S.floorAt = Date.now();
+  } catch (e) { S.floorRes = null; }
+  finally { S.floorBusy = false; }
+}
+setInterval(pollFloor, 500);
 async function pollMap() {
   if (location.hash !== "#map") return;
   let m; try { m = await api("/api/map"); } catch (e) { return; }
   S.map = m;
   const L = S.link;
-  m.brake = L && L.connected && L.brake ? { ...L.brake, stop: L.mapping && L.mapping.brake ? L.mapping.brake.stop : 15, slow: L.mapping && L.mapping.brake ? L.mapping.brake.slow : 40, armed: !!S.armed } : null;
+  const mb = (L && L.mapping && L.mapping.brake) || { stop: 15, slow: 40 };
+  m.brake = L && L.connected && L.brake ? { ...L.brake, stop: L.brake.stop ?? mb.stop, slow: L.brake.slow ?? mb.slow, armed: !!S.armed } : null;
   if (window.Map3D) window.Map3D.update(m);
   if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
   drawMapSide(m);

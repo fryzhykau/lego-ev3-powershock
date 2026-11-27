@@ -306,6 +306,28 @@ Still open: choosing a licence.
 
 **Status:** works in Practice. Not yet tried on the real robot, whose infrared readings are noisier and depend on the colour of what's ahead.
 
+## Stage 14: the camera sees the floor, and where it sits
+
+**Idea:** the infrared sensor sees one narrow line. To avoid a chair leg off to one side, the robot needs to know how far it's clear in every direction. And the map only works out distances from the camera right if it knows where the camera sits on the robot.
+
+**What was built:**
+- **Free floor** (`pc/floor.py`): learn what the floor in front of the robot looks like, then follow each of 32 columns of a small picture upwards until it stops looking like floor. That row, with the camera's height and tilt, is a distance.
+  - **Colour apart from brightness:** red and green as shares of the brightness, so a shadow is still floor.
+  - **The floor is remembered:** a box filling the bottom of the picture isn't learned as the new floor.
+  - **No numpy:** a 64 × 48 picture in plain Python takes about 2 ms.
+- **Into the map and the brake:** each direction marks the map at half the infrared sensor's weight. The nearest thing within the robot's width goes to the brake, and the nearer of the camera and the sensor counts.
+- **People and pets:** recognition already places them on the map; one close ahead now doubles the brake's distances and halves the speed.
+- **A pretend camera for Practice:** the practice room drawn column by column from the robot's true position. With it, a test drives the practice robot at the box with its infrared sensor turned sideways, and the camera alone stops it.
+- **Where the camera sits:** while the robot stands still facing a box, the infrared sensor says how far away it is, and the camera says which row of the picture its bottom edge is on. A few of these at different distances pin down the tilt and the height: try every height, take the best average tilt for each, and keep the height where the readings agree best.
+- **On the 3D map:** the camera on a mast, lines to the corners of the floor it can see, a green fan of free floor and a red edge where things stand.
+
+**What didn't, at first:**
+- **A name used twice** in the 3D map's update function stopped the whole map from loading. The browser console showed it at once.
+- **The camera brakes a little early while moving:** its pictures are taken to be 0.15 s old, as a real camera's are. The pretend camera's aren't, so in Practice it stops a few centimetres sooner than needed. On the real robot that allowance is right.
+- **Placement from far readings only** gets the tilt right but the height rough: from 36–66 cm the practice camera came out 13 cm high instead of 15. Nearer stops fix that.
+
+**Status:** works in Practice. The real floor, lighting and rugs will decide how well it works at home.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.
@@ -399,11 +421,12 @@ The hardest problems so far, grouped by where they came from.
 
 - **Upload the new brick program** (0.8, with sensors) and try the map on the real robot.
 - **Finish the Raspberry Pi setup** and drive with the camera, with object recognition on.
-- **Use what's recognised:** it's on the map now. Next: let the robot turn towards a chosen thing while a button is held, or slow down for people and pets.
+- **Use what's recognised:** it's on the map, and the brake gives people and pets more room. Next: let the robot turn towards a chosen thing while a button is held.
 - **Self-driving around the house** (the end goal: EV3, Pi, camera and power bank on one LEGO car).
   - **Who does what:** eyes on the Pi; braking, recognition, the map and planning on the laptop; and the owner holding a button to let it drive.
   - **First step done:** the obstacle brake, on the laptop (stage 13).
-  - **Next:** a sweeping sensor scan, then exploring by itself while a button is held.
+  - **Second step done:** the camera sees free floor in every direction it looks (stage 14).
+  - **Next:** steer around things, choosing the clear gap nearest to where it's meant to go (a vector field histogram), then exploring by itself while a button is held.
   - **The alternative weighed:** a BrickPi3 board, so the Pi drives the EV3 motors itself. That's one computer on board, but it means new hardware and a rewrite.
 - **Choose a licence.**
 - **Release 0.8.0** once the map and camera are tested on hardware.

@@ -5,6 +5,7 @@ import unittest
 import brake as b
 import ev3_console as c
 import mapping
+import vision
 import worldmap as w
 
 TANK = w.layout(mapping.TANK)          # B left, C right
@@ -24,7 +25,7 @@ def tank(left, right, a="-"):
 
 class SettingsTest(unittest.TestCase):
     def test_defaults_are_on(self):
-        self.assertEqual(b.settings(None), {"on": True, "stop": b.STOP, "slow": b.SLOW})
+        self.assertEqual(b.settings(None), {"on": True, "stop": b.STOP, "slow": b.SLOW, "camera": True})
 
     def test_kept_in_range_and_slow_beyond_stop(self):
         s = b.settings({"on": False, "stop": 999, "slow": 1})
@@ -36,8 +37,8 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(b.settings({"stop": "x", "slow": None}), ON)
 
     def test_saved_with_the_mapping(self):
-        m = mapping.validate(dict(mapping.TANK, brake={"on": False, "stop": 20, "slow": 50}))
-        self.assertEqual(m["brake"], {"on": False, "stop": 20.0, "slow": 50.0})
+        m = mapping.validate(dict(mapping.TANK, brake={"on": False, "stop": 20, "slow": 50, "camera": False}))
+        self.assertEqual(m["brake"], {"on": False, "stop": 20.0, "slow": 50.0, "camera": False})
         self.assertEqual(mapping.validate(mapping.TANK)["brake"], ON)  # older saved mappings get the default
 
 
@@ -157,6 +158,67 @@ class BrakeTest(unittest.TestCase):
                 self.assertLessEqual(abs(out["C"][1]), max(abs(l), abs(r)))
 
 
+def view(dist, age=0.0, good=True, careful=None, speed=0.0):
+    """What the camera sees in the robot's way (worldmap.WorldMap.camera_now)."""
+    return {"dist": dist, "at": NOW - age, "good": good, "careful": careful, "speed": speed}
+
+
+class CameraTest(unittest.TestCase):
+    def setUp(self):
+        self.k = b.Brake()
+
+    def run_(self, res, e, cam, conf=ON, robot=ROBOT, now=NOW):
+        return self.k.apply(res, TANK, e, conf, robot, now, cam)
+
+    def test_camera_alone_brakes(self):
+        self.assertEqual(self.run_(tank(80, 80), None, view(10)), tank(0, 0))
+        self.assertEqual((self.k.state["state"], self.k.state["src"]), ("stop", "camera"))
+
+    def test_nearer_of_the_two_counts(self):
+        # the infrared sensor sees 60 cm along its line; the camera sees something at 20 cm to one side
+        self.run_(tank(80, 80), eye(60), view(20))
+        self.assertEqual(self.k.state["src"], "camera")
+        self.assertAlmostEqual(self.k.state["dist"], 20 + (ROBOT["camAhead"] - ROBOT["eyeAhead"]) / 10)
+        self.k = b.Brake()
+        self.run_(tank(80, 80), eye(20), view(60))
+        self.assertEqual(self.k.state["src"], "infrared")
+
+    def test_camera_nothing_in_the_way(self):
+        self.assertEqual(self.run_(tank(80, 80), None, view(None)), tank(80, 80))
+        self.assertEqual(self.k.state["state"], "clear")
+
+    def test_camera_that_stopped_means_stop(self):
+        self.assertEqual(self.run_(tank(80, 80), None, view(None, age=2.0)), tank(0, 0))
+        self.assertEqual(self.k.state["state"], "blind")
+
+    def test_stopped_camera_doesnt_matter_with_infrared(self):
+        self.assertEqual(self.run_(tank(80, 80), eye(70, hit=False), view(10, age=2.0)), tank(80, 80))
+
+    def test_patterned_floor_is_ignored(self):
+        self.assertEqual(self.run_(tank(80, 80), None, view(10, good=False)), tank(80, 80))
+
+    def test_camera_can_be_left_out(self):
+        off = dict(ON, camera=False)
+        self.assertEqual(self.run_(tank(80, 80), None, view(10), conf=off), tank(80, 80))
+        self.assertEqual(self.k.state["state"], "no sensor")
+
+    def test_camera_doesnt_brake_reversing(self):
+        back = dict(ROBOT, eyeAngle=180)
+        self.assertEqual(self.run_(tank(80, 80), eye(70, hit=False), view(5), robot=back), tank(80, 80))
+
+    def test_more_room_for_people_and_pets(self):
+        # 45 cm ahead is clear road normally
+        self.assertEqual(self.run_(tank(80, 80), eye(70, hit=False), view(45)), tank(80, 80))
+        self.k = b.Brake()
+        out = self.run_(tank(80, 80), eye(70, hit=False), view(45, careful="dog"))
+        self.assertLess(out["B"][1], 40)
+        self.assertEqual(self.k.state["careful"], "dog")
+        self.assertEqual(self.k.state["stop"], 30.0)
+        self.k = b.Brake()
+        out = self.run_(tank(80, 80), eye(70, hit=False), view(None, careful="person"))
+        self.assertEqual(out, tank(40, 40))  # nothing in the way, but half speed at most
+
+
 class PracticeRoomTest(unittest.TestCase):
     """End to end: the practice robot drives full speed at the box ahead of it and stops short."""
 
@@ -198,6 +260,37 @@ class PracticeRoomTest(unittest.TestCase):
             self.drive(link, 1.0, 0.8)  # and it can back away
             self.assertLess(link.world.snapshot()["pose"]["x"], x - 5)
         finally:
+            link.disconnect()
+
+    def test_camera_alone_stops_before_the_box(self):
+        """The infrared sensor turned sideways, so only the practice camera sees the box ahead."""
+        link = c.Link()
+        see = vision.Vision(None, model="nowhere.onnx", practice=self.fake.picture,
+                            on_floor=lambda s: link.world.surround(s) if s else link.world.end_view())
+        try:
+            link.set_mapping(mapping.validate(mapping.TANK))
+            link.world.robot = dict(w.ROBOT, eyeAngle=90)
+            self.assertTrue(link.connect("127.0.0.1"))
+            time.sleep(0.6)
+            link.world.reset()
+            end = time.monotonic() + 1.0
+            while time.monotonic() < end:  # the camera starts watching
+                see.watch_floor()
+                time.sleep(0.05)
+            end = time.monotonic() + 3.5
+            while time.monotonic() < end:
+                see.watch_floor()
+                link.set_input({"lx": 0.0, "ly": -1.0, "rx": 0.0, "ry": 0.0, "l2": 0.0, "r2": 1.0, "stop": False, "pad": False})
+                time.sleep(0.05)
+            x = link.world.snapshot()["pose"]["x"]
+            st = link.status()["brake"]
+            self.assertEqual((st["state"], st["src"]), ("stop", "camera"))
+            # the box's near side is at x = 70, and the robot's front about 6 cm ahead of its axle
+            self.assertGreater(x, 25, "it should have driven most of the way")
+            self.assertLess(x, 70 - 6 - 8, f"stopped at x = {x:.1f}, too close to the box")
+        finally:
+            with see.lock:
+                see.floor_until = 0.0
             link.disconnect()
 
 
