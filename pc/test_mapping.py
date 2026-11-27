@@ -234,5 +234,54 @@ class SticksTest(unittest.TestCase):
         self.assertEqual(m["sticks"]["curve"], 50)
 
 
+STEER = {"mode": "position", "invert": False, "smooth": 0.3, "input": "LX", "range": 45, "speed": 60}
+THROTTLE = {"mode": "speed", "invert": False, "smooth": 0.8, "input": "RY", "max": 100}
+
+
+def car(**ports):
+    m = mp.validate({"name": "custom", "ports": {p: c for p, c in ports.items()}})
+    return m
+
+
+class FitTest(unittest.TestCase):
+    """Moving the controls onto the motors that are plugged in."""
+
+    def test_car_rewired(self):
+        # set up for large motors on A + B and steering on D, but plugged in as large A + C, medium B
+        m = car(A=THROTTLE, B={"mode": "follow", "leader": "A", "invert": True}, D=STEER)
+        f = mp.fit(m, {"A": "large", "B": "medium", "C": "large"})
+        self.assertEqual(f["ports"]["B"]["mode"], "position")
+        self.assertEqual(f["ports"]["B"]["range"], 45)  # the steering keeps its settings
+        self.assertEqual(f["ports"]["A"], m["ports"]["A"])
+        self.assertEqual(f["ports"]["C"], {"mode": "follow", "leader": "A", "invert": True})
+        self.assertEqual(f["ports"]["D"], {"mode": "off"})
+        self.assertEqual(mp.describe(f), "A drives, with C reversed; B steers")
+
+    def test_a_mapping_that_works_is_left_alone(self):
+        m = car(A=THROTTLE, C={"mode": "follow", "leader": "A", "invert": True}, B=STEER)
+        self.assertIsNone(mp.fit(m, {"A": "large", "B": "medium", "C": "large"}))
+        self.assertIsNone(mp.fit(m, {"A": "large", "B": "large", "C": "large", "D": "medium"}))  # a spare is fine
+
+    def test_waits_while_a_motor_is_missing(self):
+        # a loose cable: moving the leader onto its mirrored partner would turn the car's direction round
+        m = car(A=THROTTLE, C={"mode": "follow", "leader": "A", "invert": True}, B=STEER)
+        self.assertIsNone(mp.fit(m, {"B": "medium", "C": "large"}))
+        self.assertIsNone(mp.fit(m, {}))
+
+    def test_tank_sides_move_in_order(self):
+        m = mp.validate(mp.TANK)  # A on the right stick, B left wheel, C right wheel
+        f = mp.fit(m, {"A": "large", "B": "large", "D": "large"})
+        self.assertEqual(f["ports"]["A"]["mode"], "speed")
+        self.assertEqual(f["ports"]["B"]["side"], "left")
+        self.assertEqual(f["ports"]["D"]["side"], "right")
+        self.assertEqual(f["ports"]["C"], {"mode": "off"})
+
+    def test_steering_takes_a_large_motor_when_there_is_no_medium(self):
+        m = car(A=THROTTLE, D=STEER)
+        f = mp.fit(m, {"B": "large", "C": "large"})
+        self.assertEqual(f["ports"]["B"]["mode"], "speed")  # driving takes the first large motor
+        self.assertEqual(f["ports"]["C"]["mode"], "position")  # and steering what's left
+
+
 if __name__ == "__main__":
     unittest.main()

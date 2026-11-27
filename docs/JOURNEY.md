@@ -408,6 +408,8 @@ Still open: choosing a licence.
 
 **Wrong ports:** on the first drive of the car nothing moved. The brick saw nothing in motor ports A–D and three things it couldn't identify in sensor ports 1, 3 and 4: the three motor cables were in the sensor ports. Motor and sensor cables are the same, so it's an easy mistake. The console now flags it from the codes the brick already streams.
 
+After rewiring, the motors were in A, B and C (large, medium, large), while the controls still expected A, B and D. So the controls now move to fit the motors: each job (steering, driving, a follower) moves with its own settings to a motor of the right kind. It only does this when every job finds a motor. With one cable loose it would otherwise put the throttle on the mirrored second motor, and the car would drive backwards. Also seen: the brick's port detection can stop updating, and restarting PowerShock fixed it.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

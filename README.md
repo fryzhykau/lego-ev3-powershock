@@ -62,6 +62,7 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
 5. **Setup page, Program on the brick:** **Upload latest build**, then **Start**. Java takes about 30 seconds to start on the EV3.
 6. **Controller page:** pair the DualShock 4 with Windows, then press any button with the console open.
 7. **Driving page:** pick **Car**, **Tank** or **Fit to my motors**.
+   - **Plugged in differently later?** If a motor your controls use isn't there but every job has a motor somewhere else, the console moves the jobs onto the motors that are plugged in, each with its own settings: steering to a medium motor, driving to the large ones, A before B. It waits until the motors have been the same for a moment and nobody has driven for 2 seconds, and says what moved above the brick. With a motor missing it changes nothing: a loose cable could otherwise turn the car's direction round. Check the direction once after a move, with the wheels off the ground.
 8. **Robot page:** **Turn motors on**, and drive. **Stop motors** (or Space, Esc, ✕ or Options on the controller) stops everything.
    - **Handbrake:** hold ◯ (or F on the keyboard). The motors that drive brake while it's held, and the steering still works. Keep the throttle on and let go to power out of the slide: lock the rear wheels in a turn and the car swings round. The brick brakes for about a third of a second, then lets the wheels roll.
 

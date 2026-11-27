@@ -42,6 +42,8 @@ HTTP_PORT = int(os.environ.get("POWERSHOCK_PORT", "8765"))
 EV3_PORT = 5000
 RATE_HZ = 50
 INPUT_STALE_S = 0.3  # no command from the page for this long -> send zeros
+FIT_SETTLE_S = 1.5   # the motors plugged in stay the same this long before the controls move to them
+FIT_IDLE_S = 2.0     # ... and nobody has driven for this long: a job never moves while someone drives
 LEJOS_PAN_IP = "10.0.1.1"
 PORT_CHECK_EVERY_S = 60
 
@@ -68,6 +70,9 @@ class Link:
         self.telemetry = None  # live battery + ports streamed back by the receiver
         self.telemetry_at = 0.0
         self.port_check = ev3_brick.PortCheck()  # a motor in a sensor port, or the other way round
+        self.fit_seen, self.fit_since = None, 0.0  # motors plugged in, and since when
+        self.fitted = None  # the last time the controls moved to fit the motors: {"at", "text"}
+        self.on_fit = None  # saves a fitted mapping; only the console's own link does
         self.brick_version = None  # from the receiver's "V <version>" line; None for versions before 0.7.0
         self.world = worldmap.WorldMap()  # live map from motor angles and sensor readings
         # Controls mapping: the page sends raw controller input; the mapping turns it into
@@ -294,6 +299,29 @@ class Link:
                         self.telemetry, self.telemetry_at = t, time.monotonic()
                         m = self.mapper.mapping
                     self.world.feed(t, m)
+                    self._fit(t, time.monotonic())
+
+    def _fit(self, t, now):
+        """Moves the controls onto the motors that are plugged in, when they don't fit (mapping.fit)."""
+        motors = {p: "medium" if "Medium" in d.get("label", "") else "large"
+                  for p, d in t["ports"].items() if not p.startswith("S") and d.get("kind") == "motor"}
+        with self.lock:
+            if motors != self.fit_seen:
+                self.fit_seen, self.fit_since = motors, now
+                return
+            if now - self.fit_since < FIT_SETTLE_S or (self.inp is not None and now - self.inp_at < FIT_IDLE_S):
+                return
+            m = mapping.fit(self.mapper.mapping, motors)
+            if m is None:
+                return
+            self.mapper.set_mapping(m)
+            self.fitted = {"at": time.time(), "text": mapping.describe(m)}
+            save = self.on_fit
+        if save:
+            try:
+                save(m)
+            except OSError:
+                pass
 
     def disconnect(self):
         with self.lock:
@@ -334,6 +362,7 @@ class Link:
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
                 "mapping": self.mapper.mapping,
+                "fitted": self.fitted,
                 "brake": dict(self.brake.state, on=self.mapper.mapping.get("brake", {}).get("on", True),
                               decisions=self.brake.decisions(time.monotonic())),
                 "rate": round(self.rate),
@@ -983,6 +1012,7 @@ def build_upload(lejos_home, host):
 
 
 link = Link()
+link.on_fit = mapping.save
 fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()

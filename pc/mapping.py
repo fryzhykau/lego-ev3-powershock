@@ -151,6 +151,66 @@ def effective(ports):
     return out
 
 
+def fit(m, motors):
+    """The mapping moved onto the motors that are plugged in, or None to leave it as it is.
+    motors: {port: "large" | "medium"} for each motor port with a motor in it.
+
+    Only a mapping that can't work as it is gets moved (a job on a port with no motor), and only
+    when every job finds a motor. With a motor missing it waits instead: moving a mirrored pair's
+    leader onto the other motor would turn its direction round. Each job keeps its own settings:
+      - steering (a position port) goes to a medium motor if there is one,
+      - driving (each leader, then its followers) to the large motors, by port letter,
+      - and either takes any motor that's left when its preferred kind runs out."""
+    ports = m["ports"]
+    jobs = {p: c for p, c in ports.items() if c.get("mode") != "off"}
+    if not motors or all(p in motors for p in jobs):
+        return None
+    lead = {p: c.get("leader") if c["mode"] == "follow" else p for p, c in jobs.items()}
+    steers = lambda p: jobs.get(lead[p], {}).get("mode") == "position"  # noqa: E731
+    order = []
+    for steering in (True, False):  # steering first, so it gets the medium motor
+        for p in PORTS:
+            if p in jobs and jobs[p]["mode"] != "follow" and steers(p) == steering:
+                order += [p] + [q for q in PORTS if q in jobs and jobs[q]["mode"] == "follow" and lead[q] == p]
+    if len(order) != len(jobs) or len(order) > len(motors):
+        return None
+    free, place = sorted(motors), {}
+    for any_kind in (False, True):
+        for job in order:
+            if job in place:
+                continue
+            want = "medium" if steers(job) else "large"
+            to = next((p for p in free if any_kind or motors[p] == want), None)
+            if to:
+                place[job] = to
+                free.remove(to)
+    new = {p: {"mode": "off"} for p in PORTS}
+    for job, to in place.items():
+        c = dict(jobs[job])
+        if c["mode"] == "follow":
+            c["leader"] = place[c["leader"]]
+        new[to] = c
+    if new == ports:
+        return None
+    return validate(dict(m, ports=new, name="custom"))
+
+
+def describe(m):
+    """A short account of which motor does what, for telling the user what changed."""
+    ports = m["ports"]
+    parts = []
+    for p in PORTS:
+        c = ports[p]
+        if c["mode"] == "position":
+            parts.append(f"{p} steers")
+        elif c["mode"] in ("speed", "drive"):
+            mates = [q + (" reversed" if ports[q].get("invert") else "") for q in PORTS
+                     if ports[q]["mode"] == "follow" and ports[q].get("leader") == p]
+            side = f" ({c['side']})" if c["mode"] == "drive" else ""
+            parts.append(f"{p}{side} drives" + (f", with {' and '.join(mates)}" if mates else ""))
+    return "; ".join(parts) or "nothing"
+
+
 def group(m, port):
     """The ports that move with this one, each with its direction relative to it: [(port, 1 or -1)].
     A port in no group is a group of one."""
