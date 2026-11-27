@@ -63,6 +63,7 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
 6. **Controller page:** pair the DualShock 4 with Windows, then press any button with the console open.
 7. **Driving page:** pick **Car**, **Tank** or **Fit to my motors**.
 8. **Robot page:** **Turn motors on**, and drive. **Stop motors** (or Space, Esc, ✕ or Options on the controller) stops everything.
+   - **Handbrake:** hold ◯ (or F on the keyboard). The motors that drive brake while it's held, and the steering still works. Keep the throttle on and let go to power out of the slide: lock the rear wheels in a turn and the car swings round. The brick brakes for about a third of a second, then lets the wheels roll.
 
 The brick's battery shows top-left on the leJOS screen. A blinking number means it's low: charge first.
 

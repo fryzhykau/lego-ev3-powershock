@@ -61,6 +61,42 @@ class CarTest(unittest.TestCase):
         self.assertEqual(r["B"], ("s", -60))
 
 
+class HandbrakeTest(unittest.TestCase):
+    """Circle: the drive motors brake while it's held, steering stays live, and the power comes back on release."""
+
+    def test_drive_brakes_and_steering_stays(self):
+        m = mp.Mapper(mp.validate(mp.CAR))
+        for _ in range(50):
+            m.step(inp(ry=-1, r2=1, lx=1), 0.02)
+        r = m.step(inp(ry=-1, r2=1, lx=-1, hand=True), 0.02)
+        self.assertEqual((r["B"], r["C"]), (("s", 0), ("s", 0)))
+        for _ in range(50):
+            r = m.step(inp(ry=-1, r2=1, lx=-1, hand=True), 0.02)
+        self.assertEqual(r["D"], ("p", -45, 60), "you can still steer, to catch the slide")
+        self.assertEqual(r["B"], ("s", 0))
+        r = m.step(inp(ry=-1, r2=1, lx=-1), 0.02)
+        self.assertEqual(r["B"], ("s", 100), "the throttle kept ramping underneath")
+
+    def test_followers_brake_too(self):
+        m = mp.Mapper(grouped(invert=True))
+        for _ in range(60):
+            m.step(inp(ry=-1), 0.02)
+        r = m.step(inp(ry=-1, hand=True), 0.02)
+        self.assertEqual((r["A"], r["B"]), (("s", 0), ("s", 0)))
+
+    def test_tank_just_stops(self):
+        r = mp.Mapper(mp.validate(mp.TANK)).step(inp(ly=-1, r2=1, ry=-1, hand=True), 0.02)
+        self.assertEqual(mp.line(r), "P A=s:0 B=s:0 C=s:0 D=-")
+
+    def test_stop_still_wins_after_letting_go(self):
+        m = mp.Mapper(mp.validate(mp.CAR))
+        for _ in range(50):
+            m.step(inp(ry=-1, r2=1, hand=True), 0.02)
+        m.step(inp(ry=-1, r2=1, hand=True), 0.02, stop=True)
+        r = m.step(inp(ry=-1, r2=1), 0.02)
+        self.assertEqual(r["B"], ("s", 2), "after a stop, power ramps up from nothing again")
+
+
 def grouped(invert=False):
     """Two large motors on one axle (A leads, B follows) and steering on D."""
     m = dict(mp.CAR, ports={

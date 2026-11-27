@@ -394,6 +394,16 @@ Still open: choosing a licence.
 
 **Next:** a planner that uses these numbers to choose between turning forward, reversing, or a multi-point turn.
 
+## Stage 19: a handbrake for drifting
+
+**Idea:** make the car slide round a table. There's no brake on the front wheels, but in a drift the handbrake locks the *rear* wheels, and the rear wheels are driven by the large motors, which can brake hard. So a handbrake is just "drive motors to 0 while a button is held", with steering left alone.
+
+**What was built:** hold ◯ (F on the keyboard) and every drive motor, and every motor following one, is sent 0. The brick brakes it, then lets it roll after 0.3 s (the float that stopped two motors on one shaft fighting). The throttle keeps ramping underneath, so letting go powers straight out of the slide instead of ramping up from nothing. Stop still wins: after a stop, power ramps up from 0 again.
+
+**Also:** less grip at the back helps more than anything in the software: smooth tape on the rear tyres, rubber kept on the front. With slipping wheels, the map's distances run long and the obstacle brake needs a longer stop distance.
+
+**Weight** was added to the robot's size, entered from a kitchen scale. It isn't used yet. Physics says it matters when the motors limit how fast the car can stop or speed up, and for when the driven wheels start to spin, but not for a stop limited by tyre grip.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

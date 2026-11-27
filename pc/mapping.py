@@ -16,6 +16,10 @@ Every port has a smoothing time (seconds from 0 to full). That is what makes car
 control feel gradual: the throttle ramps up and the steering turns smoothly instead of
 jumping. Stopping (X, Stop, or losing input) is always immediate.
 
+The handbrake (Circle, or F on the keyboard: inp["hand"]) sends 0 to every motor that drives
+while it's held, so they brake, and leaves steering alone. The throttle keeps ramping underneath,
+so letting go puts the power straight back: lock the rear wheels in a turn and the car slides.
+
 Inputs are named: LX, LY, RX, RY (stick axes, Y positive = pushed up), L2, R2 (0..1),
 "R2-L2" (gas and brake on the triggers, like driving games), or "none".
 
@@ -289,6 +293,8 @@ class Mapper:
             v = self.value[p]
             if mode == "position":
                 result[p] = ("p", round(v), int(c["speed"]))
+            elif inp is not None and inp.get("hand"):
+                result[p] = ("s", 0)  # handbrake: only ever takes power away
             else:
                 result[p] = ("s", int(round(max(-100, min(100, v)))))
         # followers get exactly what their leader got, after its smoothing: never out of step

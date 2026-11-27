@@ -997,6 +997,7 @@
                 <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> left stick</span><span class="muted" id="mapName"></span>
                 <span><kbd>↑</kbd><kbd>↓</kbd> right stick</span><span><kbd>Q</kbd><kbd>E</kbd> right stick ←→</span>
                 <span><kbd>Shift</kbd> R2</span><span><kbd>Ctrl</kbd> L2</span>
+                <span><kbd>F</kbd> handbrake (◯)</span>
               </div>
             </div>
           </div>
@@ -1010,6 +1011,7 @@
               <span id="coR"><span id="coRtext">Right stick</span></span>
               <span id="coR2"><span id="coR2text">R2</span></span>
               <span id="coX">✕ · stop</span>
+              <span id="coO">◯ · handbrake</span>
               <span id="coOpt">Options · motors off</span>
             </div>
             <div class="gets">
@@ -2663,6 +2665,7 @@ function inputState() {
   if (S.src === "pad") { const p = readPad(); return p ? { ...p, source: "pad" } : null; }
   const k = S.keys, btn = {};
   for (const n in BTN) btn[n] = false;
+  btn.circle = k.has("KeyF");  // handbrake
   const ax = (pos, neg) => (k.has(pos) ? 1 : 0) - (k.has(neg) ? 1 : 0);
   return { name: "Keyboard", lx: ax("KeyD", "KeyA"), ly: ax("KeyS", "KeyW"), rx: ax("KeyE", "KeyQ"), ry: ax("ArrowDown", "ArrowUp"),
     l2: k.has("ControlLeft") || k.has("ControlRight") ? 1 : 0, r2: k.has("ShiftLeft") || k.has("ShiftRight") ? 1 : 0, btn, source: "keys" };
@@ -2709,6 +2712,7 @@ function drawPad(p) {
   $("coR").classList.toggle("act", moved(q.rx) || moved(q.ry));
   $("coR2").classList.toggle("act", q.r2 > 0.05);
   $("coX").classList.toggle("act", !!q.btn.cross);
+  $("coO").classList.toggle("act", !!q.btn.circle);
   $("coOpt").classList.toggle("act", !!q.btn.options);
   // light bar: grey = nothing to drive, blue = connected and safe, green = driving, red = stop held
   const L = S.link || {};
@@ -2721,7 +2725,7 @@ function drawPad(p) {
     const v = sent[x], pct = outPct(x, v), w = Math.abs(pct) / 2, left = pct >= 0 ? 50 : 50 - w;
     return `<div class="get ${pct ? "" : "idle"}"><span><b>${x}</b> ${esc((roleOf(x) || "").replace(/ \(.*\)/, ""))}</span><span class="bar"><i style="left:${left}%;width:${w}%"></i></span><span class="val">${outText(v)}</span></div>`;
   }).join("") : '<p class="muted">No ports mapped. Set them up on the Driving page.</p>');
-  $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off: switch on Motors on to drive.") : q.btn.cross ? "✕ held: everything stopped." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
+  $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off: switch on Motors on to drive.") : q.btn.cross ? "✕ held: everything stopped." : q.btn.circle ? "◯ held: handbrake, the drive motors brake and steering still works." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
   // glow the sockets that are being driven
   document.querySelectorAll(".sock").forEach((el) => el.classList.toggle("active", !!outPct(el.dataset.p, sent[el.dataset.p]) && !!plugged(el.dataset.p)));
 }
@@ -2734,7 +2738,7 @@ setInterval(async () => {
     inflight = true;
     try {
       await fetch("/api/input", { method: "POST", signal: AbortSignal.timeout(300), headers: { "X-PowerShock": "1", "Content-Type": "application/json" },
-        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, src: p.source }) });
+        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, hand: !!p.btn.circle, src: p.source }) });
     } catch (e) {} finally { inflight = false; }
   }
 }, 40);

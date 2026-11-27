@@ -1139,6 +1139,7 @@ class Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 return self._json({"ok": False, "error": "bad input"})
             inp["stop"] = bool(b.get("stop"))
+            inp["hand"] = bool(b.get("hand"))  # handbrake: the drive motors brake, steering stays
             inp["pad"] = b.get("src", "pad") == "pad"  # calibration is for the real controller only
             link.set_input(inp)
             self._json({"ok": True})
