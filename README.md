@@ -73,7 +73,7 @@ The brick's battery shows top-left on the leJOS screen. A blinking number means 
 
 The menu has the pages you use while driving, then the setup and a tool:
 
-- **Robot:** drive, with the brick in 3D, live, the camera in its own card, and a test panel for each motor.
+- **Robot:** your robot drawn from above with each device wired to its port and how it's doing, its sizes and measured stats; the brick in 3D, live; the camera; and a test panel for each motor.
 - **Map:** what the sensors have found.
 - **Driving:** which stick drives which motor.
 - **Controller:** the DualShock in 3D, live, with what each stick and button does and what the brick gets; pairing, battery and stick calibration.
@@ -116,7 +116,7 @@ A live 3D map of what the robot's sensors find while it drives, seen from behind
 - **Colour sensor,** pointing at the floor: paints the floor's colours.
 - **Gyro sensor,** if you have one: keeps the heading accurate.
 
-Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set **Robot size** to match your robot: wheel diameter, wheel spacing, axle spacing, and where the sensors sit. If there are gears between the drive motor and the wheels (a gearbox, or the ring on a differential), set **Motor turns per wheel turn**: roll the robot until a wheel turns once and count how often the motor turned. Leave it at 1 when the motor turns the wheel directly. Without it, speed and distance come out wrong by the same factor. **Weight** (in grams, the whole robot with batteries, from a kitchen scale) is kept for later planning; nothing uses it yet. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
+Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set its sizes to match your robot (Robot page, **Your robot** → **Edit sizes and where things sit**): wheel diameter, wheel spacing, axle spacing, and where the sensors sit. If there are gears between the drive motor and the wheels (a gearbox, or the ring on a differential), set **Motor turns per wheel turn**: roll the robot until a wheel turns once and count how often the motor turned. Leave it at 1 when the motor turns the wheel directly. Without it, speed and distance come out wrong by the same factor. **Weight** (in grams, the whole robot with batteries, from a kitchen scale) is kept for later planning; nothing uses it yet. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
 
 What to expect from the sensors that come with EV3 sets:
 
@@ -126,7 +126,7 @@ What to expect from the sensors that come with EV3 sets:
 
 **Seen by the camera:** with the Raspberry Pi camera and [object recognition](#object-recognition-optional) set up, turn on **Recognise things while this page is open**. What the camera recognises (people, chairs, cups, pets…) appears on the map as a labelled marker where it stands, and stays there as the robot drives on.
 - **Direction:** from where it is across the picture.
-- **Distance:** from where it meets the floor in the picture, so set the camera's height and tilt under **Robot size**. Straight ahead, the infrared sensor's distance is used instead.
+- **Distance:** from where it meets the floor in the picture, so set the camera's height and tilt under **Edit sizes and where things sit** on the Robot page. Straight ahead, the infrared sensor's distance is used instead.
 - **Fewer wrong guesses:** a thing has to be seen twice before it's drawn. Something that should be in view but isn't seen any more (a person who walked off) is taken off the map.
 - **Recognition on the Robot page's Camera view** puts things on the map too.
 
@@ -141,7 +141,7 @@ The map also draws the obstacle brake's lines in front of the robot: where it st
 
 **The floor the camera sees:** while the console is linked to the robot and **Use the camera too** is on (Driving page), the camera watches the floor. It needs only Pillow, not the recognition model.
 - **On the map:** a green fan shows where the floor is free, in about 30 directions at once. Where something stands on the floor, the fan ends in a red edge, and the map marks it, as the infrared sensor does. The camera counts half as much as the sensor.
-- **The camera on the robot:** drawn where it sits, with lines to the corners of the floor it can see. Change its height or tilt under **Robot size**, and the lines move.
+- **The camera on the robot:** drawn where it sits, with lines to the corners of the floor it can see. Change its height or tilt under **Edit sizes and where things sit** on the Robot page, and the lines move.
 - **Where the camera sits, worked out:** not sure how high the camera is, or how far it looks down? Stand the robot with its infrared sensor facing a box or wall, and stop at a few distances between 20 and 60 cm, holding still for a moment at each. The map compares where the camera sees the floor end with what the sensor measures, and suggests a tilt and height. **Use these** saves them.
 - **How it works:** it learns what the floor looks like just in front of the robot, then follows each column of the picture up until it stops looking like floor. Shadows still count as floor.
 - **Weak spots:** a patterned rug, things the same colour as the floor, white skirting on a white floor. The Map page says when the floor is too patterned to judge, and the brake then uses only the sensor.

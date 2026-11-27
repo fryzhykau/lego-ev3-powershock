@@ -108,6 +108,9 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **Your robot,** a new card on the Robot page: the car (or tank) from above, drawn to its saved sizes, with each motor, sensor and the camera where it sits, wired to its port on the brick and coloured by how it's doing. Below it: weight, wheels and gearing, size, top speed, turning circle and steering. **Car / Tank / Fit to my motors** and the robot's sizes moved here from the Driving and Map pages; replacing your own controls with a plain layout now asks first. The Robot tab has a car icon.
+- **Driving page:** no Normal speed slider (it's the Motors slider in the top bar).
+- **Controller colour** is one swatch: each click moves on to the next colour.
 - **A Pi page** for the Raspberry Pi camera: its status, the setup steps and the object recognition model (moved from Setup and the Map page).
 - **Setup repeats itself less:** with the brick not answering it says so once, and the brick's files, programs, ports and details wait until it answers. The file and program lists fold under "Files and programs on the brick".
 - **Robot page:** the camera has its own card next to the brick (no more Brick/Camera tabs), and with no picture it's a short message instead of a black box. The 3D controller card moved to the **Controller** page. Notices (what to do next, the controller needing a button press) share one slim panel at the top of every page. F only goes full screen while the controller drives, since it's the keyboard's handbrake.

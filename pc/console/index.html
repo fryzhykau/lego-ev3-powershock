@@ -172,10 +172,35 @@
   /* Robot page: what to do next on top, then controller -> brick -> devices, left to right */
   .robot { display: grid; gap: 16px; align-items: start;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 340px);
-    grid-template-areas: "bar bar bar" "brick cam dev"; }
-  .robot > .drivebar { grid-area: bar; } .robot > .stagecard { grid-area: brick; } .robot > .camcard { grid-area: cam; } .robot > .devcard { grid-area: dev; }
-  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-areas: "bar bar" "brick dev" "cam dev"; } }
-  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "brick" "cam" "dev"; gap: 12px; } }
+    grid-template-areas: "bar bar bar" "rob rob dev" "brick cam dev"; }
+  .robot > .drivebar { grid-area: bar; } .robot > .robotcard { grid-area: rob; } .robot > .stagecard { grid-area: brick; } .robot > .camcard { grid-area: cam; } .robot > .devcard { grid-area: dev; }
+  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-areas: "bar bar" "rob dev" "brick dev" "cam dev"; } }
+  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "rob" "brick" "cam" "dev"; gap: 12px; } }
+  /* Your robot: the car from above, each device wired to its port on the brick */
+  .robotcard .card-head { margin-bottom: 8px; }
+  .rtype { margin-bottom: 4px; } .rtype .preset { padding: 8px 12px; } .rtype .preset span { font-size: 12px; }
+  #presetNote:empty { display: none; }
+  .robotsvg svg { display: block; width: 100%; height: auto; max-height: 340px; }
+  .robotsvg .rs-body { fill: var(--soft); stroke: var(--rule); stroke-width: 1.5; }
+  .robotsvg .rs-wheel { fill: var(--ink); opacity: .78; } .robotsvg .rs-axle { stroke: var(--rule); stroke-width: 2; }
+  .robotsvg .rs-brick { fill: var(--face); stroke: var(--ink); stroke-width: 1.5; } .robotsvg .rs-bricklcd { fill: var(--lcd); stroke: none; }
+  .robotsvg .rs-port { font: 600 10px var(--ui); fill: var(--muted); text-anchor: middle; dominant-baseline: middle; }
+  .robotsvg .rs-wire { fill: none; stroke-width: 2; } .robotsvg .rs-dev { stroke-width: 2; }
+  .robotsvg .rs-lead { fill: none; stroke: var(--muted); stroke-width: 1; opacity: .55; stroke-dasharray: 2 3; }
+  .robotsvg .rs-port { font-size: 9px; }
+  .robotsvg .ok .rs-wire, .robotsvg .ok .rs-dev { stroke: var(--go); } .robotsvg .ok .rs-dev { fill: var(--go-soft); }
+  .robotsvg .warn .rs-wire, .robotsvg .warn .rs-dev { stroke: var(--warn); } .robotsvg .warn .rs-dev { fill: var(--warn-soft); }
+  .robotsvg .off .rs-wire, .robotsvg .off .rs-dev { stroke: var(--muted); stroke-dasharray: 4 3; } .robotsvg .off .rs-dev { fill: var(--face); }
+  .robotsvg .rs-dlbl { font: 600 11px var(--ui); fill: var(--ink); } .robotsvg .rs-dsub { font: 10.5px var(--ui); fill: var(--muted); }
+  .robotsvg .rs-dim { stroke: var(--muted); stroke-width: 1; } .robotsvg .rs-dimt { font: 10.5px var(--ui); fill: var(--muted); text-anchor: middle; }
+  .robotsvg .rs-front { font: 600 10.5px var(--ui); fill: var(--muted); letter-spacing: .04em; }
+  .rkey { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 2px 2px 10px; }
+  .rkey i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; margin-right: 6px; vertical-align: middle; }
+  .rkey i.ok { border-color: var(--go); } .rkey i.warn { border-color: var(--warn); } .rkey i.off { border-color: var(--muted); border-top-style: dashed; }
+  .rstats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .rstat { background: var(--soft); border-radius: var(--r-s); padding: 8px 10px; display: grid; gap: 2px; }
+  .rstat .k { font-size: 11.5px; color: var(--muted); } .rstat .v { font: 650 17px var(--display); color: var(--ink); } .rstat .s { font-size: 11.5px; color: var(--muted); }
+  .robotcard .mapsize > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .pigrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
   .pigrid > #camSetupCard { grid-column: 1 / -1; }
   @media (max-width: 960px) { .pigrid { grid-template-columns: minmax(0, 1fr); } }
@@ -311,7 +336,8 @@
   .ds3msg { position: absolute; inset: 0; display: grid; place-items: center; }
   .swatches { display: flex; gap: 6px; margin-left: auto; }
   .swatches button { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid #00000033; background: var(--c); cursor: pointer; box-shadow: inset 0 0 0 1px #ffffff30; }
-  .swatches button[aria-checked=true] { box-shadow: inset 0 0 0 1px #ffffff30, 0 0 0 2px var(--face), 0 0 0 3.5px var(--ink); }
+  .swatches .swatch { width: 22px; height: 22px; box-shadow: inset 0 0 0 1px #ffffff30, 0 0 0 2px var(--face), 0 0 0 3.5px var(--rule); }
+  .swatches .swatch:hover { box-shadow: inset 0 0 0 1px #ffffff30, 0 0 0 2px var(--face), 0 0 0 3.5px var(--ink); }
   .swatches button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .dslegend { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
   .dslegend > span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--soft); border: 1px solid var(--rule); color: var(--muted); transition: background .1s, color .1s, border-color .1s; }
@@ -850,7 +876,7 @@
   .dsec h3 { display: flex; align-items: center; gap: 4px; }
 
   /* controls page: layout + speed on top, then the four motor ports in brick order */
-  .ctltop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  .ctltop { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: stretch; }
   @media (max-width: 1000px) { .ctltop { grid-template-columns: minmax(0, 1fr); } }
   .ctltop .presets .preset { flex: 1 1 170px; min-width: 0; }
   .ctltop .globals { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 24px; }
@@ -1026,7 +1052,7 @@
 
 <div class="shell">
   <nav>
-    <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
+    <a href="#robot" data-page="robot" title="Robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5V12l2.2-4.4A2 2 0 0 1 7 6.5h10a2 2 0 0 1 1.8 1.1L21 12v3.5"/><path d="M3 12h18M3 15.5h1.6M8.4 15.5h7.2M19.4 15.5H21"/><circle cx="6.5" cy="15.5" r="2"/><circle cx="17.5" cy="15.5" r="2"/></svg><span>Robot</span><span class="badge" id="navRobot"></span></a>
     <a href="#map" data-page="map" title="Map: what the sensors found around the robot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Map</span></a>
     <a href="#driving" data-page="driving" title="Driving: which stick drives which motor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Driving</span></a>
     <a href="#controller" data-page="controller" title="Controller: the DualShock itself"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.6" cy="12.8" r=".7" fill="currentColor"/></svg><span>Controller</span><span class="badge" id="navCtrl"></span></a>
@@ -1069,6 +1095,42 @@
           </div>
         </div>
 
+
+        <div class="card robotcard" id="robotCard">
+          <div class="card-head"><h2>Your robot</h2><span class="muted" id="robotSub"></span></div>
+          <div class="presets rtype" id="presets" role="group" aria-label="What kind of robot">
+            <button class="preset" data-preset="car"><b>Car</b><span>Left stick steers, right stick is the throttle</span></button>
+            <button class="preset" data-preset="tank"><b>Tank</b><span>Left stick drives B and C like a tank</span></button>
+            <button class="btn" id="fitBtn" title="Give each motor plugged in a job, for the kind of robot chosen">Fit to my motors</button>
+          </div>
+          <p class="help" id="presetNote"></p>
+          <div class="robotsvg" id="robotSvg" role="img" aria-label="The robot from above, with each motor and sensor wired to its port on the brick"></div>
+          <div class="rkey"><span><i class="ok"></i>working</span><span><i class="warn"></i>needs attention</span><span><i class="off"></i>not known yet</span></div>
+          <div class="rstats" id="robotStats"></div>
+          <details class="mapsize" id="mapSize">
+            <summary>Edit sizes and where things sit</summary>
+            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
+            <div class="msform">
+              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
+              <label class="field"><span>Motor turns per wheel turn</span><input type="number" data-k="gear" min="0.1" max="10" step="0.01" title="1 if the drive motor turns the wheel directly. With gears or a differential in between: roll the robot until a wheel turns once and count the motor's turns"></label>
+              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
+              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
+              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
+              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
+              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
+              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
+              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
+              <label class="field"><span>Camera ahead</span><input type="number" data-k="camAhead" min="-300" max="300" title="How far ahead of the driven axle the Raspberry Pi camera sits"></label>
+              <label class="field"><span>Camera height</span><input type="number" data-k="camHeight" min="30" max="600" title="The camera lens above the floor"></label>
+              <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
+              <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
+              <label class="field"><span>Weight (grams)</span><input type="number" data-k="weight" min="0" max="20000" step="10" title="The whole robot with batteries in, on a kitchen scale. 0 if not weighed yet"></label>
+            </div>
+            <p class="muted">The camera's height and tilt tell the map how far away things are, from where they meet the floor in the picture. The 3D view shows the camera on the robot, with lines to the corners of the floor it can see.</p>
+            <div class="mplace" id="mapPlace"></div>
+            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSizeSaved"></span>
+          </details>
+        </div>
 
         <div class="card stagecard">
           <div class="stagebar"><h2 class="stagetitle">Brick</h2><span class="muted grow1" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
@@ -1132,15 +1194,6 @@
       <div class="pagehead"><h1>Driving</h1><span class="savestate" id="mapSaved"></span><span class="muted" style="margin-left:auto">Which stick drives which motor</span></div>
       <div class="ctltop">
         <div class="card">
-          <div class="card-head"><h2>Start from</h2></div>
-          <div class="presets" id="presets">
-            <button class="preset" data-preset="tank"><b>Tank</b><span>Left stick drives B and C like a tank</span></button>
-            <button class="preset" data-preset="car"><b>Car</b><span>Left stick steers, right stick is the throttle</span></button>
-            <button class="btn" id="fitBtn" title="Assign roles from what's plugged in">Fit to my motors</button>
-          </div>
-          <p class="help" id="fitNote" style="margin-top:8px">Pick a layout, then fine-tune each port below. Changes apply at once and are saved.</p>
-        </div>
-        <div class="card">
           <div class="card-head"><h2>Speed and driving</h2></div>
           <div class="globals" id="globals"></div>
         </div>
@@ -1164,6 +1217,7 @@
         <p class="help">Finding the steering limits turns the steering motor slowly each way until it meets its end stop, then sets the centre halfway. The turning circle needs Motors on and about a metre of clear floor: the car drives slowly at full lock, and you press Back where it started when it gets there. Top speed is learned by itself whenever you drive straight at full power, and falls as the battery drains.</p>
       </div>
       <div class="sechead"><h2>Motor ports</h2><span class="muted">In port order. Motors that run together share one card.</span></div>
+      <p class="help" id="fitNote">Car or Tank is chosen on the Robot page. Fine-tune each port here; changes apply at once and are saved.</p>
       <div class="pgrid" id="pgrid" style="margin-top:10px"></div>
       <div class="offrow hidden" id="offrow"></div>
     </section>
@@ -1173,7 +1227,7 @@
       <div class="pagehead"><h1>Controller</h1><span class="muted" id="ctrlSub"></span></div>
       <div class="cgrid" id="cgrid">
         <div class="card ctrlcard" aria-label="DualShock 4: what you press and what it does">
-          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><div class="swatches" id="dsColor" role="radiogroup" aria-label="Controller colour"></div></div>
+          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><div class="swatches" id="dsColor"></div></div>
             <div class="ds3gl" id="ds3" aria-label="DualShock 4 in 3D. Drag to turn it; double-click to reset."><p class="muted ds3msg" id="ds3msg">Loading the 3D controller…</p></div>
             <div class="dslegend">
               <span id="coL"><span id="coLtext">Left stick</span></span>
@@ -1463,29 +1517,6 @@
           <label class="toggle"><input type="checkbox" id="mapSee"><span class="track"></span><span>Recognise things while this page is open</span></label>
           <ul class="mseen" id="mapSeen"></ul>
           <p class="note" id="mapSeeNote"></p>
-          <details class="mapsize" id="mapSize">
-            <summary>Robot size</summary>
-            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
-            <div class="msform">
-              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
-              <label class="field"><span>Motor turns per wheel turn</span><input type="number" data-k="gear" min="0.1" max="10" step="0.01" title="1 if the drive motor turns the wheel directly. With gears or a differential in between: roll the robot until a wheel turns once and count the motor's turns"></label>
-              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
-              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
-              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
-              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
-              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
-              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
-              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
-              <label class="field"><span>Camera ahead</span><input type="number" data-k="camAhead" min="-300" max="300" title="How far ahead of the driven axle the Raspberry Pi camera sits"></label>
-              <label class="field"><span>Camera height</span><input type="number" data-k="camHeight" min="30" max="600" title="The camera lens above the floor"></label>
-              <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
-              <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
-              <label class="field"><span>Weight (grams)</span><input type="number" data-k="weight" min="0" max="20000" step="10" title="The whole robot with batteries in, on a kitchen scale. 0 if not weighed yet"></label>
-            </div>
-            <p class="muted">The camera's height and tilt tell the map how far away things are, from where they meet the floor in the picture. The 3D view shows the camera on the robot, with lines to the corners of the floor it can see.</p>
-            <div class="mplace" id="mapPlace"></div>
-            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSizeSaved"></span>
-          </details>
           <p class="foot">Distance is estimated from the wheels, so the map slowly drifts, especially after sharp turns or wheel slip. A gyro sensor keeps the heading straight. <b>Clear map</b> starts again from where the robot is.</p>
         </div>
       </div>
@@ -1758,6 +1789,121 @@ function drawPorts() {
   if ($("mapName")) $("mapName").textContent = currentMapping() ? `Layout: ${currentMapping().name}` : "";
   $("navRobot").className = "badge " + (warn ? "warn" : "");
 }
+// ---------- Your robot: the car from above, its devices wired to the brick, and its stats ----------
+S.robot = null; S.robotAt = 0;
+async function pollRobot(force) {
+  if (!force && (location.hash || "#robot") !== "#robot") return;
+  if (!force && Date.now() - S.robotAt < 4000) { drawRobot(); return; }
+  S.robotAt = Date.now();
+  try {
+    const [m, c] = await Promise.all([api("/api/map"), api("/api/calibration")]);
+    S.robot = m.robot; S.robotLayout = m.layout; if (!S.cal || !(S.cal.job && S.cal.job.state === "running")) S.cal = c;
+    if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
+  } catch (e) { /* the console stopped: the notices say so */ }
+  drawRobot();
+}
+setInterval(() => pollRobot(false), 1000);
+const SENSOR_KIND = { ir: "Infrared sensor", us: "Ultrasonic sensor", col: "Colour sensor", gy: "Gyro sensor" };
+// What's on each port, how it's doing, and where it sits on the car (mm ahead of the driven axle, mm left).
+function robotDevices(r) {
+  const cp = currentPorts(), m = currentMapping(), P = (m && m.ports) || {}, sensed = cp.sensors || {}, out = [];
+  const known = !!cp.ports, live = !!cp.live;
+  const lead = (p) => (P[p] && P[p].mode === "follow" ? P[p].leader : p);
+  const drive = MOTOR_PORTS.filter((p) => P[p] && ["speed", "drive"].includes((P[lead(p)] || {}).mode) && P[lead(p)] && P[p].mode !== "off");
+  MOTOR_PORTS.forEach((p) => {
+    const d = cp.ports && cp.ports[p], c = P[p] || { mode: "off" }, used = c.mode !== "off";
+    const there = d && d.connected && d.kind === "motor";
+    if (!used && !there) return;
+    const steer = (P[lead(p)] || {}).mode === "position";
+    const i = drive.indexOf(p), n = drive.length;
+    const at = steer ? { x: r.base, y: 0 } : i >= 0 ? { x: 0, y: n > 1 ? (i / (n - 1) - 0.5) * r.track * 0.55 : 0 } : { x: r.base * 0.5, y: r.track * 0.3 };
+    const st = !known ? "off" : cp.wrong && cp.wrong[p] ? "warn" : there ? "ok" : "warn";
+    const role = steer ? "steers" : i >= 0 ? (c.mode === "follow" ? `drives, with ${c.leader}${c.invert ? " reversed" : ""}` : "drives") : used ? "on a stick" : "not in your controls";
+    out.push({ port: p, kind: "motor", name: d && d.connected ? d.label : "Motor", role: st === "warn" && !there ? "missing" : role, st, at });
+  });
+  SENSOR_PORTS.forEach((p) => {
+    const d = cp.ports && cp.ports[p], k = sensed[p] && sensed[p].kind;
+    if (!(d && d.connected) && !(cp.wrong && cp.wrong[p])) return;
+    const name = k ? SENSOR_KIND[k] : d && d.connected ? d.label : "Unknown";
+    const ahead = k === "col" ? r.floorAhead : k === "ir" || k === "us" ? r.eyeAhead : /Touch/.test(name) ? r.base + 30 : r.base * 0.5;
+    const st = cp.wrong && cp.wrong[p] ? "warn" : live ? "ok" : "off";
+    out.push({ port: p, kind: "sensor", name, role: st === "warn" ? "wrong port?" : k === "ir" || k === "us" ? "watches ahead" : k === "col" ? "sees the floor" : k === "gy" ? "heading" : "", st, at: { x: ahead, y: k === "gy" ? -r.track * 0.25 : 0 } });
+  });
+  if (S.cam && S.cam.configured) out.push({ port: "Pi", kind: "camera", name: "Camera", role: S.cam.reachable === false ? "not answering" : S.cam.ok ? "live" : "no picture", st: S.cam.ok ? "ok" : S.cam.reachable === false ? "warn" : "off", at: { x: r.camAhead, y: r.track * 0.18 } });
+  return { list: out, known };
+}
+function drawRobot() {
+  const r = S.robot; if (!r || !$("robotSvg")) return;
+  const lay = S.robotLayout || (currentMapping() && MOTOR_PORTS.some((p) => currentMapping().ports[p].mode === "position") ? "car" : "tank");
+  const { list } = robotDevices(r);
+  // geometry in mm: x forward from the driven axle, y to the left; drawn with the front to the right
+  const base = r.base, track = r.track, wd = r.wheel, ww = Math.max(18, wd * 0.36);
+  const xs = [-wd * 0.8, base + wd * 0.8, ...list.map((d) => d.at.x)], x0 = Math.min(...xs) - 30, x1 = Math.max(...xs) + 30;
+  const W = 640, H = 300, mL = 16, mR = 16, k = Math.min((W - mL - mR) / (x1 - x0), (H - 130) / (track + ww + 40));
+  const off = (W - (x1 - x0) * k) / 2;  // the car in the middle; the labels use the whole width
+  const X = (x) => off + (x - x0) * k, Y = (y) => H / 2 - 4 - y * k;
+  // the EV3 brick is 107 x 70 mm; on a small or unmeasured car it's drawn smaller, so it fits inside
+  const bs = Math.min(1, (base * 0.55) / 107, (track * 0.6) / 70);
+  const bw = 107 * bs * k, bh = 70 * bs * k, bx = X(base * 0.5) - bw / 2, by = Y(0) - bh / 2;
+  const parts = [];
+  const bodyX0 = Math.min(-wd * 0.6, ...list.map((d) => d.at.x)) - 10, bodyX1 = Math.max(base + wd * 0.6, ...list.map((d) => d.at.x)) + 10;
+  parts.push(`<rect class="rs-body" x="${X(bodyX0)}" y="${Y(track / 2)}" width="${(bodyX1 - bodyX0) * k}" height="${track * k}" rx="${14}"/>`);
+  if (lay === "tank") {
+    [1, -1].forEach((sd) => parts.push(`<rect class="rs-wheel" x="${X(-wd * 0.5)}" y="${Y(sd * track / 2) - ww * k / 2}" width="${(base + wd) * k}" height="${ww * k}" rx="${ww * k / 2}"/>`));
+  } else {
+    [0, base].forEach((ax) => {
+      parts.push(`<line class="rs-axle" x1="${X(ax)}" y1="${Y(track / 2)}" x2="${X(ax)}" y2="${Y(-track / 2)}"/>`);
+      [1, -1].forEach((sd) => parts.push(`<rect class="rs-wheel" x="${X(ax) - wd * k / 2}" y="${Y(sd * track / 2) - ww * k / 2}" width="${wd * k}" height="${ww * k}" rx="${Math.min(6, ww * k / 3)}"/>`));
+    });
+  }
+  parts.push(`<text class="rs-front" x="${X(bodyX1) - 4}" y="${Y(track / 2) - ww * k / 2 - 8}" text-anchor="end">FRONT →</text>`);
+  // the brick: motor ports A-D along its back edge, sensor ports 1-4 along its front edge
+  parts.push(`<rect class="rs-brick" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="5"/><rect class="rs-bricklcd" x="${bx + bw * 0.3}" y="${by + bh * 0.22}" width="${bw * 0.4}" height="${bh * 0.32}" rx="2"/>`);
+  const portAt = (p) => {
+    const motor = !p.startsWith("S"), i = motor ? MOTOR_PORTS.indexOf(p) : SENSOR_PORTS.indexOf(p);
+    return { x: motor ? bx : bx + bw, y: by + bh * (0.17 + i * 0.22) };
+  };
+  [...MOTOR_PORTS, ...SENSOR_PORTS].forEach((p) => { const a = portAt(p); parts.push(`<text class="rs-port" x="${a.x + (p.startsWith("S") ? -9 : 9)}" y="${a.y}">${p.replace("S", "")}</text>`); });
+  // each device, wired to its port; its label sits in a row above or below the car, spread evenly
+  // along it in the order the devices sit, with a thin line down to the device
+  const rows = { up: [], down: [] };
+  list.forEach((d) => { (d.at.y > 0 ? rows.up : d.at.y < 0 ? rows.down : rows.up.length <= rows.down.length ? rows.up : rows.down).push(d); });
+  const yUp = Y(track / 2) - ww * k / 2 - 34, yDown = Y(-track / 2) + ww * k / 2 + 28;
+  ["up", "down"].forEach((row) => {
+    rows[row].sort((a, b) => a.at.x - b.at.x).forEach((d, i, all) => { d.lx = mL + (W - mL - mR) * (i + 0.5) / all.length; d.up = row === "up"; });
+  });
+  list.forEach((d) => {
+    const cx = X(d.at.x), cy = Y(d.at.y), up = d.up, ly = up ? yUp : yDown, lx = d.lx;
+    const a = d.port === "Pi" ? null : portAt(d.port);
+    const wire = a ? `<path class="rs-wire" d="M${a.x} ${a.y} C ${(a.x + cx) / 2} ${a.y}, ${(a.x + cx) / 2} ${cy}, ${cx} ${cy}"/>` : "";
+    const shape = d.kind === "motor" ? `<rect class="rs-dev" x="${cx - 10}" y="${cy - 8}" width="20" height="16" rx="4"/>`
+      : d.kind === "camera" ? `<rect class="rs-dev" x="${cx - 9}" y="${cy - 7}" width="18" height="14" rx="3"/><circle class="rs-dev" cx="${cx + 3}" cy="${cy}" r="3.5"/>`
+      : `<circle class="rs-dev" cx="${cx}" cy="${cy}" r="8"/>`;
+    parts.push(`<g class="${d.st}">${wire}${shape}<path class="rs-lead" d="M${cx} ${cy + (up ? -9 : 9)} L${cx} ${ly + (up ? 8 : -14)} L${lx} ${ly + (up ? 8 : -14)}"/>`
+      + `<text class="rs-dlbl" x="${lx}" y="${ly - (up ? 10 : 0)}" text-anchor="middle">${esc(d.port === "Pi" ? "Pi camera" : d.port.replace("S", "") + " · " + d.name)}</text>`
+      + `<text class="rs-dsub" x="${lx}" y="${ly + (up ? 3 : 13)}" text-anchor="middle">${esc(d.role)}</text></g>`);
+  });
+  // sizes, as dimension lines under the car
+  const dy = Y(-track / 2) + ww * k / 2 + 6;
+  if (lay !== "tank") parts.push(`<line class="rs-dim" x1="${X(0)}" y1="${dy}" x2="${X(base)}" y2="${dy}"/><line class="rs-dim" x1="${X(0)}" y1="${dy - 4}" x2="${X(0)}" y2="${dy + 4}"/><line class="rs-dim" x1="${X(base)}" y1="${dy - 4}" x2="${X(base)}" y2="${dy + 4}"/><text class="rs-dimt" x="${X(base / 2)}" y="${dy + 14}">${Math.round(base)} mm between axles</text>`);
+  $("robotSvg").innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${parts.join("")}</svg>`;
+  // stats
+  const c = S.cal || {}, sp = c.speed || {}, t = c.turn || {}, steer = c.steer;
+  const turn = ["left", "right"].map((sd) => t[sd] && Math.round(t[sd].across)).filter(Boolean);
+  const stat = (key, val, sub) => `<div class="rstat"><span class="k">${key}</span><span class="v">${val}</span>${sub ? `<span class="s">${sub}</span>` : ""}</div>`;
+  setHTML($("robotStats"), [
+    stat("Weight", r.weight ? (r.weight >= 1000 ? (r.weight / 1000).toFixed(2) + " kg" : Math.round(r.weight) + " g") : "–", r.weight ? "with batteries" : "not weighed yet"),
+    stat("Wheels", `${Math.round(r.wheel)} mm`, r.gear && r.gear !== 1 ? `motor turns ${r.gear}× per wheel turn` : "driven directly"),
+    stat("Size", lay === "tank" ? `${Math.round(track)} mm` : `${Math.round(base)} × ${Math.round(track)} mm`, lay === "tank" ? "between the tracks" : "axles × wheels apart"),
+    stat("Top speed", sp.now != null ? `${Math.round(sp.now)} cm/s` : "–", sp.now != null ? `at ${sp.volts.toFixed(1)} V` : "drive straight at full power to learn it"),
+    lay === "tank" ? "" : stat("Turning circle", turn.length ? `${Math.max(...turn)} cm` : "–", turn.length ? "across, at full lock" : "measure it on the Driving page"),
+    lay === "tank" ? "" : stat("Steering", steer ? `${steer.eachWay}° each way` : "–", steer ? `motor ${steer.port}` : "find the limits on the Driving page"),
+  ].join(""));
+  document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === lay));
+  const parts2 = [lay === "tank" ? "Tank" : "Car", `${list.filter((d) => d.kind === "motor").length} motors`, `${list.filter((d) => d.kind === "sensor").length} sensors`];
+  if (list.some((d) => d.kind === "camera")) parts2.push("a camera");
+  $("robotSub").textContent = parts2.join(", ");
+}
 // ---------- devices: test each motor on its own ----------
 // test runs go at the speed limit set with the Motors slider in the top bar
 Object.defineProperty(S, "testSpeed", { get: () => armSpeed() });
@@ -1950,7 +2096,6 @@ function drawControls(force) {
     $("pgrid").innerHTML = MOTOR_PORTS.filter((p) => m.ports[p].mode !== "follow").map((p) => portCard(p, m.ports[p], cp, m.ports)).join("");
     const usesDrive = MOTOR_PORTS.some((p) => m.ports[p].mode === "drive");
     $("globals").innerHTML = `
-      <label class="field"><span>Normal speed</span>${range("speed.base", m.speed.base, 10, 100, 5, "%")}</label>
       <label class="field"><span>Speed boost</span>${axisSel("speed.boost", m.speed.boost, true)}</label>
       ${usesDrive ? `<label class="field"><span>Throttle</span>${axisSel("drive.throttle", m.drive.throttle)}</label>
       <label class="field"><span>Steering</span>${axisSel("drive.steer", m.drive.steer)}</label>
@@ -1963,7 +2108,6 @@ function drawControls(force) {
       <label class="toggle"><input type="checkbox" data-k="brake.camera" ${bk.camera !== false ? "checked" : ""}><span class="track"></span><span>Use the camera too</span></label>
       <p class="help">Uses the infrared or ultrasonic sensor facing ahead (or behind). Only driving towards the obstacle is braked, so you can always back away or turn on the spot. Runs on this laptop: switch it off to push things on purpose.</p>
       <p class="help">With the camera: it watches the floor across the robot's whole width, not just the sensor's narrow line. With object recognition set up, people and pets close ahead get twice the room, at half the speed. A patterned rug confuses it; then only the sensor counts.</p>`;
-    document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === m.name));
   }
   // live output on each card
   const sent = (S.link && S.link.connected && S.link.sending) || {};
@@ -2028,12 +2172,15 @@ $("pgrid").addEventListener("click", async (e) => {
 });
 $("presets").addEventListener("click", (e) => {
   const b = e.target.closest(".preset"); if (!b || !presets[b.dataset.preset]) return;
+  // your own controls aren't thrown away by a click: ask first
+  const kind = b.dataset.preset === "car" ? "Car" : "Tank";
+  if (S.mapDraft && S.mapDraft.name === "custom" && !confirm(`Replace your own controls with the plain ${kind} layout? Each port's settings start again from ${kind}'s.`)) return;
   S.mapDraft = { ...JSON.parse(JSON.stringify(presets[b.dataset.preset])), sticks: S.mapDraft && S.mapDraft.sticks, brake: S.mapDraft && S.mapDraft.brake };
-  drawControls(true); saveMapping(); $("fitNote").textContent = "";
+  drawControls(true); saveMapping(); $("presetNote").textContent = ""; drawRobot();
 });
 // Fit the chosen layout to what's actually plugged in.
 $("fitBtn").addEventListener("click", () => {
-  const cp = currentPorts(); if (!cp.ports) { $("fitNote").textContent = "Connect to the brick first so I can see the motors."; return; }
+  const cp = currentPorts(); if (!cp.ports) { $("presetNote").textContent = "Connect to the brick first, so the motors plugged in are known."; return; }
   const motors = MOTOR_PORTS.filter((p) => cp.ports[p] && cp.ports[p].kind === "motor");
   const large = motors.filter((p) => /Large/.test(cp.ports[p].label)), medium = motors.filter((p) => /Medium/.test(cp.ports[p].label));
   const isCar = S.mapDraft && S.mapDraft.name === "car";
@@ -2055,7 +2202,8 @@ $("fitBtn").addEventListener("click", () => {
   }
   m.name = isCar ? "car" : "tank";
   m.sticks = S.mapDraft && S.mapDraft.sticks; m.brake = S.mapDraft && S.mapDraft.brake; S.mapDraft = m; drawControls(true); saveMapping();
-  $("fitNote").textContent = motors.length ? `Fitted ${isCar ? "Car" : "Tank"} to your motors: ${notes.join(", ")}.` : "No motors plugged in yet.";
+  drawRobot();
+  $("presetNote").textContent = motors.length ? `Fitted ${isCar ? "Car" : "Tank"} to your motors: ${notes.join(", ")}.` : "No motors plugged in yet.";
 });
 
 // ---------- controller page (WebHID for battery / model / firmware) ----------
@@ -3431,7 +3579,7 @@ $("mapSave").addEventListener("click", () => busy($("mapSave"), async () => {
   const robot = {};
   document.querySelectorAll("#mapSize [data-k]").forEach((el) => { robot[el.dataset.k] = Number(el.value); });
   const r = await api("/api/map/robot", { robot });
-  if (r.ok) { fillMapSize(r.robot); setNote("mapSizeSaved", "Saved.", "ok"); } else setNote("mapSizeSaved", "Couldn't save.", "bad");
+  if (r.ok) { fillMapSize(r.robot); S.robot = r.robot; drawRobot(); setNote("mapSizeSaved", "Saved.", "ok"); } else setNote("mapSizeSaved", "Couldn't save.", "bad");
 }));
 setInterval(pollMap, 250);
 
@@ -3527,19 +3675,16 @@ try {
   let saved = localStorage.getItem("ds4color");
   if (!(saved in COLORS)) saved = "Magma Red";
   const hex = (n) => "#" + COLORS[n].toString(16).padStart(6, "0");
-  sel.innerHTML = Object.keys(COLORS).map((n) => `<button role="radio" aria-checked="${n === saved}" tabindex="${n === saved ? 0 : -1}" title="${n}" aria-label="${n}" data-c="${n}" style="--c:${hex(n)}"></button>`).join("");
-  window.DS4.setColor(COLORS[saved]);
-  const pick = (b) => {
-    sel.querySelectorAll("button").forEach((x) => { x.setAttribute("aria-checked", x === b); x.tabIndex = x === b ? 0 : -1; });
-    localStorage.setItem("ds4color", b.dataset.c); window.DS4.setColor(COLORS[b.dataset.c]);
+  const names = Object.keys(COLORS);
+  sel.innerHTML = '<button class="swatch" id="dsColorBtn"></button>';
+  const btn = document.getElementById("dsColorBtn");
+  const show = (n) => {
+    btn.style.setProperty("--c", hex(n)); btn.title = `Controller colour: ${n}. Click for the next colour.`;
+    btn.setAttribute("aria-label", `Controller colour: ${n}. Press for the next colour`);
+    localStorage.setItem("ds4color", n); window.DS4.setColor(COLORS[n]);
   };
-  sel.addEventListener("click", (e) => { const b = e.target.closest("button[data-c]"); if (b) pick(b); });
-  sel.addEventListener("keydown", (e) => { // arrow keys move between colours, as in any radio group
-    const all = [...sel.querySelectorAll("button")], i = all.indexOf(document.activeElement);
-    const d = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
-    if (i < 0 || !d) return;
-    e.preventDefault(); const b = all[(i + d + all.length) % all.length]; b.focus(); pick(b);
-  });
+  show(saved);
+  btn.addEventListener("click", () => { saved = names[(names.indexOf(saved) + 1) % names.length]; show(saved); });
 } catch (e) {
   document.getElementById("ds3msg").textContent = "This browser can't show the 3D controller (WebGL is off).";
   sel.hidden = true;
