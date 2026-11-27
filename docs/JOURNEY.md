@@ -354,6 +354,16 @@ Still open: choosing a licence.
 - **Scans dropped the link:** a scan every 30 s at a weak signal stalled the radio long enough for the console to drop the link each time. Now it scans at most every two minutes, only while standing still, and only with somewhere else to go.
 - **A weak dongle:** at about -70 dBm, a quarter of the pings to the brick were lost, while the router answered every one. On the car, the brick's 2.4 GHz dongle is the weak link; the Pi, on 5 GHz next to it, had -51 dBm.
 
+## Stage 16: two motors, one shaft
+
+**Idea:** the car has two large motors on its rear axle. A motor group makes the second one get exactly the first one's command ("Same as A"), so they run as one.
+
+**What went wrong:** the batteries got hot while the car stood still. The brick reported 1.8 A with every motor at rest, and the voltage fell from 7.6 V to 4.7 V within an hour. leJOS keeps a stopped motor actively holding the angle where it stopped. A had stopped at -11° and B at 28°, on the same shaft: each pushed towards its own angle against the other, a stall that never ended. Testing one motor while the other held made it worse.
+
+**The fix:** a stopped speed motor still brakes at once (the obstacle brake needs that), then floats after 0.3 s. Steering, a single motor, still holds its angle.
+
+**What it taught:** the brick reports total current 4 times a second. Watching it would have caught this in seconds: a high current with nothing moving always means something is wrong.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

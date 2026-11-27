@@ -13,6 +13,11 @@ import lejos.hardware.port.Port;
  * Every detected motor is claimed, so each one can also be tested on its own from
  * the PC (see test()). A port stays free until a motor shows up there, so the brick
  * keeps detecting it and a motor plugged in later appears within a quarter of a second.
+ *
+ * A stopped speed motor brakes at once, then floats: leJOS would otherwise keep it actively
+ * holding the angle it stopped at. Two motors on one shaft (a motor group) can't both hold
+ * their own angle, so they strained against each other without end: high current with the
+ * robot standing still, and hot batteries. Steering (position) ports still hold their angle.
  */
 public final class Drive {
     private static final Port[] PORTS = {MotorPort.A, MotorPort.B, MotorPort.C, MotorPort.D};
@@ -22,12 +27,16 @@ public final class Drive {
     private static final long TEST_HOLD_MS = 400;
     /** Limits for commands from the network, whoever sends them. */
     static final int MAX_TEST_DEG = 3600, MAX_ANGLE = 720;
+    /** A stopped speed motor brakes for this long, then floats instead of holding its angle. */
+    private static final long FLOAT_AFTER_MS = 300;
 
     private final BaseRegulatedMotor[] motors = new BaseRegulatedMotor[4];
     private final int[] lastDir = new int[4];
     /** While a test owns a motor, driving leaves it alone. */
     private final long[] testUntil = new long[4];
     private final boolean[] testRotating = new boolean[4];
+    /** When each motor was told to stop, or 0 once it floats (or is moving). */
+    private final long[] stoppedAt = new long[4];
 
     /** Opens motors on ports where one has been plugged in. Call a few times a second. */
     public void refresh() {
@@ -42,17 +51,30 @@ public final class Drive {
             }
             if (testRotating[i] && !m.isMoving()) {
                 testRotating[i] = false; // an exact move finished by itself
+                testUntil[i] = 0;
+                brake(i);
             } else if (testRotating[i] && now > testUntil[i]) {
                 testRotating[i] = false; // took far longer than it should (blocked?): give up
                 testUntil[i] = 0;
-                m.stop(true);
+                brake(i);
             }
             if (!testRotating[i] && testUntil[i] != 0 && now > testUntil[i]) {
                 testUntil[i] = 0;
-                m.stop(true); // a held test was released
+                brake(i); // a held test was released
                 lastDir[i] = 0;
             }
+            // stopped a moment ago: let go, so it doesn't strain against anything holding the shaft
+            if (stoppedAt[i] != 0 && now - stoppedAt[i] >= FLOAT_AFTER_MS && !posActive[i] && !testing(i)) {
+                m.flt(true);
+                stoppedAt[i] = 0;
+            }
         }
+    }
+
+    /** Stops a motor now; refresh() lets it float a moment later. */
+    private void brake(int i) {
+        motors[i].stop(true);
+        stoppedAt[i] = System.currentTimeMillis();
     }
 
     private void claimIfPresent(int i) {
@@ -113,15 +135,16 @@ public final class Drive {
         } else if (action.equals("stop")) {
             testRotating[i] = false;
             testUntil[i] = 0;
-            m.stop(true);
+            brake(i);
             lastDir[i] = 0;
         } else if (action.equals("run")) {
             testRotating[i] = false;
             testUntil[i] = System.currentTimeMillis() + TEST_HOLD_MS;
             int dir = Integer.signum(a);
             m.setSpeed(Math.min(100, Math.abs(a)) * m.getMaxSpeed() / 100f);
+            stoppedAt[i] = 0;
             if (dir == 0) {
-                m.stop(true);
+                brake(i);
             } else if (dir != lastDir[i]) {
                 if (dir > 0) {
                     m.forward();
@@ -138,6 +161,7 @@ public final class Drive {
             // time it should take, twice over plus 2 s; refresh() stops it after that
             testUntil[i] = System.currentTimeMillis() + 2000 + (long) (2000f * Math.abs(deg) / Math.max(1f, speed));
             lastDir[i] = 0;
+            stoppedAt[i] = 0;
             m.rotate(deg, true);
         }
     }
@@ -159,7 +183,8 @@ public final class Drive {
         }
         if (mode == '-') {
             if (lastDir[i] != 0 || posActive[i]) {
-                m.stop(true);
+                posActive[i] = false;
+                brake(i); // then floats: a port the controls don't use mustn't hold anything
             }
             lastDir[i] = 0;
             posActive[i] = false;
@@ -172,6 +197,7 @@ public final class Drive {
             a = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, a));
             int speed = Math.max(5, Math.min(100, b));
             if (!posActive[i] || Math.abs(a - posTarget[i]) >= 1) {
+                stoppedAt[i] = 0; // steering holds its angle
                 m.setSpeed(speed * m.getMaxSpeed() / 100f);
                 m.rotateTo(a, true);
                 posTarget[i] = a;
@@ -210,7 +236,7 @@ public final class Drive {
             testRotating[i] = false;
             testUntil[i] = 0;
             if (motors[i] != null) {
-                motors[i].stop(true);
+                brake(i);
             }
             lastDir[i] = 0;
         }
@@ -254,9 +280,10 @@ public final class Drive {
         int dir = Integer.signum(pct);
         if (dir == 0) {
             if (lastDir[i] != 0) {
-                m.stop(true);
+                brake(i);
             }
         } else {
+            stoppedAt[i] = 0;
             m.setSpeed(Math.abs(pct) * m.getMaxSpeed() / 100f);
             if (dir != lastDir[i]) {
                 if (dir > 0) {

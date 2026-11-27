@@ -91,6 +91,12 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Robot size** on the Map page. Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
 - **Nothing appears:** a thing must be seen twice, at least 50% sure. Things seen against the sky or above the horizon (on a shelf high up) aren't placed.
 
+## Hot batteries, or a high current while standing still
+
+- **The cause seen on this robot:** two large motors on one shaft. Before the fix, each held the angle it had stopped at, and they strained against each other without end. Upload the latest brick program: stopped motors now float.
+- **Something powered from the brick:** a Raspberry Pi in the brick's USB port draws far more than the brick is made for. Give the Pi its own power bank.
+- **What to do:** switch the brick off (take the batteries out if it doesn't respond), let hot batteries cool before charging, and throw away any that look swollen or leak.
+
 ## Moving between WiFi networks
 
 - **It doesn't switch:**
