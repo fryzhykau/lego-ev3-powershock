@@ -108,6 +108,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **Robot page:** the camera has its own card next to the brick (no more Brick/Camera tabs), and with no picture it's a short message instead of a black box. The 3D controller card moved to the **Controller** page. Notices (what to do next, the controller needing a button press) share one slim panel at the top of every page. F only goes full screen while the controller drives, since it's the keyboard's handbrake.
 - **Motors is a slider in the top bar:** all the way left is off; anywhere else is on, at that speed limit (the Driving page's Normal speed). The motor test buttons use the same speed, so the Devices card no longer has its own Speed buttons.
 - **A strip under the top bar** says what to do next, or what's wrong, on every page, in plain words instead of the SSH error. The top bar shows icons and coloured dots, with the words in each item's tooltip, so Stop always fits.
 - **Motor groups on the Driving page** share one card: the leader's settings, with each motor that follows it (and its Reversed switch) underneath.

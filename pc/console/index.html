@@ -171,11 +171,17 @@
   /* ---------- robot page ---------- */
   /* Robot page: what to do next on top, then controller -> brick -> devices, left to right */
   .robot { display: grid; gap: 16px; align-items: start;
-    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr) minmax(300px, 340px);
-    grid-template-areas: "bar bar bar" "ctrl brick dev"; }
-  .robot > .drivebar { grid-area: bar; } .robot > .ctrlcard { grid-area: ctrl; } .robot > .stagecard { grid-area: brick; } .robot > .devcard { grid-area: dev; }
-  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "bar bar" "ctrl brick" "dev brick"; } }
-  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "ctrl" "brick" "dev"; gap: 12px; } }
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-areas: "bar bar bar" "brick cam dev"; }
+  .robot > .drivebar { grid-area: bar; } .robot > .stagecard { grid-area: brick; } .robot > .camcard { grid-area: cam; } .robot > .devcard { grid-area: dev; }
+  @media (max-width: 1280px) { .robot { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-areas: "bar bar" "brick dev" "cam dev"; } }
+  @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "brick" "cam" "dev"; gap: 12px; } }
+  .camcard { padding: 12px; } .camcard .card-head { margin-bottom: 10px; } .camacts { display: flex; gap: 6px; }
+  .camcard .camview { padding-top: 0; border-radius: var(--r-s); overflow: hidden; }
+  .camcard .camview.idle { aspect-ratio: auto; min-height: 0; padding: 18px 14px; background: var(--soft); }
+  .camcard .camview.idle .camwait { position: static; transform: none; max-width: none; color: var(--muted); } .camcard .camview.idle .camwait a { color: var(--ink); }
+  .camacts .iconbtn:disabled { opacity: .4; cursor: default; }
+  .stagetitle { margin: 0 8px 0 4px; }
   .drivebar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: stretch; }
   @media (max-width: 860px) { .drivebar { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
   .drivebar { grid-template-columns: minmax(0, 1fr); } .drivebar:not(:has(> .card:not(.hidden))) { display: none; }
@@ -619,10 +625,10 @@
   .nudge .grp button:hover { background: var(--soft); }
   /* controller page: pairing until a controller shows up, then one line on top */
   .cgrid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start;
-    grid-template-areas: "pair info" "pair sticks"; }
-  .cgrid.paired { grid-template-areas: "pair pair" "info sticks"; }
-  #pairCard { grid-area: pair; } #ctrlInfo { grid-area: info; } #sticksCard { grid-area: sticks; }
-  @media (max-width: 1000px) { .cgrid, .cgrid.paired { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pair" "info" "sticks"; } }
+    grid-template-areas: "ds ds" "pair info" "pair sticks"; }
+  .cgrid.paired { grid-template-areas: "ds pair" "ds info" "ds sticks"; }
+  .cgrid > .ctrlcard { grid-area: ds; } #pairCard { grid-area: pair; } #ctrlInfo { grid-area: info; } #sticksCard { grid-area: sticks; }
+  @media (max-width: 1000px) { .cgrid, .cgrid.paired { grid-template-columns: minmax(0, 1fr); grid-template-areas: "ds" "pair" "info" "sticks"; } }
   #ctrlInfo .kv + .kv, #ctrlInfo #hidBody:not(:empty) + .kv { margin-top: 10px; }
   #ctrlInfo .foot { font-size: 12px; color: var(--muted); margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); }
   /* brick page */
@@ -724,10 +730,22 @@
   .devnote { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .wifi-ico { width: 14px; height: 11px; flex: none; }
   .sbico { width: 16px; height: 16px; flex: none; color: var(--muted); }
-  @media (max-width: 1280px) { #sbLink, #sbWifi, #sbProg, #sbPad { display: none; } .statusbar .si { gap: 5px; } }
-  /* the message strip at the top of every page */
-  .msgstrip { margin-bottom: 14px; padding: 8px 12px; }
-  .msgstrip .msgtext { min-width: 0; font-size: 13.5px; } .msgstrip .title { font-weight: 650; } .msgstrip .body { color: var(--muted); }
+  /* the connection item shows how the brick is reached: Bluetooth, WiFi, or the brick itself */
+  #sbLinkItem .ico-bt, #sbLinkItem .ico-wifi { display: none; }
+  #sbLinkItem[data-via="bt"] .ico-bt, #sbLinkItem[data-via="wifi"] .ico-wifi { display: block; }
+  #sbLinkItem[data-via="bt"] .ico-brick, #sbLinkItem[data-via="wifi"] .ico-brick { display: none; }
+  #sbLinkItem.up .sbico { color: var(--ink); }
+  @media (max-width: 1280px) { #sbLink, #sbWifi, #sbProg, #sbPad, #sbWifiItem, #sbWifiItem + .sep { display: none; } .statusbar .si { gap: 5px; } }
+  @media (max-width: 900px) { .brand .ver { display: none; } #armRange { width: 80px; } .statusbar .si { padding-left: 7px; padding-right: 7px; } }
+  /* notices at the top of every page: what to do next, and anything that needs attention */
+  .notices { display: grid; margin-bottom: 14px; border-radius: var(--r-l); background: var(--face); box-shadow: inset 0 0 0 1px var(--edge); overflow: hidden; }
+  .notices .next { border: 0; border-radius: 0; background: none; padding: 7px 12px 7px 10px; gap: 10px; min-height: 36px; box-sizing: border-box; }
+  .notices .next.hidden { display: none; }
+  .notices .next + .next:not(.hidden) { border-top: 1px solid var(--rule); }
+  .notices .next.warn { background: var(--warn-tint); } .notices .next.bad { background: var(--stop-tint); }
+  .notices .icon { width: 22px; height: 22px; font-size: 12px; } .notices .icon svg { width: 13px; height: 13px; }
+  .notices .msgtext { min-width: 0; font-size: 13px; line-height: 1.4; } .notices .msgtext .title { font-weight: 650; } .notices .msgtext .body { color: var(--muted); }
+  .notices .msgtext b { color: var(--ink); } .notices .btn { padding: 4px 12px; font-size: 13px; }
 
   /* drive */
   .empty { padding: 2px; margin: 0; color: var(--muted); font-size: 13px; }
@@ -977,7 +995,7 @@
 <body>
 <header class="statusbar">
   <div class="brand">PowerShock<span class="ver" id="appVer" title="PowerShock version on this laptop"></span></div>
-  <button class="si" data-go="connection" title="Connection" id="sbLinkItem"><svg class="sbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span class="dot" id="sbLinkDot"></span><span id="sbLink">Not connected</span></button>
+  <button class="si" data-go="connection" title="Connection" id="sbLinkItem"><svg class="sbico ico-bt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg><svg class="sbico ico-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r=".8" fill="currentColor"/></svg><svg class="sbico ico-brick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span class="dot" id="sbLinkDot"></span><span id="sbLink">Not connected</span></button>
   <span class="sep hide-s"></span>
   <button class="si" data-go="brick" title="Brick battery"><span class="batt" id="sbBattIcon"><i></i></span><b id="sbBatt">–</b></button>
   <span class="sep hide-s"></span>
@@ -1015,10 +1033,13 @@
 
   <main>
     <!-- what to do next, or what's wrong: on every page, under the status bar -->
-    <div id="next" class="next msgstrip" role="status" aria-live="polite">
-      <div class="icon" id="nextIcon">1</div>
-      <div class="msgtext"><span class="title" id="nextTitle">Looking for the brick…</span> <span class="body" id="nextBody"></span></div>
-      <button id="nextBtn" class="btn dark hidden"></button>
+    <div class="notices" role="status" aria-live="polite">
+      <div id="next" class="next">
+        <div class="icon" id="nextIcon">1</div>
+        <div class="msgtext"><span class="title" id="nextTitle">Looking for the brick…</span> <span class="body" id="nextBody"></span></div>
+        <button id="nextBtn" class="btn dark hidden"></button>
+      </div>
+      <div id="padHint" class="next hidden"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/></svg></div><div class="msgtext" id="padHintText"></div></div>
     </div>
     <!-- ================= ROBOT ================= -->
     <section class="page" id="page-robot">
@@ -1040,27 +1061,9 @@
           </div>
         </div>
 
-        <div class="card ctrlcard" aria-label="DualShock 4: what you press and what it does">
-          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><div class="swatches" id="dsColor" role="radiogroup" aria-label="Controller colour"></div></div>
-            <div class="ds3gl" id="ds3" aria-label="DualShock 4 in 3D. Drag to turn it; double-click to reset."><p class="muted ds3msg" id="ds3msg">Loading the 3D controller…</p></div>
-            <div class="dslegend">
-              <span id="coL"><span id="coLtext">Left stick</span></span>
-              <span id="coR"><span id="coRtext">Right stick</span></span>
-              <span id="coR2"><span id="coR2text">R2</span></span>
-              <span id="coX">✕ · stop</span>
-              <span id="coO">◯ · handbrake</span>
-              <span id="coOpt">Options · motors off</span>
-            </div>
-            <div class="gets">
-              <h3>What the brick gets</h3>
-              <div id="getRows"></div>
-              <div class="why" id="getWhy"></div>
-            </div>
-        </div>
 
         <div class="card stagecard">
-          <div class="stagebar"><div class="tabs" role="tablist" id="stageTabs" aria-label="What to show"><button role="tab" aria-selected="true" data-v="brick">Brick</button><button role="tab" aria-selected="false" data-v="cam">Camera</button></div><span class="muted grow1" id="portsNote"></span><span class="grow1 hidden" id="camGap"></span><button class="iconbtn hidden" id="camSeeBtn" aria-pressed="false" title="Recognise objects in the video (R)" aria-label="Recognise objects in the video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg></button><button class="iconbtn hidden" id="camFull" title="Full screen, driving keeps working (Esc or F to leave)" aria-label="Show the camera full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="iconbtn hidden" id="camPop" title="Open the camera in its own window, e.g. for a second monitor" aria-label="Open the camera in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="M13 3h8v8M21 3l-9 9"/></svg></button><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
-          <div class="camview hidden" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div><div class="camboxes" id="camBoxes" aria-hidden="true"></div><div class="camsee hidden" id="camSeeNote" role="status"></div></div>
+          <div class="stagebar"><h2 class="stagetitle">Brick</h2><span class="muted grow1" id="portsNote"></span><button class="iconbtn" id="resetView" title="Reset view (or double-click the brick)" aria-label="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4.5h4.5"/></svg></button></div>
           <div class="scene" id="scene" aria-label="The EV3 brick with what's plugged into each port. Drag to turn it.">
             <div class="brick intro" id="brick">
               <div class="f back"></div>
@@ -1098,6 +1101,11 @@
             </div>
           </div>
           <div class="stagefoot"><span>Drag to turn the brick. Motor hubs turn with the real motors.</span><span id="stageWho"></span></div>
+        </div>
+
+        <div class="card camcard" id="camCard" aria-label="The robot's camera">
+          <div class="card-head"><h2>Camera</h2><span class="muted grow1" id="camNote"></span><span class="camacts"><button class="iconbtn" id="camSeeBtn" aria-pressed="false" title="Recognise objects in the video (R)" aria-label="Recognise objects in the video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg></button><button class="iconbtn" id="camFull" title="Full screen, driving keeps working (Esc or F to leave)" aria-label="Show the camera full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="iconbtn" id="camPop" title="Open the camera in its own window, e.g. for a second monitor" aria-label="Open the camera in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="M13 3h8v8M21 3l-9 9"/></svg></button></span></div>
+            <div class="camview" id="camView"><img id="camImg" alt="Live picture from the robot's camera"><div class="camwait" id="camWait">Connecting to the camera…</div><div class="camhud" id="camHud">Motors off</div><div class="camboxes" id="camBoxes" aria-hidden="true"></div><div class="camsee hidden" id="camSeeNote" role="status"></div></div>
         </div>
 
         <div class="card devcard">
@@ -1156,6 +1164,23 @@
     <section class="page" id="page-controller">
       <div class="pagehead"><h1>Controller</h1><span class="muted" id="ctrlSub"></span></div>
       <div class="cgrid" id="cgrid">
+        <div class="card ctrlcard" aria-label="DualShock 4: what you press and what it does">
+          <div class="card-head"><h2 id="dsName">No controller</h2><span class="muted" id="dsSource"></span><div class="swatches" id="dsColor" role="radiogroup" aria-label="Controller colour"></div></div>
+            <div class="ds3gl" id="ds3" aria-label="DualShock 4 in 3D. Drag to turn it; double-click to reset."><p class="muted ds3msg" id="ds3msg">Loading the 3D controller…</p></div>
+            <div class="dslegend">
+              <span id="coL"><span id="coLtext">Left stick</span></span>
+              <span id="coR"><span id="coRtext">Right stick</span></span>
+              <span id="coR2"><span id="coR2text">R2</span></span>
+              <span id="coX">✕ · stop</span>
+              <span id="coO">◯ · handbrake</span>
+              <span id="coOpt">Options · motors off</span>
+            </div>
+            <div class="gets">
+              <h3>What the brick gets</h3>
+              <div id="getRows"></div>
+              <div class="why" id="getWhy"></div>
+            </div>
+        </div>
           <div class="card" id="pairCard">
             <div class="padstate hidden" id="padState">
               <svg class="ps-art" viewBox="0 0 120 72" aria-hidden="true"><path class="body" d="M30 10h60a16 16 0 0 1 15.6 12.4l6.6 29a10 10 0 0 1-17.4 8.6L86 50H34l-8.8 10a10 10 0 0 1-17.4-8.6l6.6-29A16 16 0 0 1 30 10z"/><rect class="pad" x="44" y="14" width="32" height="17" rx="3"/><circle class="stick" cx="44" cy="42" r="6"/><circle class="stick" cx="76" cy="42" r="6"/><g class="dpad"><rect x="20" y="27" width="4" height="12" rx="1"/><rect x="16" y="31" width="12" height="4" rx="1"/></g><g class="face"><circle cx="98" cy="27" r="2.6"/><circle cx="93" cy="32" r="2.6"/><circle cx="103" cy="32" r="2.6"/><circle class="cross" cx="98" cy="37" r="2.6"/></g><circle class="ring ring-ps" cx="60" cy="40" r="7"/><circle class="ring ring-x" cx="98" cy="37" r="6"/><circle class="psb" cx="60" cy="40" r="3.4"/><rect class="bar" x="46" y="9" width="28" height="3" rx="1.5"/></svg>
@@ -1256,7 +1281,7 @@
         <div class="ctile" id="tileCam">
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera<span class="pill" id="camPill">not set up</span></div>
           <div class="ct-body" id="camBody">Give the robot eyes: a Raspberry Pi with a camera, riding on it.</div>
-          <div class="ct-acts"><button class="btn" id="camShow">Show on Robot page</button><button class="link" data-panel="cam" id="camSetupBtn">Set up</button></div>
+          <div class="ct-acts"><button class="btn" id="camShow">Show the camera</button><button class="link" data-panel="cam" id="camSetupBtn">Set up</button></div>
         </div>
       </div>
       <div class="card setup hidden" id="setupPanel">
@@ -2797,7 +2822,7 @@ const DS_BTN = { dsPad: "pad", dsL1: "L1", dsR1: "R1", dsShare: "share", dsOpt: 
 function drawPad(p) {
   const real = S.src === "pad";
   $("padEmpty").classList.toggle("hidden", !real || !!p); $("padLive").classList.toggle("hidden", !real || !p);
-  document.querySelector(".drivecard").classList.toggle("hidden", real && !!p);
+  document.querySelector(".drivecard").classList.toggle("hidden", real);
   const isDs4 = p && p.source === "pad" && /wireless controller|dualshock|054c/i.test(p.id || p.name);
   const pst = padStatus(p && p.source === "pad" ? p : null).state, winPad = !p && pst === "press";
   $("sbPad").textContent = real ? (p ? (isDs4 ? "DualShock 4" : "Controller") : pst === "press" ? "DualShock 4 · press a button" : pst === "asleep" ? "DualShock 4 · asleep, press PS" : "No controller") : "Keyboard";
@@ -2808,6 +2833,10 @@ function drawPad(p) {
   const padNote = p && p.source === "pad" ? (isDs4 ? "DualShock 4 connected" : "Connected") : pst === "press" ? "Press any button on it"
     : pst === "asleep" ? "Asleep: press PS" : "No controller yet";
   if ($("srcPadNote").textContent !== padNote) $("srcPadNote").textContent = padNote;
+  const hint = real && !p;
+  $("padHint").classList.toggle("hidden", !hint);
+  $("padHint").className = "next " + (pst === "press" || pst === "asleep" ? "warn" : "") + (hint ? "" : " hidden");
+  setHTML($("padHintText"), emptyMsg);
   if ($("padEmpty").dataset.msg !== emptyMsg) { $("padEmpty").dataset.msg = emptyMsg; $("padEmpty").innerHTML = emptyMsg; }
   $("dsName").textContent = p ? (p.source === "keys" ? "Keyboard" : isDs4 ? "DualShock 4" : "Controller") : "No controller";
   $("dsSource").textContent = p ? (p.source === "keys" ? "shown as a controller" : "live") : "";
@@ -2914,6 +2943,9 @@ async function pollLinkOnce() {
   else if (brickHost()) { $("sbLinkDot").className = "dot warn"; $("sbLink").innerHTML = `${{ idle: "Brick found", ready: "PowerShock ready" }[brickState()] || "Looking for the brick"} <span class="opt">${esc(brickHost())}</span>`; }
   else { $("sbLinkDot").className = "dot"; $("sbLink").textContent = "Not connected"; }
   $("sbRate").textContent = L.connected ? ` · ${L.rate} Hz` : "";
+  const via = practice ? "" : L.connected ? (L.via === "Bluetooth" ? "bt" : "wifi") : brickHost() === "10.0.1.1" ? "bt" : brickHost() ? "wifi" : "";
+  if ($("sbLinkItem").dataset.via !== via) $("sbLinkItem").dataset.via = via;
+  $("sbLinkItem").classList.toggle("up", !!L.connected);
   setMeters(L.connected ? L.sending : {});
   $("lcdHost").textContent = L.connected ? (practice ? "PRACTICE" : (L.via === "Bluetooth" ? "BT " : "WIFI ") + L.host) : "EV3";
   const lcdMsg = BRICK_LCD[brickState()] || "";
@@ -2937,18 +2969,8 @@ async function pollBrick() {
   try { S.brick = await api("/api/brick?host=" + encodeURIComponent(h)); } catch (e) { return; }
 }
 // ---------- camera: a Raspberry Pi on the robot (pi/powershock_cam.py) ----------
-S.stageView = localStorage.getItem("stageView") === "cam" ? "cam" : "brick";
-function setStage(v) {
-  S.stageView = v; localStorage.setItem("stageView", v);
-  $("stageTabs").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", b.dataset.v === v ? "true" : "false"));
-  $("scene").classList.toggle("hidden", v === "cam");
-  $("resetView").classList.toggle("hidden", v === "cam");
-  document.querySelector(".stagefoot").classList.toggle("hidden", v === "cam");
-  $("portsNote").hidden = v === "cam";
-  ["camGap", "camSeeBtn", "camFull", "camPop"].forEach((id) => $(id).classList.toggle("hidden", v !== "cam"));
-  $("camView").classList.toggle("hidden", v !== "cam");
-  syncCam();
-}
+// The camera has its own card on the Robot page, next to the brick.
+S.stageView = "cam";
 function syncCam() {
   // the video runs only while it can be seen, so the Pi and WiFi aren't busy for nothing
   const c = S.cam, img = $("camImg");
@@ -2957,10 +2979,14 @@ function syncCam() {
   if (!want && img.dataset.on) { img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live; }
   const wait = !c ? "Checking the camera…"
     : !c.configured ? 'No camera yet. Set one up on the <a href="#connection" data-cam-setup>Setup page</a>.'
-    : c.reachable === false ? esc(c.error || "The camera isn't answering.")
+    : c.reachable === false ? "The camera isn't answering. Check the Raspberry Pi is switched on and on the same WiFi as this laptop."
     : c.ok === false && c.error ? esc(c.error)
     : img.dataset.live ? "" : "Connecting to the camera…";
   setHTML($("camWait"), wait);
+  // no picture: a short card with the message, not a big black box; the buttons need a picture
+  const live = !!img.dataset.live;
+  $("camView").classList.toggle("idle", !live);
+  ["camSeeBtn", "camFull", "camPop"].forEach((id) => { $(id).disabled = !live; });
 }
 $("camImg").addEventListener("load", () => { $("camImg").dataset.live = "1"; syncCam(); });
 $("camImg").addEventListener("error", () => { // the stream stopped: try again shortly
@@ -2968,7 +2994,6 @@ $("camImg").addEventListener("error", () => { // the stream stopped: try again s
   setTimeout(syncCam, 2000);
 });
 $("camWait").addEventListener("click", (e) => { if (e.target.closest("[data-cam-setup]")) setTimeout(() => openPanel("cam"), 50); });
-$("stageTabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) setStage(b.dataset.v); });
 addEventListener("hashchange", syncCam);
 document.addEventListener("visibilitychange", syncCam);
 function drawCamTile() {
@@ -2990,14 +3015,14 @@ async function pollCam() {
   try { S.cam = await api("/api/camera"); } catch (e) { return; }
   drawCamTile(); syncCam();
 }
-$("camShow").addEventListener("click", () => { location.hash = "#robot"; setStage("cam"); });
+$("camShow").addEventListener("click", () => { location.hash = "#robot"; setTimeout(() => $("camCard").scrollIntoView({ block: "start", behavior: "smooth" }), 50); });
 function camFullScreen() {
   if (document.fullscreenElement) return document.exitFullscreen();
   $("camView").requestFullscreen().catch(() => {});
 }
 $("camFull").addEventListener("click", camFullScreen);
 $("camView").addEventListener("dblclick", camFullScreen);
-addEventListener("keydown", (e) => { if (e.code === "KeyF" && S.stageView === "cam" && !typing() && (location.hash || "#robot") === "#robot") camFullScreen(); });
+addEventListener("keydown", (e) => { if (e.code === "KeyF" && S.src !== "manual" && S.stageView === "cam" && !typing() && (location.hash || "#robot") === "#robot") camFullScreen(); });
 // The camera alone in its own window. Driving stays in this window: clicking into the other one
 // takes the focus away from here, which switches the motors off, as with any other window.
 $("camPop").addEventListener("click", () => { window.open("/camera", "powershock-camera", "popup,width=960,height=760"); });
@@ -3105,7 +3130,7 @@ $("camForget").addEventListener("click", () => busy($("camForget"), async () => 
   await api("/api/camera/forget", {}); $("camHost").value = ""; $("camKey").value = ""; setNote("camNote", "Camera forgotten.");
   await pollCam();
 }));
-setStage(S.stageView);
+syncCam();
 pollCam(); setInterval(pollCam, 3000);
 
 // ---------- map page ----------

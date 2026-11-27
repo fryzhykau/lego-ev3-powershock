@@ -73,10 +73,10 @@ The brick's battery shows top-left on the leJOS screen. A blinking number means 
 
 The menu has the pages you use while driving, then the setup and a tool:
 
-- **Robot:** drive, with the controller and the brick in 3D, live, the camera, and a test panel for each motor.
+- **Robot:** drive, with the brick in 3D, live, the camera in its own card, and a test panel for each motor.
 - **Map:** what the sensors have found.
 - **Driving:** which stick drives which motor.
-- **Controller:** the DualShock: pairing, battery, sticks.
+- **Controller:** the DualShock in 3D, live, with what each stick and button does and what the brick gets; pairing, battery and stick calibration.
 - **Setup:** connect the brick and the camera, put PowerShock on the brick, and check the brick.
 - **Gearing:** a gear calculator.
 
@@ -84,7 +84,7 @@ It looks like a car's instrument cluster at night: a dark cabin, with the 3D bri
 
 ### Camera
 
-Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video when you switch its 3D view from **Brick** to **Camera**, so you can drive from the robot's point of view.
+Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live video. The Robot page shows the video in its own **Camera** card, next to the brick, so you can drive from the robot's point of view.
 
 - **On the Pi:** run `pi/powershock_cam.py`. It uses only the standard library and works with any Raspberry Pi OS camera tool.
 - **In the console:** **Setup → Camera** takes the Pi's address and the access key it prints.
