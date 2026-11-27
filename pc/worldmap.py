@@ -56,6 +56,7 @@ LIMITS = {"wheel": (20, 200), "gear": (0.1, 10), "track": (40, 400), "base": (40
           "camAhead": (-300, 300), "camHeight": (30, 600), "camTilt": (-10, 60), "camFov": (30, 160),
           "weight": (0, 20000)}
 
+FED_FRESH = 1.5   # s: status lines older than this are no longer "now"
 IR_RANGE = 70.0   # cm at proximity 100; the EV3 IR sensor is roughly linear up to here
 IR_NOTHING = 95   # proximity at or above this: nothing in range
 US_RANGE = 150.0  # cm; ultrasonic readings beyond this are too wide to place well
@@ -305,6 +306,7 @@ class WorldMap:
             self.trail = [[0.0, 0.0]]
             self.sensors = {}
             self.eye = None  # last range reading: {"dist", "hit", "kind", "at", "speed"}
+            self.fed_at = 0.0  # when the brick last sent a status line
             self.updates = 0
             self.lay = None
             self.speed = 0.0  # cm/s forward, from the speeds the brick measures at the wheels
@@ -321,6 +323,7 @@ class WorldMap:
         if not telemetry:
             return
         now = time.monotonic() if now is None else now
+        self.fed_at = now
         lay = layout(mapping)
         motors = telemetry.get("motors") or {}
         sensors = telemetry.get("sensors") or {}
@@ -548,17 +551,20 @@ class WorldMap:
                 pt = lambda b, d: [round(cx + d * math.cos(th + b), 1), round(cy + d * math.sin(th + b), 1)]  # noqa: E731
                 view = {"good": v["good"], "quality": v["quality"], "ahead": None if v["ahead"] is None else round(v["ahead"], 1),
                         "pts": [pt(b, near) + pt(b, max(near, d)) + [1 if hit else 0] for b, d, hit in v["dirs"]]}
+            # with no status from the brick, its last readings aren't shown as if they were current
+            live = now - self.fed_at < FED_FRESH
             return {
                 "pose": {"x": round(o.x, 1), "y": round(o.y, 1), "heading": round(math.degrees(o.th), 1)},
-                "speed": round(self.speed, 1),  # cm/s forward, from the wheels
+                "live": live,
+                "speed": round(self.speed, 1) if live else 0.0,  # cm/s forward, from the wheels
                 "trail": list(self.trail),
                 "cells": self.grid.cells(),
                 "floor": [[i - self.grid.half, j - self.grid.half, c] for (i, j), c in self.grid.floor.items()],
                 "cell": self.grid.cell,
                 "robot": dict(self.robot),
                 "layout": self.lay["type"] if self.lay else None,
-                "sensors": self.sensors,
-                "eye": {k: v for k, v in self.eye.items() if k != "at"} if self.eye else None,
+                "sensors": self.sensors if live else {},
+                "eye": {k: v for k, v in self.eye.items() if k != "at"} if self.eye and live else None,
                 "objects": [{"label": ob["label"], "x": round(ob["x"], 1), "y": round(ob["y"], 1),
                              "seen": round(now - ob["seen"], 1)} for ob in self.objects if ob["n"] >= SEE_SHOW],
                 "view": view,

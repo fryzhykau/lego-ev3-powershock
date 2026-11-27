@@ -410,6 +410,8 @@ Still open: choosing a licence.
 
 After rewiring, the motors were in A, B and C (large, medium, large), while the controls still expected A, B and D. So the controls now move to fit the motors: each job (steering, driving, a follower) moves with its own settings to a motor of the right kind. It only does this when every job finds a motor. With one cable loose it would otherwise put the throttle on the mirrored second motor, and the car would drive backwards. Also seen: the brick's port detection can stop updating, and restarting PowerShock fixed it.
 
+**Negative cases:** with the brick and the Pi switched off, the page still showed devices on the ports, from an SSH check 90 minutes old. A read-only audit of every page for "what does this show when X is gone" found 15 such spots. The worst was a safety gap: the page alone switched Motors off when the link dropped, so a drop and reconnect between two status checks (250 ms apart) left it on, and the car would drive on reconnect. Now the console numbers each link and refuses input switched on for an earlier one. The fix for showing old data was one function on the page that says what is known about the brick right now (live, ready, idle, unreachable, console stopped), which everything else reads.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

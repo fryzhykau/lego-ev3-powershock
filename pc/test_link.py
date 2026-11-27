@@ -38,6 +38,21 @@ class LinkTest(unittest.TestCase):
         with self.link.lock:
             self.assertIsNone(self.link.inp)
 
+    def test_motors_on_does_not_survive_a_dropped_link(self):
+        go = {"lx": 0, "ly": 0, "rx": 0, "ry": -1.0, "l2": 0, "r2": 0, "stop": False}
+        self.assertFalse(self.link.set_input(go, epoch=self.link.epoch))  # no link: nothing to switch on
+        self.assertTrue(self.link.connect("127.0.0.1"))
+        armed_on = self.link.status()["epoch"]
+        self.assertTrue(self.link.set_input(go, epoch=armed_on))
+        self.link.disconnect()  # the link drops ...
+        self.assertTrue(self.link.connect("127.0.0.1"))  # ... and comes straight back
+        with self.link.lock:
+            self.assertIsNone(self.link.inp)  # nothing left over to drive with
+        self.assertFalse(self.link.set_input(go, epoch=armed_on))  # the page must switch Motors on again
+        with self.link.lock:
+            self.assertIsNone(self.link.inp)
+        self.assertTrue(self.link.set_input(go, epoch=self.link.status()["epoch"]))
+
     def test_silent_brick_is_dropped(self):
         # a server that accepts but never sends status lines
         srv = socket.socket()

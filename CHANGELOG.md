@@ -97,12 +97,20 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.
 
 ### Fixed
+- **A switched-off brick no longer looks connected:** the brick's screen says NOT REACHABLE, each port "Not available", the Devices list says why, and the top bar says "Brick not reachable" instead of "Brick found". The console forgets its last port check once the brick stops answering.
+- **The console stopping** shows on the page (the brick's screen, the message strip, the Devices list) instead of freezing on the last live picture. Status requests time out and never pile up.
+- **The Map** no longer shows the last sensor readings, beam and speed once the brick stops sending.
+- **The Setup page's** Pairing steps, Change network, Enter address and camera Set up buttons work again, and so does **Calibrate** for the sticks.
+- **PowerShock running but not connected** shows as ready on the brick's screen, not "not running". The WiFi tile says "last seen" for an address remembered from before, and Upload waits until the brick answers.
 - **Obstacle brake with two range sensors:** with infrared and ultrasonic both plugged in, the brake followed only the sensor on the later port, even when the other saw something nearer. It now goes by whichever sees the nearer obstacle.
 - **Motors that share a shaft no longer strain against each other while stopped,** which made the batteries hot. leJOS keeps a stopped motor actively holding its angle, and two motors on one shaft each held a different angle, so they stalled against each other with the robot standing still (about 1.8 A, falling voltage). A stopped speed motor now brakes at once, then floats after 0.3 s. Steering still holds its angle.
 - **Sensors on the real brick:** the brick program now asks each EV3 sensor what it is. Under leJOS, the brick's port detection never says which EV3 sensor is plugged in, so on a real brick no sensor was ever read (the practice brick hid this).
 - **Saving the robot size** on the Map page showed "Saved." on the Driving page instead.
 
 ### Changed
+- **Motors is a slider in the top bar:** all the way left is off; anywhere else is on, at that speed limit (the Driving page's Normal speed). The motor test buttons use the same speed, so the Devices card no longer has its own Speed buttons.
+- **A strip under the top bar** says what to do next, or what's wrong, on every page, in plain words instead of the SSH error. The top bar shows icons and coloured dots, with the words in each item's tooltip, so Stop always fits.
+- **Motor groups on the Driving page** share one card: the leader's settings, with each motor that follows it (and its Reversed switch) underneath.
 - **Motors on is in the top bar,** next to Stop, on every page. The controller in the top bar opens a **Drive with** menu (Controller or Keyboard), which also says how the controller is doing. The Robot page card now only appears when there's something to say: the controller needs a button press, or the keyboard's keys.
 - **A new look: an instrument cluster at night,** and the old look kept as **Day look**:
   - **Cabin and panels:** a dark blue-graphite cabin, with panels drawn as hairline edges rather than shadows.
@@ -134,6 +142,9 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **Controller legend** chips are drawn as single pills again; they had a pill inside a pill.
 - **Brick view:** the brick and its motors and sensors fit the card on wide screens. Unchecked ports show just their letter, so their labels no longer overlap.
 - **README screenshots** show the 3D brick properly.
+
+### Security
+- **Motors can't stay on across a dropped link,** even one that comes straight back between two status checks: the console numbers each link and refuses input switched on for an earlier one, and forgets the last input when the link drops. Motors can't be switched on without a link.
 
 ## [0.7.0] - 2026-11-26
 

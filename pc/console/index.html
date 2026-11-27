@@ -178,7 +178,7 @@
   @media (max-width: 860px) { .robot { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "ctrl" "brick" "dev"; gap: 12px; } }
   .drivebar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: stretch; }
   @media (max-width: 860px) { .drivebar { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
-  .drivebar .next { height: 100%; box-sizing: border-box; }
+  .drivebar { grid-template-columns: minmax(0, 1fr); } .drivebar:not(:has(> .card:not(.hidden))) { display: none; }
   .drivecard { display: grid; gap: 6px; align-content: center; padding: 10px 14px; }
   .drivecard .card-head { margin: 0; gap: 16px; }
   .drivecard .empty, .drivecard #padStatus { margin: 0; font-size: 12.5px; }
@@ -336,7 +336,7 @@
     .next .body { font-size: 12.5px; }
   }
   @media (max-width: 480px) {
-    #sbArm, #sbRate { display: none; }
+    #sbRate { display: none; }
     .brand { font-size: 13.5px; }
     nav a { padding: 8px 7px; } nav { gap: 2px; padding: 6px 4px; }
   }
@@ -383,6 +383,7 @@
   .lcd-top, .lcd-foot { display: flex; justify-content: space-between; }
   .lcd-top { border-bottom: 1px solid var(--lcd-ink); padding-bottom: 2px; } .lcd-foot { border-top: 1px solid var(--lcd-ink); padding-top: 2px; margin-top: auto; }
   .meters { display: grid; gap: 3px; padding: 4px 0; }
+  .lcdmsg { flex: 1; display: grid; place-items: center; text-align: center; font-weight: 700; letter-spacing: .04em; padding: 4px; }
   .meter { display: grid; grid-template-columns: 9px 1fr 22px; gap: 4px; align-items: center; }
   .meter b { font-size: 9px; } .meter .num { text-align: right; font-weight: 700; }
   .cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; height: 6px; }
@@ -515,6 +516,14 @@
   .pcard .top .pbadge { background: var(--panel); color: var(--on-panel); }
   .pcard .dev { font-size: 12.5px; color: var(--muted); } .pcard .dev b { color: var(--ink); font-weight: 600; }
   .pcard .dev.warn { color: var(--warn); }
+  /* a motor group: the leader's card, with the motors that follow it inside */
+  .pcard.grouped { box-shadow: inset 3px 0 0 var(--go), inset 0 0 0 1px var(--edge); }
+  .pcard .top .mate-b { background: var(--soft); color: var(--ink); margin-left: -6px; box-shadow: 0 0 0 2px var(--face); }
+  .mates { display: grid; gap: 10px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .mates .mh { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .mate { display: grid; gap: 8px; padding: 10px; border-radius: var(--r-s); background: var(--soft); }
+  .mate .top { display: flex; align-items: center; gap: 10px; } .mate .dev { font-size: 12.5px; color: var(--muted); } .mate .dev b { color: var(--ink); font-weight: 600; }
+  .mate .dev.warn { color: var(--warn); }
   .field { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: center; font-size: 13px; }
   .field > span:first-child { color: var(--muted); }
   .field select, .field input[type=number] { padding: 5px 7px; border: 1px solid var(--rule); border-radius: 6px; background: var(--field); font: inherit; min-width: 0; }
@@ -572,12 +581,14 @@
   @media (max-width: 960px) { #sbPadItem #sbPad { display: none; } }
   @media (max-width: 520px) {
     /* Motors on and Stop always fit: the switch and the dots say enough */
-    #sbArm, #sbRate, #sbPadPct, .brand .ver, #sbLink { display: none !important; }
+    #sbRate, #sbPadPct, .brand .ver, #sbLink { display: none !important; } #armRange { width: 72px; }
     #sbPadItem, #sbArmItem { gap: 5px; padding: 4px 6px; } .statusbar .si { padding-left: 6px; padding-right: 6px; }
   }
   /* status bar: Motors on, and what drives (a menu under the controller item) */
-  #sbArmItem { gap: 8px; } #sbArmItem.on #sbArm { color: var(--stop); font-weight: 600; }
-  #sbArmItem:has(input:focus-visible) { outline: 2px solid var(--panel); outline-offset: 1px; } #sbArmItem input:focus-visible + .track { outline: none; }
+  #sbArmItem { gap: 8px; } #sbArmItem #sbArm { min-width: 34px; color: var(--muted); } #sbArmItem.on #sbArm { color: var(--stop); }
+  #armRange { width: 96px; margin: 0; accent-color: var(--stop); cursor: pointer; }
+  #sbArmItem .armico { width: 16px; height: 16px; flex: none; color: var(--muted); } #sbArmItem.on .armico { color: var(--stop); }
+  #armRange:focus-visible { outline: 2px solid var(--panel); outline-offset: 3px; border-radius: 4px; }
   #sbPadItem .kb, #sbPadItem.kbd .gp { display: none; } #sbPadItem.kbd .kb { display: block; }
   #sbPadItem .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .15s; }
   #sbPadItem[aria-expanded="true"] .chev { transform: rotate(180deg); }
@@ -712,6 +723,11 @@
   .emptyline .warn { color: var(--warn); display: block; margin-top: 2px; }
   .devnote { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .wifi-ico { width: 14px; height: 11px; flex: none; }
+  .sbico { width: 16px; height: 16px; flex: none; color: var(--muted); }
+  @media (max-width: 1280px) { #sbLink, #sbWifi, #sbProg, #sbPad { display: none; } .statusbar .si { gap: 5px; } }
+  /* the message strip at the top of every page */
+  .msgstrip { margin-bottom: 14px; padding: 8px 12px; }
+  .msgstrip .msgtext { min-width: 0; font-size: 13.5px; } .msgstrip .title { font-weight: 650; } .msgstrip .body { color: var(--muted); }
 
   /* drive */
   .empty { padding: 2px; margin: 0; color: var(--muted); font-size: 13px; }
@@ -924,7 +940,7 @@
   /* program */
   .prog { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
   .prog .pdot { width: 12px; height: 12px; border-radius: 50%; background: #c9cfd1; }
-  .prog .pdot.on { background: var(--go); box-shadow: 0 0 0 4px var(--go-soft); } .prog .pdot.warn { background: var(--warn); }
+  .prog .pdot.on { background: var(--go); box-shadow: 0 0 0 4px var(--go-soft); } .prog .pdot.warn { background: var(--warn); } .prog .pdot.bad { background: var(--stop); }
 
   /* ---------- the look: type, panels, light ---------- */
   body { background: radial-gradient(1100px 520px at 72% -12%, color-mix(in srgb, var(--well-hi) 55%, transparent), transparent 70%) fixed, var(--room); }
@@ -961,18 +977,18 @@
 <body>
 <header class="statusbar">
   <div class="brand">PowerShock<span class="ver" id="appVer" title="PowerShock version on this laptop"></span></div>
-  <button class="si" data-go="connection" title="Connection"><span class="dot" id="sbLinkDot"></span><span id="sbLink">Not connected</span></button>
+  <button class="si" data-go="connection" title="Connection" id="sbLinkItem"><svg class="sbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><rect x="8" y="6" width="8" height="5" rx="1"/><circle cx="12" cy="16" r="2"/></svg><span class="dot" id="sbLinkDot"></span><span id="sbLink">Not connected</span></button>
   <span class="sep hide-s"></span>
   <button class="si" data-go="brick" title="Brick battery"><span class="batt" id="sbBattIcon"><i></i></span><b id="sbBatt">–</b></button>
   <span class="sep hide-s"></span>
-  <button class="si hide-m" data-go="connection" title="Brick WiFi"><svg class="wifi-ico" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg><span id="sbWifi">WiFi unknown</span></button>
+  <button class="si" data-go="connection" title="Brick WiFi" id="sbWifiItem"><svg class="wifi-ico" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg><span id="sbWifi">WiFi unknown</span></button>
   <span class="sep hide-s"></span>
-  <button class="si hide-m" data-go="program" title="PowerShock program"><span class="dot" id="sbProgDot"></span><span id="sbProg">Program unknown</span></button>
+  <button class="si" data-go="program" title="PowerShock program" id="sbProgItem"><svg class="sbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span class="dot" id="sbProgDot"></span><span id="sbProg">Program unknown</span></button>
   <span class="sep hide-s"></span>
   <button class="si" id="sbPadItem" popovertarget="srcMenu" aria-haspopup="true" aria-expanded="false" title="Drive with the controller or the keyboard"><svg class="pad-ico gp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><svg class="pad-ico kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></button>
   <span class="sep"></span>
   <button class="si hidden" data-go="driving" id="sbBrakeItem" title="Obstacle brake"><span class="dot" id="sbBrakeDot"></span><span id="sbBrake"></span></button>
-  <label class="si toggle arm" id="sbArmItem" title="With Motors on, the sticks drive the motors. Space or Esc stops everything."><input id="armToggle" type="checkbox" role="switch" aria-label="Motors on"><span class="track"></span><span id="sbArm">Motors off</span><span class="opt" id="sbRate"></span></label>
+  <label class="si sbarm" id="sbArmItem" title="Motors: slide right to switch them on at that speed limit, all the way left for off. Space or Esc stops everything."><svg class="armico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg><input id="armRange" type="range" min="0" max="100" step="5" value="0" aria-label="Motors: 0 is off, otherwise on at this speed limit" aria-valuetext="Off"><b id="sbArm">Off</b><span class="opt" id="sbRate"></span></label>
   <div class="grow"></div>
   <button id="stopBtn" class="stop" title="Stops every motor at once, including test runs. Keyboard: Space or Esc." aria-label="Stop all motors"><span class="sq"></span><span>Stop<span class="long"> motors</span></span><kbd>Space</kbd></button>
 </header>
@@ -998,15 +1014,16 @@
   </nav>
 
   <main>
+    <!-- what to do next, or what's wrong: on every page, under the status bar -->
+    <div id="next" class="next msgstrip" role="status" aria-live="polite">
+      <div class="icon" id="nextIcon">1</div>
+      <div class="msgtext"><span class="title" id="nextTitle">Looking for the brick…</span> <span class="body" id="nextBody"></span></div>
+      <button id="nextBtn" class="btn dark hidden"></button>
+    </div>
     <!-- ================= ROBOT ================= -->
     <section class="page" id="page-robot">
       <div class="robot">
         <div class="drivebar">
-          <div id="next" class="next">
-            <div class="icon" id="nextIcon">1</div>
-            <div><div class="title" id="nextTitle">Looking for the brick…</div><div class="body" id="nextBody"></div></div>
-            <button id="nextBtn" class="btn dark hidden"></button>
-          </div>
           <div class="card drivecard">
             <div id="padView">
               <p id="padEmpty" class="empty">No controller yet: connect it, then press any button. <a class="link" href="#controller">How?</a></p>
@@ -1069,6 +1086,7 @@
                 <div class="bezel"><i class="step s-b"></i><i class="step s-t"></i><i class="step s-l"></i><i class="step s-r"></i><div class="screen"><div class="lcd">
                   <div class="lcd-top"><span id="lcdHost">EV3</span><span id="lcdRate"></span></div>
                   <div class="meters" id="meters"></div>
+                  <div class="lcdmsg hidden" id="lcdMsg"></div>
                   <div class="lcd-foot"><span id="lcdArm">SAFE</span><span id="lcdBatt"></span></div>
                 </div></div></div>
                 <div class="seam"></div>
@@ -1084,7 +1102,6 @@
 
         <div class="card devcard">
           <div class="card-head"><h2>Devices</h2>
-              <span class="row" style="gap:6px"><span class="muted" style="font-size:12.5px">Speed</span><span class="speedseg" id="speedSeg" title="How fast the test buttons run a motor"><button data-s="25" aria-pressed="false">25%</button><button data-s="50" aria-pressed="true">50%</button><button data-s="100" aria-pressed="false">100%</button></span></span>
           </div>
             <div id="devList"></div>
             <div class="emptyline" id="emptyLine"></div>
@@ -1130,7 +1147,7 @@
           <span class="calacts"><button class="btn go hidden" id="calTurnDone">Back where it started</button><button class="btn" id="calStop">Stop</button></span></div>
         <p class="help">Finding the steering limits turns the steering motor slowly each way until it meets its end stop, then sets the centre halfway. The turning circle needs Motors on and about a metre of clear floor: the car drives slowly at full lock, and you press Back where it started when it gets there. Top speed is learned by itself whenever you drive straight at full power, and falls as the battery drains.</p>
       </div>
-      <div class="sechead"><h2>Motor ports</h2><span class="muted">In the same order as on the brick</span></div>
+      <div class="sechead"><h2>Motor ports</h2><span class="muted">In port order. Motors that run together share one card.</span></div>
       <div class="pgrid" id="pgrid" style="margin-top:10px"></div>
       <div class="offrow hidden" id="offrow"></div>
     </section>
@@ -1472,9 +1489,11 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const api = async (path, body) => {
+const api = async (path, body, ms) => {
   const headers = { "X-PowerShock": "1" };  // the console only answers its own page
-  const r = await fetch(path, body === undefined ? { headers } : { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const opt = body === undefined ? { headers } : { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  if (ms) opt.signal = AbortSignal.timeout(ms);
+  const r = await fetch(path, opt);
   return r.json();
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -1596,16 +1615,31 @@ setMeters({});
   }).observe(scene);
 })();
 
-// ---------- ports: live from the receiver, else the periodic check ----------
+// ---------- what's known about the brick right now ----------
+// One answer for every part of the page, so nothing from an earlier reading is shown as if it
+// were current: "live" (PowerShock sends readings), "starting" (connected, no reading yet),
+// "idle" (the brick answers, PowerShock isn't running), "unreachable", "checking" or "none".
+function brickState() {
+  if (S.consoleDown) return "console";
+  const L = S.link || {}, d = S.brick && S.brick.host === brickHost() ? S.brick.details : null;
+  if (L.connected) return L.telemetry ? "live" : "starting";
+  if (!brickHost()) return "none";
+  if (d) return !d.ok ? "unreachable" : d.receiverListening ? "ready" : "idle";
+  return L.want && L.error ? "unreachable" : "checking";
+}
+const BRICK_LCD = { starting: "CONNECTING...", idle: "POWERSHOCK NOT RUNNING", ready: "POWERSHOCK READY: CONNECT",
+  unreachable: "NOT REACHABLE", checking: "LOOKING FOR THE BRICK", none: "NOT CONNECTED", console: "CONSOLE STOPPED" };
+// ---------- ports: live from the receiver, else the periodic check while the brick answers ----------
 function currentPorts() {
   const t = S.link && S.link.telemetry;
   if (t) return { ports: t.ports, motors: t.motors || {}, sensors: t.sensors || {}, wrong: t.wrong || {}, live: true };
-  return { ports: (S.brick || {}).ports, motors: {}, live: false };
+  const st = brickState();
+  return { ports: st === "idle" ? (S.brick || {}).ports : null, motors: {}, live: false, state: st };
 }
 function portView(p, cp) {
   const d = cp.ports && cp.ports[p], role = roleOf(p), roleName = role;
   const isMotorPort = !p.startsWith("S");
-  if (!d) return { cls: "", dev: "", note: roleName || "", warn: false };
+  if (!d) return { cls: "", dev: cp.state && cp.state !== "starting" ? "Not available" : "", note: roleName || "", warn: false };
   if (d.kind === "busy") return { cls: "busy", dev: d.label, note: roleName || "", warn: false };
   if (cp.wrong && cp.wrong[p]) return { cls: "", dev: isMotorPort ? "Not a motor" : "Unknown", note: cp.wrong[p], warn: true, tag: "Wrong port?" };
   if (!d.connected) {
@@ -1665,8 +1699,12 @@ function drawPorts() {
   layoutRow(MOTOR_PORTS, cp); layoutRow(SENSOR_PORTS, cp);
   drawDevices(cp);
   const b = S.brick || {};
+  const st = cp.state;
   const src = cp.live ? '<span class="live">Live from the brick</span>'
-    : S.fake && S.fake.running ? "Practice brick" : !brickHost() ? "Not connected"
+    : S.fake && S.fake.running ? "Practice brick" : st === "none" ? "Not connected"
+    : st === "unreachable" ? "Can't reach the brick: ports not available" : st === "starting" ? "Connecting…"
+    : st === "console" ? "The console has stopped" : st === "ready" ? "PowerShock is running: connect to see the ports live"
+    : st === "checking" ? "Looking for the brick…"
     : b.portsBusy ? "Checking the ports…" : b.portsAt ? `Checked ${ago(b.portsAt * 1000)}; live once PowerShock runs` : "Checking the ports…";
   const wrong = Object.keys(cp.wrong || {}).sort().map((p) => p.replace("S", ""));
   const fitMsg = S.fitMsg && Date.now() < S.fitMsg.until ? `<span class="fitmsg">${esc(S.fitMsg.text)}</span>` : "";
@@ -1676,12 +1714,8 @@ function drawPorts() {
   $("navRobot").className = "badge " + (warn ? "warn" : "");
 }
 // ---------- devices: test each motor on its own ----------
-S.testSpeed = 50;
-$("speedSeg").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  S.testSpeed = +b.dataset.s; drawDevices(currentPorts());
-  document.querySelectorAll("#speedSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
-});
+// test runs go at the speed limit set with the Motors slider in the top bar
+Object.defineProperty(S, "testSpeed", { get: () => armSpeed() });
 // ---------- motor groups: motors that work together, set from the Devices card too ----------
 function mapPorts() { return (S.mapDraft && S.mapDraft.ports) || ((currentMapping() || {}).ports) || null; }
 function groupOf(p) {
@@ -1726,7 +1760,7 @@ function drawDevices(cp) {
   const P = mapPorts();
   // rebuild only when the set of devices or groups changes, so held buttons keep working
   const sensed = cp.sensors || {};
-  const shape = present.map((p) => p + cp.ports[p].label + roleOf(p) + (sensed[p] ? sensed[p].kind : "")).join("|") + "|" + canTest + "|" + JSON.stringify(P);
+  const shape = present.map((p) => p + cp.ports[p].label + roleOf(p) + (sensed[p] ? sensed[p].kind : "")).join("|") + "|" + canTest + "|" + JSON.stringify(P) + "|" + (cp.live ? "live" : cp.state);
   const list = $("devList");
   if (list.dataset.shape !== shape) {
     list.dataset.shape = shape;
@@ -1752,7 +1786,10 @@ function drawDevices(cp) {
           <span class="grp"><button data-deg="-90" ${dis} title="Turn back 90°">−90°</button><button data-deg="90" ${dis} title="Turn 90°">+90°</button></span>
           <span class="grp"><button data-deg="-360" ${dis} title="One full turn back">−360°</button><button data-deg="360" ${dis} title="One full turn">+360°</button></span>
           <span class="grp"><button data-stop ${dis} title="Stop this motor">■</button></span></div>` : ""}</div>`;
-    }).join("") : `<p class="muted">Nothing plugged in yet. Devices appear here the moment you plug them in.</p>`;
+    }).join("") : `<p class="muted">${cp.live || cp.state === "idle" ? "Nothing plugged in yet. Devices appear here the moment you plug them in."
+      : cp.state === "unreachable" ? "Can't reach the brick, so its devices aren't known. Check it's switched on."
+      : cp.state === "none" ? "Connect to the brick to see what's plugged in."
+      : cp.state === "console" ? "The console has stopped, so the brick's devices aren't known." : "Waiting for the brick…"}</p>`;
   }
   list.querySelectorAll(".devrow").forEach((row) => {
     const live = m[row.dataset.p], el = row.querySelector("[data-live]"), sv = (cp.sensors || {})[row.dataset.p];
@@ -1764,9 +1801,9 @@ function drawDevices(cp) {
   $("emptyLine").innerHTML = !cp.ports ? "" : (empty.length ? `Empty: ${empty.join(", ")}` : "Every port is in use")
     + (need.length ? `<span class="warn">Your controls use ${need.join(" and ")}, but nothing is plugged in there.</span>` : "");
   const grouped = MOTOR_PORTS.some((p) => groupOf(p));
-  $("devNote").textContent = !cp.ports ? "Connect to the brick to see what's plugged in."
-    : canTest ? `Hold ⟲ ⟳ to run; turns are exact. Speed ${S.testSpeed}% of top. Space stops all.`
-      + (grouped ? " Motors that work together move together: try 25% and +90° first, and if they strain against each other, turn on Reversed." : "")
+  $("devNote").textContent = !cp.ports ? ""  // the list above already says why
+    : canTest ? `Hold ⟲ ⟳ to run; turns are exact. Tests run at the speed limit set in the top bar (${S.testSpeed}%). Space stops all.`
+      + (grouped ? " Motors that work together move together: try a low speed and +90° first, and if they strain against each other, turn on Reversed." : "")
     : "Start PowerShock and connect to test motors from here.";
 }
 function sendTest(port, action, value) {
@@ -1809,14 +1846,31 @@ const AXIS_OPTS = ["LX", "LY", "RX", "RY", "R2-L2", "R2", "L2"];
 const sel = (key, value, opts) => `<select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === value ? "selected" : ""}>${t}</option>`).join("")}</select>`;
 const axisSel = (key, value, withNone) => sel(key, value, [...AXIS_OPTS, ...(withNone ? ["none"] : [])].map((a) => [a, AXIS_NAME[a]]));
 const range = (key, value, min, max, step, unit) => `<span class="rv"><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${value}"><output>${value}${unit}</output></span>`;
-function portCard(p, c, cp, ports) {
+function devText(p, cp) {
   const d = cp.ports && cp.ports[p];
-  const dev = !d ? "Not checked yet" : d.connected ? `<b>${esc(d.label)}</b> plugged in` : "Nothing plugged in";
-  const warn = c.mode !== "off" && d && d.connected === false;
+  return !d ? (cp.state === "unreachable" ? "Brick not reachable" : cp.state === "none" ? "Not connected" : "Not checked yet")
+    : d.connected ? `<b>${esc(d.label)}</b> plugged in` : "Nothing plugged in";
+}
+function modeOptions(p, ports) {
   // "Same as A": this motor gets exactly what A gets, so the two run as one
   const leaders = MOTOR_PORTS.filter((q) => q !== p && ports[q] && !["off", "follow"].includes(ports[q].mode));
-  const modeSel = sel(`${p}.mode`, c.mode === "follow" ? `follow:${c.leader}` : c.mode, [["off", "Not used"], ["drive", "Two-wheel drive"], ["speed", "Speed (run)"],
-    ["position", "Steering (angle)"], ...leaders.map((q) => [`follow:${q}`, `Same as ${q} (together)`])]);
+  return [["off", "Not used"], ["drive", "Two-wheel drive"], ["speed", "Speed (run)"],
+    ["position", "Steering (angle)"], ...leaders.map((q) => [`follow:${q}`, `Same as ${q} (together)`])];
+}
+const followersOf = (p, ports) => MOTOR_PORTS.filter((q) => ports[q].mode === "follow" && ports[q].leader === p);
+// A motor that runs with another one, shown inside the card of the motor it follows.
+function mateRow(q, c, cp, ports) {
+  const d = cp.ports && cp.ports[q], warn = d && d.connected === false;
+  return `<div class="mate" data-p="${q}"><div class="top"><span class="pbadge">${q}</span>${sel(`${q}.mode`, `follow:${c.leader}`, modeOptions(q, ports))}</div>
+      <div class="dev ${warn ? "warn" : ""}">${devText(q, cp)}${warn ? ": plug a motor in to use this" : ""}</div>
+      <label class="field"><span>Direction</span><span><label class="toggle"><input type="checkbox" data-k="${q}.invert" ${c.invert ? "checked" : ""}><span class="track"></span><span>Reversed</span></label></span></label>
+      <div class="outline"><span>Now sending</span><span class="outbar"><i data-out="${q}"></i></span><output data-outv="${q}">–</output></div></div>`;
+}
+function portCard(p, c, cp, ports) {
+  const d = cp.ports && cp.ports[p];
+  const dev = devText(p, cp);
+  const warn = c.mode !== "off" && d && d.connected === false;
+  const modeSel = sel(`${p}.mode`, c.mode === "follow" ? `follow:${c.leader}` : c.mode, modeOptions(p, ports));
   let f = "";
   if (c.mode === "follow") f = `<p class="help">Gets exactly what ${c.leader} gets, so the two always start, stop and change speed together. The test buttons move both. If it's mounted facing the other way (the two would fight), turn on Reversed.</p>
       <label class="field"><span>Direction</span><span><label class="toggle"><input type="checkbox" data-k="${p}.invert" ${c.invert ? "checked" : ""}><span class="track"></span><span>Reversed</span></label></span></label>
@@ -1835,16 +1889,20 @@ function portCard(p, c, cp, ports) {
       <div class="nudge"><span class="grp"><button data-nudge="${p}:-5" title="Turn 5° back">◀ 5°</button><button data-nudge="${p}:-1" title="Turn 1° back">◀ 1°</button></span><span class="grp"><button data-nudge="${p}:1" title="Turn 1° on">1° ▶</button><button data-nudge="${p}:5" title="Turn 5° on">5° ▶</button></span></div>
       <div class="nudge"><button class="btn" data-zero="${p}">Set centre here</button><button class="btn" data-home="${p}" title="Turn back to the saved centre">Go to 0°</button></div>
       <span class="help">Nudge until the wheels point straight, then Set centre here.</span></div></div>`;
-  return `<div class="pcard ${c.mode === "off" ? "off" : ""}" data-p="${p}"><div class="top"><span class="pbadge">${p}</span>${modeSel}</div>
-    <div class="dev ${warn ? "warn" : ""}">${dev}${warn ? ": plug a motor in to use this" : ""}</div>${f}</div>`;
+  const mates = c.mode === "follow" ? [] : followersOf(p, ports);
+  const group = mates.length ? `<div class="mates"><p class="mh">Runs together with ${mates.join(" and ")}: they get exactly what ${p} gets, so they start, stop and change speed as one. The test buttons move them all. Turn on Reversed for a motor mounted facing the other way, or the two will fight.</p>
+      ${mates.map((q) => mateRow(q, ports[q], cp, ports)).join("")}</div>` : "";
+  const badges = `<span class="pbadge">${p}</span>${mates.map((q) => `<span class="pbadge mate-b" title="Runs with ${p}">${q}</span>`).join("")}`;
+  return `<div class="pcard ${c.mode === "off" ? "off" : ""} ${mates.length ? "grouped" : ""}" data-p="${p}"><div class="top">${badges}${modeSel}</div>
+    <div class="dev ${warn ? "warn" : ""}">${dev}${warn ? ": plug a motor in to use this" : ""}</div>${f}${group}</div>`;
 }
 function drawControls(force) {
   const m = S.mapDraft; if (!m) return;
   const cp = currentPorts();
-  const shape = JSON.stringify(m) + "|" + MOTOR_PORTS.map((p) => cp.ports && cp.ports[p] ? cp.ports[p].label : "").join(",");
+  const shape = JSON.stringify(m) + "|" + MOTOR_PORTS.map((p) => cp.ports && cp.ports[p] ? cp.ports[p].label : "").join(",") + "|" + (cp.live ? "live" : cp.state);
   if (force || $("pgrid").dataset.shape !== shape) {
     $("pgrid").dataset.shape = shape;
-    $("pgrid").innerHTML = MOTOR_PORTS.map((p) => portCard(p, m.ports[p], cp, m.ports)).join("");
+    $("pgrid").innerHTML = MOTOR_PORTS.filter((p) => m.ports[p].mode !== "follow").map((p) => portCard(p, m.ports[p], cp, m.ports)).join("");
     const usesDrive = MOTOR_PORTS.some((p) => m.ports[p].mode === "drive");
     $("globals").innerHTML = `
       <label class="field"><span>Normal speed</span>${range("speed.base", m.speed.base, 10, 100, 5, "%")}</label>
@@ -1863,7 +1921,7 @@ function drawControls(force) {
     document.querySelectorAll("#presets .preset").forEach((b) => b.setAttribute("aria-pressed", b.dataset.preset === m.name));
   }
   // live output on each card
-  const sent = (S.link && S.link.sending) || {};
+  const sent = (S.link && S.link.connected && S.link.sending) || {};
   MOTOR_PORTS.forEach((p) => {
     const bar = document.querySelector(`[data-out="${p}"]`); if (!bar) return;
     const pct = outPct(p, sent[p]), w = Math.abs(pct) / 2;
@@ -2046,7 +2104,7 @@ function drawFeel(gp) {
   const out = gp ? Math.abs(stickOut(ax, gp.axes[STICK_AXES.indexOf(ax)])) : 0;
   $("stGraphDot").setAttribute("cx", Math.min(100, Math.abs(raw) * 100)); $("stGraphDot").setAttribute("cy", 100 - out * 100);
   const calibrated = STICK_AXES.some((a) => s.offset[a] || s.span[a][0] !== -1 || s.span[a][1] !== 1);
-  if (!S.cal && !S.calMsg) $("calInfo").textContent = calibrated ? `Calibrated: rest at L ${s.offset.lx.toFixed(2)}, ${s.offset.ly.toFixed(2)} · R ${s.offset.rx.toFixed(2)}, ${s.offset.ry.toFixed(2)}` : "Not calibrated yet: takes about 10 seconds.";
+  if (!S.stickCal && !S.calMsg) $("calInfo").textContent = calibrated ? `Calibrated: rest at L ${s.offset.lx.toFixed(2)}, ${s.offset.ly.toFixed(2)} · R ${s.offset.rx.toFixed(2)}, ${s.offset.ry.toFixed(2)}` : "Not calibrated yet: takes about 10 seconds.";
 }
 function setSticks(fn) {
   if (!S.mapDraft) return;
@@ -2060,13 +2118,13 @@ $("calReset").addEventListener("click", () => setSticks((s) => Object.assign(s, 
 // Get ready, then two steps: hands off (where do the sticks rest?), then circles (how far does each reach?).
 // Step 1 waits for the sticks to be still: if one moves, step 1 just starts over.
 $("calBtn").addEventListener("click", () => {
-  if (S.cal) return;
+  if (S.stickCal) return;
   if (!padNow()) { S.calMsg = "Press any button on the controller first, so this page can see it."; $("calInfo").textContent = S.calMsg; return; }
   const READY_MS = 2000, REST_MS = 2000, ROLL_MS = 7000;
   const lo = { lx: 0, ly: 0, rx: 0, ry: 0 }, hi = { lx: 0, ly: 0, rx: 0, ry: 0 };
   let phase = "ready", phaseAt = performance.now(), rest = null, restarts = 0;
-  S.cal = true; S.calMsg = null; $("calBox").classList.remove("hidden"); $("calBtn").disabled = true; $("calInfo").textContent = "";
-  const finish = (msg) => { S.cal = false; S.calMsg = msg; $("calBox").classList.add("hidden"); $("calBtn").disabled = false; $("calInfo").textContent = msg; };
+  S.stickCal = true; S.calMsg = null; $("calBox").classList.remove("hidden"); $("calBtn").disabled = true; $("calInfo").textContent = "";
+  const finish = (msg) => { S.stickCal = false; S.calMsg = msg; $("calBox").classList.add("hidden"); $("calBtn").disabled = false; $("calInfo").textContent = msg; };
   const tick = () => {
     const gp = padNow(), now = performance.now(), t = now - phaseAt;
     if (!gp) return finish("The controller went away. Press a button on it and try again.");
@@ -2376,6 +2434,7 @@ function drawProgram() {
   const mine = S.app && S.app.version, theirs = S.link && S.link.connected && !(S.fake && S.fake.running) ? (S.link.brickVersion || "old") : null;
   const verTxt = theirs === "old" ? "a version from before 0.7.0" : theirs ? "version " + theirs : "";
   let dot = "", title = "Unknown", body = "Connect to the brick to see.";
+  if (d && !d.ok) { dot = "bad"; title = "Brick not answering"; body = "Switch the brick on, or check its connection. The program shows here once it answers."; }
   if (d && d.ok) {
     if (!builds || !builds.onBrick) { dot = "warn"; title = "Not on the brick yet"; body = "Upload it once; it stays on the brick."; }
     else if (!builds.current) { dot = "warn"; title = run ? "Running an older version" : "An older version is on the brick"; body = `${run && verTxt ? "The brick runs " + verTxt + ". " : ""}Upload the latest build${builds.version ? " (" + builds.version + ")" : ""}, then start it again.`; }
@@ -2387,10 +2446,10 @@ function drawProgram() {
   $("progDot").className = "pdot " + dot; $("progTitle").textContent = title; $("progBody").textContent = body;
   $("runBtn").disabled = !d || !d.ok || run || !(builds && builds.onBrick);
   $("stopProgBtn").disabled = !d || !d.ok || !run;
-  $("uploadBtn").disabled = !host;
+  $("uploadBtn").disabled = !host || !d || !d.ok;
   $("ledRing").className = "glow " + (run || (S.fake && S.fake.running) ? "green" : d && d.ok ? "orange" : "");
-  $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : "");
-  $("sbProg").textContent = S.fake && S.fake.running ? "Practice" : d && d.ok ? (run ? "PowerShock running" : builds && builds.onBrick ? "PowerShock stopped" : "Not uploaded") : "Program unknown";
+  $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : dot === "bad" ? "bad" : "");
+  $("sbProg").textContent = S.fake && S.fake.running ? "Practice" : d && d.ok ? (run ? "PowerShock running" : builds && builds.onBrick ? "PowerShock stopped" : "Not uploaded") : d ? "Brick not answering" : "Program unknown";
   setBadge("prog", (dot === "warn" ? "warn" : ""));
   // PowerShock's own files: is the brick's copy the same as the latest build here?
   if (d && d.ok && d.builds) {
@@ -2434,6 +2493,7 @@ function nextStep(kind, icon, title, body, label, action) {
 $("nextBtn").addEventListener("click", () => nextAction && busy($("nextBtn"), nextAction));
 function drawNext() {
   const L = S.link || {}, bt = S.bt || {}, d = S.brick && S.brick.details;
+  if (S.consoleDown) return nextStep("bad", "!", "The console has stopped", "Start it again on this laptop (python pc\\ev3_console.py), then reload this page. The brick stops its motors by itself.");
   if (S.fake && S.fake.running) {
     if (!L.connected) return nextStep("", "…", "Connecting to the practice brick", "");
     if (!S.armed) return nextStep("go", "▶", "Ready to practise", "Turn motors on, then drive with the controller or keyboard.", "Turn motors on", async () => setArmed(true));
@@ -2444,7 +2504,7 @@ function drawNext() {
     return nextStep("", "1", "Connect to the brick", "Pair over Bluetooth or enter its WiFi address. Or try Practice mode.", "Open Setup", async () => { location.hash = "connection"; });
   }
   if (!d) return nextStep("", "…", "Reading the brick", `Talking to ${brickHost()}.`);
-  if (!d.ok) return nextStep("bad", "!", "Can't reach the brick", d.error);
+  if (!d.ok) return nextStep("bad", "!", "Can't reach the brick", `${brickHost()} isn't answering. Check the brick is switched on and its menu has finished starting; over Bluetooth, that Windows has joined its network.`);
   const bat = currentBattery(), volts = bat && bat.volts;
   if (volts != null && volts < 6.8) return nextStep("bad", "!", `Battery is very low (${volts.toFixed(1)} V)`, "Replace or charge the batteries. Below about 6.5 V the brick switches off.");
   const build = d.builds && d.builds["powershock-wifi.jar"];
@@ -2497,6 +2557,7 @@ $("btOpen").addEventListener("click", () => api("/api/bluetooth/open", {}));
 function drawConnTiles() {
   const L = S.link || {}, b = S.bt || {}, practice = !!(S.fake && S.fake.running);
   let w = S.brick && S.brick.details && S.brick.details.ok && S.brick.details.wifi;
+  const wifiLive = !!(w && w.ip);
   // remember the brick's WiFi between readings (switching links re-reads the brick)
   if (w && w.ip) localStorage.setItem("ev3wifi", JSON.stringify({ ssid: w.ssid, ip: w.ip, present: true }));
   else if (!w || w.present) { try { w = JSON.parse(localStorage.getItem("ev3wifi")) || w; } catch (e) {} }
@@ -2510,8 +2571,8 @@ function drawConnTiles() {
   $("useBt").disabled = !btReady || btActive; $("useBt").textContent = btActive ? "In use" : "Use Bluetooth";
   $("tileWifi").classList.toggle("active", wifiActive);
   const wifiIp = (w && w.ip) || (wifiActive ? L.host : null);
-  pill("wifiPill", wifiActive ? "go" : wifiIp ? "" : "warn", wifiActive ? "in use" : wifiIp ? "ready" : w && !w.present ? "no dongle" : "not set up");
-  setHTML($("wifiBody"), wifiIp ? `<span><b>${esc((w && w.ssid) || "WiFi")}</b></span><span>Brick ${esc(wifiIp)}</span>` : w && !w.present ? "<span>No WiFi dongle in the brick.</span>" : "<span>The brick isn't on WiFi yet.</span>");
+  pill("wifiPill", wifiActive ? "go" : wifiIp ? "" : "warn", wifiActive ? "in use" : wifiIp ? (wifiLive ? "ready" : "last seen") : w && !w.present ? "no dongle" : "not set up");
+  setHTML($("wifiBody"), wifiIp ? `<span><b>${esc((w && w.ssid) || "WiFi")}</b></span><span>${wifiLive || wifiActive ? "Brick" : "Last seen at"} ${esc(wifiIp)}</span>` : w && !w.present ? "<span>No WiFi dongle in the brick.</span>" : "<span>The brick isn't on WiFi yet.</span>");
   $("useWifi").disabled = !wifiIp || wifiActive; $("useWifi").textContent = wifiActive ? "In use" : "Use WiFi";
   $("useWifi").dataset.ip = wifiIp || "";
   $("tilePractice").classList.toggle("active", practice);
@@ -2534,7 +2595,7 @@ function openPanel(name) {
   if (!same && name === "addr") $("host").focus();
   if (!same && name === "net") loadSaved(brickHost());
 }
-document.querySelectorAll("#page-connection [data-panel]").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
+document.querySelectorAll("#page-setup [data-panel]").forEach((b) => b.addEventListener("click", () => openPanel(b.dataset.panel)));
 $("setupPanel").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) { $("setupPanel").classList.add("hidden"); $("setupPanel").dataset.open = ""; } });
 $("useBt").addEventListener("click", () => busy($("useBt"), async () => { if (S.fake && S.fake.running) await api("/api/fake", { on: false }); S.pinnedHost = "10.0.1.1"; await connectTo("10.0.1.1"); }));
 $("useWifi").addEventListener("click", () => busy($("useWifi"), async () => {
@@ -2618,10 +2679,13 @@ $("fakeToggle").addEventListener("change", async (e) => {
 });
 
 // ---------- arming / stop ----------
+// Motors on belongs to one link: the console refuses input from before a drop (S.armEpoch).
 function setArmed(on) {
-  if (on) S.disarmWhy = null;
-  S.armed = on; $("armToggle").checked = on; $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
-  $("sbArm").textContent = on ? "Motors on" : "Motors off"; $("sbArmItem").classList.toggle("on", on);
+  if (on && !(S.link && S.link.connected)) {
+    on = false;
+    S.disarmWhy = "Motors can only go on while the brick is connected.";
+  } else if (on) { S.disarmWhy = null; S.armEpoch = S.link.epoch; }
+  S.armed = on; drawArm(); $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
   $("stopBtn").classList.toggle("live", on);
   drawBrake();
   if (!on) api("/api/stop", {});
@@ -2653,7 +2717,23 @@ function drawBrake() {
   if ($("brakeNow").textContent !== now) $("brakeNow").textContent = now;
 }
 function stopAll() { setArmed(false); }
-$("armToggle").addEventListener("change", (e) => setArmed(e.target.checked));
+function armSpeed() { const m = S.mapDraft || currentMapping(); return m && m.speed ? m.speed.base : 60; }
+function drawArm() {
+  const v = S.armed ? armSpeed() : 0, r = $("armRange");
+  r.value = v; r.style.setProperty("--fill", v + "%");
+  r.setAttribute("aria-valuetext", S.armed ? `On, speed limit ${v}%` : "Off");
+  $("sbArm").textContent = S.armed ? v + "%" : "Off"; $("sbArmItem").classList.toggle("on", S.armed);
+}
+// The slider sets the speed limit (the Driving page's Normal speed) and switches the motors on;
+// all the way left switches them off.
+$("armRange").addEventListener("input", (e) => {
+  const v = +e.target.value;
+  if (v === 0) { if (S.armed) setArmed(false); else drawArm(); return; }
+  const sp = Math.max(10, v);
+  if (S.mapDraft && S.mapDraft.speed && S.mapDraft.speed.base !== sp) { S.mapDraft.speed.base = sp; saveMapping(); if (location.hash === "#driving") drawControls(true); }
+  if (!S.armed) setArmed(true); else drawArm();
+  if (!S.armed) drawNext();
+});
 $("stopBtn").addEventListener("click", stopAll);
 function setSrc(src) {
   S.src = src;
@@ -2766,7 +2846,7 @@ function drawPad(p) {
   const lc = !L.connected ? "#5b6266" : q.btn.cross ? "#ff4d4d" : S.armed ? "#3ddc84" : "#3d7bff";
   if (window.DS4) window.DS4.update(q, lc);
   // what the brick receives
-  const sent = L.sending || {};
+  const sent = (L.connected && L.sending) || {};
   const mapped = MOTOR_PORTS.filter((x) => mp && mp.ports[x] && mp.ports[x].mode !== "off");
   if (location.hash === "#robot" || location.hash === "") setHTML($("getRows"), mapped.length ? mapped.map((x) => {
     const v = sent[x], pct = outPct(x, v), w = Math.abs(pct) / 2, left = pct >= 0 ? 50 : 50 - w;
@@ -2784,20 +2864,36 @@ setInterval(async () => {
   if (S.armed && p && !inflight) {
     inflight = true;
     try {
-      await fetch("/api/input", { method: "POST", signal: AbortSignal.timeout(300), headers: { "X-PowerShock": "1", "Content-Type": "application/json" },
-        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, hand: !!p.btn.circle, src: p.source }) });
+      const res = await fetch("/api/input", { method: "POST", signal: AbortSignal.timeout(300), headers: { "X-PowerShock": "1", "Content-Type": "application/json" },
+        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, hand: !!p.btn.circle, src: p.source, epoch: S.armEpoch }) });
+      const r = await res.json();
+      if (r.rearm && S.armed) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped. Switch them on again when the robot has room."; drawNext(); }
     } catch (e) {} finally { inflight = false; }
   }
 }, 40);
 
 // ---------- polling ----------
+let linkBusy = false;
 async function pollLink() {
+  if (linkBusy) return;  // one status request at a time, however slow the console is
+  linkBusy = true;
+  try { await pollLinkOnce(); } finally { linkBusy = false; }
+}
+async function pollLinkOnce() {
   let s;
-  try { s = await api("/api/status"); } catch (e) {
+  try { s = await api("/api/status", undefined, 2000); } catch (e) {
     $("sbLinkDot").className = "dot bad"; $("sbLink").textContent = "Console stopped"; S.link = null;
     if (S.armed) { setArmed(false); S.disarmWhy = "Motors switched off: the console stopped."; }
+    if (!S.consoleDown) {
+      S.consoleDown = true; S.brick = null; S.cam = null; S.fake = null;
+      $("lcdHost").textContent = "EV3"; $("lcdRate").textContent = ""; setMeters({});
+      $("lcdMsg").textContent = BRICK_LCD.console; $("lcdMsg").classList.remove("hidden"); $("meters").classList.add("hidden");
+      for (const f of [drawPorts, drawFacts, drawProgram, drawNext, drawBrake]) { try { f(); } catch (err) {} }
+      try { syncCam(); } catch (err) {}
+    }
     return;
   }
+  S.consoleDown = false;
   if (S.armed && S.link && S.link.connected && !s.link.connected) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped."; }
   S.link = s.link; S.fake = s.fake; S.app = s.app;
   if (s.app && $("appVer").textContent !== s.app.version) $("appVer").textContent = s.app.version;
@@ -2812,18 +2908,27 @@ async function pollLink() {
   }
   S.fittedAt = fitAt;
   if (L.connected) { $("sbLinkDot").className = "dot go"; $("sbLink").innerHTML = `<b>${practice ? "Practice" : esc(L.via || "Connected")}</b> <span class="opt">${esc(practice ? "" : L.host)}</span>`; }
+  else if (L.want && !practice && brickState() === "unreachable") { $("sbLinkDot").className = "dot bad"; $("sbLink").innerHTML = `Brick not reachable, still trying <span class="opt">${esc(L.host)}</span>`; }
   else if (L.want) { $("sbLinkDot").className = "dot warn"; $("sbLink").textContent = `Reconnecting to ${practice ? "practice brick" : L.host}`; }
-  else if (brickHost()) { $("sbLinkDot").className = "dot warn"; $("sbLink").innerHTML = `Brick found <span class="opt">${esc(brickHost())}</span>`; }
+  else if (brickState() === "unreachable") { $("sbLinkDot").className = "dot bad"; $("sbLink").innerHTML = `Brick not reachable <span class="opt">${esc(brickHost())}</span>`; }
+  else if (brickHost()) { $("sbLinkDot").className = "dot warn"; $("sbLink").innerHTML = `${{ idle: "Brick found", ready: "PowerShock ready" }[brickState()] || "Looking for the brick"} <span class="opt">${esc(brickHost())}</span>`; }
   else { $("sbLinkDot").className = "dot"; $("sbLink").textContent = "Not connected"; }
   $("sbRate").textContent = L.connected ? ` · ${L.rate} Hz` : "";
-  setMeters(L.sending);
+  setMeters(L.connected ? L.sending : {});
   $("lcdHost").textContent = L.connected ? (practice ? "PRACTICE" : (L.via === "Bluetooth" ? "BT " : "WIFI ") + L.host) : "EV3";
+  const lcdMsg = BRICK_LCD[brickState()] || "";
+  $("lcdMsg").textContent = lcdMsg; $("lcdMsg").classList.toggle("hidden", !lcdMsg); $("meters").classList.toggle("hidden", !!lcdMsg);
   $("lcdRate").textContent = L.connected ? `${L.rate}Hz` : "";
   $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
   $("fakeToggle").checked = s.fake.running;
   drawPorts(); drawFacts(); drawProgram(); drawNext(); drawBrake();
   if (location.hash === "#driving") drawControls(false);
   if (location.hash === "#setup") drawConnTiles();
+  // the bar shows icons on narrower screens: the words go in each item's tooltip
+  for (const [item, what, txt] of [["sbLinkItem", "Connection", "sbLink"], ["sbWifiItem", "Brick WiFi", "sbWifi"], ["sbProgItem", "PowerShock program", "sbProg"]]) {
+    const t = `${what}: ${$(txt).textContent}`;
+    if ($(item).title !== t) { $(item).title = t; $(item).setAttribute("aria-label", t); }
+  }
 }
 async function pollBt() { try { S.bt = await api("/api/bluetooth"); } catch (e) { return; } drawBt(); }
 async function pollBrick() {

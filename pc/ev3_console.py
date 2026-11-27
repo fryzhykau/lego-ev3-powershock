@@ -73,6 +73,7 @@ class Link:
         self.fit_seen, self.fit_since = None, 0.0  # motors plugged in, and since when
         self.fitted = None  # the last time the controls moved to fit the motors: {"at", "text"}
         self.on_fit = None  # saves a fitted mapping; only the console's own link does
+        self.on_lost = None  # told when the link drops, so the brick's details are checked again at once
         self.brick_version = None  # from the receiver's "V <version>" line; None for versions before 0.7.0
         self.world = worldmap.WorldMap()  # live map from motor angles and sensor readings
         # Controls mapping: the page sends raw controller input; the mapping turns it into
@@ -81,6 +82,7 @@ class Link:
         self.brake = brake.Brake()  # slows and stops for obstacles, after the mapping
         self.inp = None
         self.inp_at = 0.0
+        self.epoch = 0  # goes up whenever the link drops: input armed before a drop is refused
         self.out = {}
         self.sent = 0
         self.rate = 0.0
@@ -92,11 +94,26 @@ class Link:
         self.cal_port = None   # the steering port while its end stops are found: the controls leave it alone
         threading.Thread(target=self._run, daemon=True).start()
 
-    def set_input(self, inp):
+    def set_input(self, inp, epoch=None):
+        """Controller input from the page. epoch: the link it was switched on for. Input for a link
+        that has dropped since, or sent with no link at all, is refused (False): after a drop, Motors
+        on must be switched on again, even when the link came straight back."""
         with self.lock:
+            if epoch is not None and (self.sock is None or epoch != self.epoch):
+                self.inp = None
+                return False
             if inp is not None and time.monotonic() < self.hold_until:
-                return
+                return True
             self.inp, self.inp_at = inp, time.monotonic()
+            return True
+
+    def _lost(self, err):
+        """The link dropped (call with the lock held): forget the input, so nothing drives on reconnect."""
+        self.sock, self.error = None, err
+        self.epoch += 1
+        self.inp = None
+        if self.on_lost:
+            self.on_lost()
 
     def stop_input(self):
         with self.lock:
@@ -326,7 +343,8 @@ class Link:
     def disconnect(self):
         with self.lock:
             self.want = False
-            s, self.sock = self.sock, None
+            s = self.sock
+            self._lost(None)
         if s:
             try:
                 s.sendall(b"0 0 0\n")
@@ -358,6 +376,7 @@ class Link:
                 "localIp": self.local_ip if self.sock else None,
                 "brickVersion": self.brick_version if self.sock else None,
                 "moved": self.moved,
+                "epoch": self.epoch,
                 "telemetry": self.telemetry if self.sock and time.monotonic() - self.telemetry_at < 2.0 else None,
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
@@ -419,8 +438,7 @@ class Link:
                 except OSError as e:
                     with self.lock:
                         if self.sock is s:
-                            self.sock = None
-                            self.error = f"connection lost: {e.strerror or e}"
+                            self._lost(f"connection lost: {e.strerror or e}")
                     s.close()
             elif want and t0 - last_retry > 1.5:
                 last_retry = t0
@@ -440,8 +458,7 @@ class Link:
                 with self.lock:
                     silent = self.sock is s and t0 - self.telemetry_at > 1.5
                     if silent:
-                        self.sock = None
-                        self.error = "the brick stopped answering"
+                        self._lost("the brick stopped answering")
                 if silent:
                     _abort(s)
             if t0 - window_start >= 1.0:
@@ -894,6 +911,9 @@ class BrickInfo:
         with self.lock:
             if host == self.host:
                 self.details, self.details_at = d, time.monotonic()
+                if not d.get("ok"):
+                    # it stopped answering: what was plugged in may change before it's back
+                    self.ports, self.ports_at = None, None
             self.details_busy = False
             # Live port readings come from the receiver while it runs. Otherwise check the
             # ports ourselves about once a minute (each check starts Java on the brick: ~30 s).
@@ -1016,6 +1036,7 @@ link.on_fit = mapping.save
 fake = FakeEV3()
 bt = Bluetooth()
 brick = BrickInfo()
+link.on_lost = brick.refresh_soon
 cam = camera.Camera()
 # object recognition and the free-floor scan, optional (pc/vision.py, pc/floor.py): what's found goes on the map
 see = vision.Vision(cam, on_result=link.world.see, practice=fake.picture,
@@ -1173,7 +1194,9 @@ class Handler(BaseHTTPRequestHandler):
             inp["stop"] = bool(b.get("stop"))
             inp["hand"] = bool(b.get("hand"))  # handbrake: the drive motors brake, steering stays
             inp["pad"] = b.get("src", "pad") == "pad"  # calibration is for the real controller only
-            link.set_input(inp)
+            epoch = b.get("epoch")
+            ok = link.set_input(inp, epoch if isinstance(epoch, int) and not isinstance(epoch, bool) else -1)
+            return self._json({"ok": ok, "rearm": not ok})
             self._json({"ok": True})
         elif self.path == "/api/mapping":
             try:

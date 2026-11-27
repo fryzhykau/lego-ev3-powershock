@@ -137,6 +137,18 @@ class WorldMapTest(unittest.TestCase):
         self.assertTrue(any(i == round(41 / 4) and j == 0 for i, j, _ in snap["cells"]), snap["cells"])
         self.assertEqual(snap["eye"]["hit"], True)
 
+    def test_old_readings_are_not_shown_as_current(self):
+        self.m.feed(self.tel(0, 0, ir=50), mapping.TANK)
+        self.assertTrue(self.m.snapshot()["live"])
+        self.assertIsNotNone(self.m.snapshot()["eye"])
+        self.m.fed_at -= 5  # nothing from the brick for 5 s: switched off, or the link dropped
+        snap = self.m.snapshot()
+        self.assertFalse(snap["live"])
+        self.assertIsNone(snap["eye"])
+        self.assertEqual(snap["sensors"], {})
+        self.assertEqual(snap["speed"], 0.0)
+        self.assertTrue(snap["cells"])  # what it mapped stays on the map
+
     def test_colour_paints_the_floor_and_trail_follows(self):
         self.m.feed(self.tel(0, 0, col=0), mapping.TANK)
         self.m.feed(self.tel(720, 720, col=2), mapping.TANK)
