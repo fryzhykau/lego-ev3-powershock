@@ -1061,7 +1061,7 @@
   <span class="sep hide-s"></span>
   <button class="si" data-go="connection" title="Brick WiFi" id="sbWifiItem"><svg class="wifi-ico" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/></svg><span id="sbWifi">WiFi unknown</span></button>
   <span class="sep hide-s"></span>
-  <button class="si" data-go="program" title="PowerShock program" id="sbProgItem"><svg class="sbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span class="dot" id="sbProgDot"></span><span id="sbProg">Program unknown</span></button>
+  <button class="si" data-go="program" title="PowerShock program" id="sbProgItem"><svg class="sbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span class="dot" id="sbProgDot"></span><span id="sbProg">PowerShock on the brick: checking…</span></button>
   <span class="sep hide-s"></span>
   <button class="si" id="sbPadItem" popovertarget="srcMenu" aria-haspopup="true" aria-expanded="false" title="Drive with the controller or the keyboard"><svg class="pad-ico gp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.1l.9 4.3a2.3 2.3 0 0 1-4 1.9L15.6 15H8.4l-2.2 2.3a2.3 2.3 0 0 1-4-1.9l.9-4.3A4 4 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.8" r=".6" fill="currentColor"/></svg><svg class="pad-ico kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h1M9.5 10h1M13 10h1M16.5 10h1M7 14h10"/></svg><span class="dot hidden" id="sbPadDot"></span><span id="sbPad">No controller</span><span class="batt hidden" id="sbPadBatt"><i></i></span><b id="sbPadPct" class="hidden"></b><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></button>
   <span class="sep"></span>
@@ -2677,7 +2677,11 @@ function drawProgram() {
   $("uploadBtn").disabled = !host || !d || !d.ok;
   $("ledRing").className = "glow " + (run || (S.fake && S.fake.running) ? "green" : d && d.ok ? "orange" : "");
   $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : dot === "bad" ? "bad" : "");
-  $("sbProg").textContent = S.fake && S.fake.running ? "Practice" : d && d.ok ? (run ? "PowerShock running" : builds && builds.onBrick ? "PowerShock stopped" : "Not uploaded") : d ? "Brick not answering" : "Program unknown";
+  // what the PowerShock program on the brick is doing, or why that isn't known
+  $("sbProg").textContent = S.fake && S.fake.running ? "Practice brick: no program needed"
+    : d && d.ok ? "PowerShock on the brick: " + (run ? "running" : builds && builds.onBrick ? "stopped" : "not uploaded yet")
+    : d ? "PowerShock on the brick: can't check, the brick isn't answering"
+    : host ? "PowerShock on the brick: checking…" : "PowerShock on the brick: no brick connected";
   setBadge("prog", (dot === "warn" ? "warn" : ""));
   // PowerShock's own files: is the brick's copy the same as the latest build here?
   if (d && d.ok && d.builds) {
@@ -3166,8 +3170,8 @@ async function pollLinkOnce() {
   if (location.hash === "#driving") drawControls(false);
   if (location.hash === "#setup") drawConnTiles();
   // the bar shows icons on narrower screens: the words go in each item's tooltip
-  for (const [item, what, txt] of [["sbLinkItem", "Connection", "sbLink"], ["sbWifiItem", "Brick WiFi", "sbWifi"], ["sbProgItem", "PowerShock program", "sbProg"]]) {
-    const t = `${what}: ${$(txt).textContent}`;
+  for (const [item, what, txt] of [["sbLinkItem", "Connection", "sbLink"], ["sbWifiItem", "Brick WiFi", "sbWifi"], ["sbProgItem", "", "sbProg"]]) {
+    const t = (what ? what + ": " : "") + $(txt).textContent;
     if ($(item).title !== t) { $(item).title = t; $(item).setAttribute("aria-label", t); }
   }
 }
