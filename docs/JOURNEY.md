@@ -330,6 +330,26 @@ Still open: choosing a licence.
 
 **Status:** works in Practice. The real floor, lighting and rugs will decide how well it works at home.
 
+## Stage 15: from floor to floor on WiFi
+
+**Idea:** test the car on more than one floor, each with its own router or extender. The brick and the Pi should each move to whichever network is strongest.
+
+**The problem:** WiFi clients change network only once the current one is lost altogether. Until then, the robot clings to a far router while a near one is in reach, and the link gets choppy long before it breaks.
+
+**What was built:**
+- **One rule, in two places:** at -60 dBm or better, stay. Below that, switch only to something at least 8 dB stronger, then stay at least a minute, so it never flaps.
+  - **On the brick:** a thread in the brick program, `WifiRoam.java`, with `wpa_cli`.
+  - **On the Pi:** a service, `powershock_wifi.py`, with `nmcli`.
+  - **Other access points** of the same network count too, so a mesh or an extender with the same name works.
+- **Looking around stalls the radio:** a scan takes the brick's radio off its channel for a moment, long enough to trip the motors' 0.5 s watchdog. So the brick only scans while it stands still, or when the signal is so weak the link is failing anyway.
+- **Several saved networks on the brick:** adding a network used to replace the one before. Now the console reads the config, swaps in the one network, and writes it back. Their keys never leave that function, and only names are ever shown.
+- **A new address:** after a switch, the brick may get a new address. The console looks for the PowerShock program on its networks, checks its "V" greeting, and connects. It only does this when exactly one brick answers, so it never picks a stranger's.
+- **Signals on the map:** the brick sends its signal in the status line, and the Pi in its status, so the map's panel shows both while driving.
+
+**What we learned about this house:** the router and its extender give addresses from the same router, so they are one network. Addresses should survive a switch, and the laptop can reach the robot on either floor.
+
+**Status:** the code is tested with fakes (nmcli output, the brick's config, a local pretend brick). It isn't on the brick or the Pi yet: that needs the owner's go-ahead.
+
 ## Side ideas
 
 - **Cheap RC toy cars:** three ways were worked out. Wire a small board across the toy remote's buttons; replace the car's receiver with an ESP32; or copy the 2.4 GHz signal with a radio module. Nothing built yet.

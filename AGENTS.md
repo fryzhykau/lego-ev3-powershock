@@ -14,6 +14,7 @@ PowerShock drives a LEGO EV3 (leJOS 0.9.1-beta, **Java 7**) with a PS4 DualShock
 | Console page | `pc/console/index.html` (one file: HTML, CSS, JS), `ds4model.js`, `gears3d.js` | Plain JS, no build step; three.js is vendored in `pc/console/vendor/three/` |
 | Brick programs | `ev3/src/powershock/*.java` | **Java 7 language and API only**: no lambdas, streams, `java.time`, try-with-resources on non-`AutoCloseable` types, or `String.join` |
 | Camera streamer | `pi/powershock_cam.py`, runs on a Raspberry Pi | Python 3, **standard library only** (Pillow only for `--test`) |
+| Pi WiFi switcher | `pi/powershock_wifi.py`, a service on the Pi | Python 3, **standard library only**; uses `nmcli`. Same rule as `WifiRoam.java` |
 | Build | `build.ps1` | PowerShell; compiles against `lib/rt7.jar` so any Java 8+ API is a compile error |
 
 ## Commands
@@ -105,7 +106,7 @@ The repository is public. Before every commit:
    - Java has no test harness. Keep brick logic simple, and check it through the console's practice brick and by reasoning. Describe what you checked on real hardware, if anything.
 4. **Brick protocol changes:**
    - Lines from the PC are `P`, `M` and the old `l r a`. Lines from the brick are `V` and `T`.
-   - A `T` line ends with optional items: `mB=tacho:speed:stalled:role` for motors, and `s4=ir:37` / `s2=us:123` / `s3=col:5` / `s1=gy:-45` for sensors.
+   - A `T` line ends with optional items: `mB=tacho:speed:stalled:role` for motors, and `s4=ir:37` / `s2=us:123` / `s3=col:5` / `s1=gy:-45` for sensors, and `w=-62` for the WiFi signal in dBm.
    - Change both sides together, plus the practice brick in `ev3_console.py`.
    - Keep older versions working where you can: unknown lines are ignored.
 5. **The page:**

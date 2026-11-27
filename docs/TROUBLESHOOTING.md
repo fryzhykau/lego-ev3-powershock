@@ -91,6 +91,17 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Robot size** on the Map page. Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
 - **Nothing appears:** a thing must be seen twice, at least 50% sure. Things seen against the sky or above the horizon (on a shelf high up) aren't placed.
 
+## Moving between WiFi networks
+
+- **It doesn't switch:**
+  - The brick only looks for a better network while it stands still, and only when its signal is below -60 dBm. The Pi looks whenever the signal is below -60 dBm.
+  - Only saved networks are used. On the brick, add each network under **Set up WiFi**. On the Pi, use `sudo nmcli --ask device wifi connect <name>`.
+  - The brick's WiFi dongle only sees 2.4 GHz networks.
+  - Upload brick program 0.8 or later.
+- **The link drops for a few seconds on a switch:** that's normal. The motors stop (the brick's 0.5 s safety stop), and the console connects again. Drive on once **Motors on** is back on.
+- **The console doesn't find the brick after a switch:** the laptop must be on the same home network. A second router (not an extender or mesh) makes a separate network, which the laptop can't reach. Put it in access point mode (its settings may call it "AP mode" or "bridge mode"), so all the floors share one network.
+- **The Pi's switching:** `journalctl -u powershock-wifi` says what it did and why.
+
 ## The camera and the floor
 
 - **"Watching the floor needs Pillow":** run `python -m pip install pillow` (or the whole `pc/requirements-vision.txt`).

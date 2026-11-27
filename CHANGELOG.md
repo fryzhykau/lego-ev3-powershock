@@ -73,6 +73,12 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - **In Practice,** a pretend camera sees the practice room.
 - **More room for people and pets:** with object recognition set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.
 - **The camera on the 3D robot,** with lines to the corners of the floor it can see, so its height and tilt can be checked by eye.
+- **Moving between WiFi networks,** for driving from floor to floor:
+  - **The brick** keeps every network added under **Set up WiFi** (adding one no longer replaces the others), and **Forget** removes one. Only their names are ever read back.
+  - **Brick program:** when the signal is weak, it moves to the strongest saved network or access point. It only looks while the robot stands still, so driving isn't stalled. It sends its signal in the status line (`w=-62`).
+  - **The Pi:** a new service, `pi/powershock_wifi.py`, does the same with NetworkManager, and the camera reports its signal.
+  - **The console** finds the brick again if it comes back at a new address.
+  - **The map's instrument panel** shows both signals.
 - **An instrument panel on the map:** live speed, heading and turn rate, an arrow showing where the robot will be in a second, and what the autopilot (the obstacle brake, for now) decides: what you ask for against what it allows, why, and its last few decisions.
 - **Where the camera sits, worked out:** stopping at a few distances from a box, the infrared sensor and the camera together suggest the camera's tilt and height. **Use these** on the Map page saves them.
 

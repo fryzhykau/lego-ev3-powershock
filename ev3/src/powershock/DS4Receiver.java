@@ -32,6 +32,8 @@ public final class DS4Receiver {
 
     private static volatile int cmdL, cmdR, cmdA;
     private static volatile long lastCmdAt;
+    /** When a motor was last told to turn: WiFi only looks for a better network while the robot stands still. */
+    static volatile long movingAt;
     private static volatile boolean clientConnected;
     private static volatile boolean running = true;
     /** Status goes back to the PC on the same connection: "T <battery> <ports>" every 250 ms. */
@@ -78,6 +80,10 @@ public final class DS4Receiver {
         Thread sense = new Thread(sensors, "sensors");
         sense.setDaemon(true);
         sense.start();
+        final WifiRoam wifi = new WifiRoam(); // moves to the strongest saved WiFi network
+        Thread roam = new Thread(wifi, "wifi");
+        roam.setDaemon(true);
+        roam.start();
 
         LCD.clear();
         LCD.drawString(pad("PowerShock " + Version.get()), 0, 0);
@@ -96,7 +102,7 @@ public final class DS4Receiver {
                 }
                 if (clientOut != null && now - lastTelemetry >= TELEMETRY_MS) {
                     lastTelemetry = now;
-                    telemetry = "T " + PortWatch.snapshot() + drive.telemetry() + sensors.telemetry() + "\n"; // sent by the "status" thread
+                    telemetry = "T " + PortWatch.snapshot() + drive.telemetry() + sensors.telemetry() + wifi.telemetry() + "\n"; // sent by the "status" thread
                 }
                 String[] t;
                 while ((t = tests.poll()) != null) {
@@ -129,6 +135,7 @@ public final class DS4Receiver {
         } finally {
             running = false;
             sensors.stop();
+            wifi.stop();
             drive.close();
             server.close();
         }
@@ -248,7 +255,11 @@ public final class DS4Receiver {
             String[] v = item.substring(2).split(":");
             try {
                 if (v[0].equals("s") && v.length >= 2) {
-                    drive.command(port, 's', Integer.parseInt(v[1]), 0);
+                    int speed = Integer.parseInt(v[1]);
+                    if (speed != 0) {
+                        movingAt = System.currentTimeMillis();
+                    }
+                    drive.command(port, 's', speed, 0);
                 } else if (v[0].equals("p") && v.length >= 3) {
                     drive.command(port, 'p', Integer.parseInt(v[1]), Integer.parseInt(v[2]));
                 } else if (v[0].equals("-")) {
@@ -290,6 +301,9 @@ public final class DS4Receiver {
             cmdR = r;
             cmdA = a;
             lastCmdAt = System.currentTimeMillis();
+            if (l != 0 || r != 0 || a != 0) {
+                movingAt = lastCmdAt;
+            }
             return true;
         } catch (NumberFormatException ignored) {
             return false;

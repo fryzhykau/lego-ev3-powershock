@@ -174,6 +174,21 @@ def run_test_pattern(frames, args, stop):
         stop.wait(1.0 / args.fps)
 
 
+def wifi_signal(path="/proc/net/wireless"):
+    """The WiFi signal in dBm, or None without WiFi. The console shows it, to help choose where
+    a second router or extender helps."""
+    try:
+        with open(path, encoding="ascii", errors="replace") as f:
+            for line in f:
+                name, _, rest = line.strip().partition(":")
+                if name == "wlan0":
+                    v = int(float(rest.split()[2]))
+                    return v - 256 if v > 0 else v
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
 def make_handler(frames, key, args):
     clients = threading.BoundedSemaphore(MAX_CLIENTS)
 
@@ -199,7 +214,7 @@ def make_handler(frames, key, args):
             if url.path == "/status":
                 body = {"ok": frames.jpeg is not None, "version": VERSION, "source": frames.source,
                         "error": frames.error, "width": args.width, "height": args.height,
-                        "fps": frames.fps(), "flip": args.flip}
+                        "fps": frames.fps(), "flip": args.flip, "wifi": wifi_signal()}
                 return self._send(200, json.dumps(body).encode(), "application/json")
             if url.path == "/snapshot.jpg":
                 if frames.jpeg is None:

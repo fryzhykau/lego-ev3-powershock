@@ -726,6 +726,7 @@
   .maphud .hud-bar .give { background: var(--go); }
   .maphud.slow .hud-bar .give { background: var(--warn); } .maphud.stop .hud-bar .give { background: var(--stop); }
   .maphud .hud-why { color: var(--muted); margin-top: 2px; }
+  .maphud .hud-wifi { gap: 6px; flex-wrap: wrap; } .maphud .hud-wifi .bars { margin-right: 2px; }
   .maphud .hud-log { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--rule); display: grid; gap: 3px; }
   .maphud .hud-log:empty { display: none; }
   .maphud .hud-log li { display: grid; grid-template-columns: 34px 1fr; gap: 6px; }
@@ -876,6 +877,8 @@
   .nets button:hover, .devices button:hover { border-color: var(--rule); }
   .nets button[aria-pressed=true] { border-color: var(--panel); background: var(--hover); }
   .nets .sec { font-size: 12px; color: var(--muted); }
+  .savednets { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  .savednets li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 10px; background: var(--soft); border-radius: var(--r-s); }
   .bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
   .bars i { width: 4px; background: var(--off); border-radius: 1px; } .bars i.on { background: var(--panel); }
 
@@ -1251,9 +1254,11 @@
         <div data-sub="net" class="hidden">
           <div class="card-head"><h2>Choose the brick's WiFi network</h2><span class="muted" id="wifiSummary"></span><button class="link" data-close>Close</button></div>
           <p class="help">Needs the Bluetooth link. The password is turned into a key here and never stored or shown.</p>
+          <p class="help">Add every network the robot drives through, such as the router and its extender on each floor. The brick keeps them all, and while it stands still with a weak signal, it moves to the strongest one (brick program 0.8 or later).</p>
+          <div id="savedBox" class="hidden" style="margin-top:10px"><h3>Saved on the brick</h3><ul id="savedNets" class="savednets"></ul></div>
           <div class="row" style="margin-top:10px"><button id="netScanBtn" class="btn">Look for networks</button></div>
           <ul id="nets" class="nets"></ul>
-          <div id="joinBox" class="hidden" style="margin-top:10px"><div class="row"><input id="wifiPass" type="password" placeholder="Password for the network" autocomplete="off"><button id="joinBtn" class="btn go">Join</button></div></div>
+          <div id="joinBox" class="hidden" style="margin-top:10px"><div class="row"><input id="wifiPass" type="password" placeholder="Password for the network" autocomplete="off"><button id="joinBtn" class="btn go">Add network</button></div></div>
           <p class="note" id="joinNote"></p>
         </div>
       </div>
@@ -1305,6 +1310,7 @@
           <div class="map3d" id="map3d"><p class="muted" id="map3dmsg" style="padding:20px">Loading the 3D view…</p></div>
           <div class="maphud" id="mapHud" role="group" aria-label="Live driving data" hidden>
             <div class="hud-speed"><span class="hud-big" id="hudSpeed">0</span><span class="hud-unit">cm/s</span><span class="hud-dir" id="hudDir">Standing still</span></div>
+            <div class="hud-row hud-wifi" id="hudWifi" hidden></div>
             <div class="hud-row"><svg class="hud-compass" viewBox="-13 -13 26 26" aria-hidden="true"><circle r="11.5"></circle><path id="hudNeedle" d="M0 -9 L3.5 3 L0 1 L-3.5 3 Z"></path></svg><span id="hudHeading">Facing the way it started</span></div>
             <div class="hud-auto">
               <div class="hud-row"><span class="dot" id="hudDot"></span><span class="hud-state" id="hudState">Autopilot</span></div>
@@ -2436,6 +2442,7 @@ $("netScanBtn").addEventListener("click", () => busy($("netScanBtn"), async () =
   const r = await api("/api/wifi/scan", { host: h });
   if (!r.ok) return setNote("joinNote", r.error, "bad");
   setNote("joinNote", r.networks.length ? "Networks the brick can see (2.4 GHz only)." : "The brick sees no networks.");
+  loadSaved(h);
   $("nets").innerHTML = r.networks.map((n) => `<li><button data-s="${esc(n.ssid)}" data-k="${n.security}" aria-pressed="false" ${n.security === "wep" || n.security === "enterprise" ? "disabled" : ""}><span>${esc(n.ssid)}</span><span class="sec">${secName[n.security]}</span>${bars(n.signal)}</button></li>`).join("");
 }));
 $("nets").addEventListener("click", (e) => {
@@ -2444,18 +2451,35 @@ $("nets").addEventListener("click", (e) => {
   chosenNet = { ssid: b.dataset.s, security: b.dataset.k };
   $("joinBox").classList.remove("hidden"); $("wifiPass").classList.toggle("hidden", chosenNet.security === "open");
   $("wifiPass").value = ""; if (chosenNet.security !== "open") $("wifiPass").focus();
-  setNote("joinNote", `Join ${chosenNet.ssid}${chosenNet.security === "open" ? "" : ": enter its password"}.`);
+  setNote("joinNote", `Add ${chosenNet.ssid}${chosenNet.security === "open" ? "" : ": enter its password"}.`);
 });
 $("wifiPass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("joinBtn").click(); });
 $("joinBtn").addEventListener("click", () => busy($("joinBtn"), async () => {
   if (!chosenNet) return;
-  setNote("joinNote", `Joining ${chosenNet.ssid}. This takes up to 30 seconds…`);
+  setNote("joinNote", `Adding ${chosenNet.ssid}. This takes up to 30 seconds…`);
   const r = await api("/api/wifi/join", { host: brickHost(), ssid: chosenNet.ssid, password: chosenNet.security === "open" ? "" : $("wifiPass").value });
   $("wifiPass").value = "";
-  setNote("joinNote", r.ok ? `Joined. The brick's WiFi address is ${r.ip}. Enter it under WiFi address to drive without Bluetooth.` : r.error, r.ok ? "ok" : "bad");
+  setNote("joinNote", r.ok ? `Added. The brick's WiFi address is ${r.ip}. Enter it under WiFi address to drive without Bluetooth.` : r.error, r.ok ? "ok" : "bad");
   if (r.ok) $("host").value = r.ip;
+  loadSaved(brickHost());
   pollBrick();
 }));
+// the networks saved on the brick: only their names come back, never their keys
+async function loadSaved(h) {
+  if (!h) return;
+  let r; try { r = await api("/api/wifi/saved", { host: h }); } catch (e) { return; }
+  const list = (r.ok && r.saved) || [];
+  $("savedBox").classList.toggle("hidden", !list.length);
+  $("savedNets").innerHTML = list.map((n) => `<li><span class="nets-name">${esc(n)}</span><button class="link" data-forget="${esc(n)}" aria-label="Forget ${esc(n)} on the brick">Forget</button></li>`).join("");
+}
+$("savedNets").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-forget]"); if (!b) return;
+  busy(b, async () => {
+    const r = await api("/api/wifi/forget", { host: brickHost(), ssid: b.dataset.forget });
+    setNote("joinNote", r.ok ? `Forgot ${b.dataset.forget}.` : r.error, r.ok ? "ok" : "bad");
+    loadSaved(brickHost());
+  });
+});
 $("fakeToggle").addEventListener("change", async (e) => {
   setArmed(false);
   if (e.target.checked) {
@@ -2822,6 +2846,14 @@ function drawHud(m) {
   const head = hh === 0 ? "Facing the way it started" : `Facing ${Math.abs(hh)}° ${hh > 0 ? "left" : "right"} of the start`;
   const tt = Math.abs(turn) > 8 ? ` · turning ${turn > 0 ? "left" : "right"} ${Math.round(Math.abs(turn))}°/s` : "";
   $("hudHeading").textContent = head + tt;
+  // WiFi: the brick's and the camera's signal, to see where on which floor it gets weak
+  const bw = L.telemetry && L.telemetry.wifi, cw = S.cam && S.cam.reachable ? S.cam.wifi : null;
+  const mv = L.moved && L.moved.to === L.host ? L.moved : null;
+  if (mv && S.pinnedHost === mv.from) { S.pinnedHost = mv.to; localStorage.setItem("ev3host", mv.to); }
+  const wifi = [bw != null ? `Brick ${bars(bw)} ${bw} dBm` : "", cw != null ? `Camera ${bars(cw)} ${cw} dBm` : ""].filter(Boolean).join(" · ")
+    + (mv ? ` · <span class="muted">the brick is now at ${esc(mv.to)}</span>` : "");
+  $("hudWifi").hidden = !wifi;
+  setHTML($("hudWifi"), wifi ? "WiFi: " + wifi : "");
   const k = L.brake || {};
   // stopped or slowing only when it changes the driving: near a box but backing away, it's clear
   const acting = S.armed && (k.braking || k.state === "blind");

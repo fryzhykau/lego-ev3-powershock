@@ -364,6 +364,9 @@ def parse_telemetry(line):
                 kind, _, val = vals.partition(":")
                 if kind in SENSOR_KINDS and name in "1234":
                     out.setdefault("sensors", {})["S" + name] = {"kind": kind, "value": int(val)}
+            # " w=-62": the WiFi signal in dBm (brick 0.8 and later)
+            elif item.startswith("w="):
+                out["wifi"] = int(item[2:])
         return out
     except ValueError:
         return None
@@ -429,10 +432,84 @@ def _wpa_bytes(s):
     return bytes(out)
 
 
+WPA_CONF = "/home/root/lejos/config/wpa_supplicant.conf"
+
+
+def conf_networks(conf):
+    """The network={...} blocks of a wpa_supplicant.conf, each as (SSID bytes or None, block text)."""
+    out, i = [], 0
+    while True:
+        start = conf.find("network={", i)
+        if start < 0:
+            return out
+        end = conf.find("}", start)
+        if end < 0:
+            return out
+        block = conf[start:end + 1]
+        ssid = None
+        for line in block.splitlines():
+            k, _, v = line.strip().partition("=")
+            if k == "ssid":
+                if len(v) >= 2 and v[0] == v[-1] == '"':
+                    ssid = v[1:-1].encode("utf-8")
+                else:
+                    try:
+                        ssid = bytes.fromhex(v)
+                    except ValueError:
+                        ssid = None
+        out.append((ssid, block))
+        i = end + 1
+
+
+def conf_with(conf, ssid_raw, block):
+    """The config with this network added (or replaced), every other saved network kept.
+    block None: the network removed."""
+    nets = [b for s, b in conf_networks(conf) if s != ssid_raw]
+    if block:
+        nets.append(block)
+    return "ctrl_interface=/var/run/wpa_supplicant\n\n" + "\n\n".join(nets) + ("\n" if nets else "")
+
+
+def wifi_saved(host):
+    """The names of the WiFi networks saved on the brick. Only the names are read, never the keys."""
+    raw = ssh(host, f"sed -n 's/^[[:space:]]*ssid=//p' {WPA_CONF} 2>/dev/null", timeout=15)
+    out = []
+    for v in raw.splitlines():
+        v = v.strip()
+        try:
+            name = v[1:-1] if len(v) >= 2 and v[0] == v[-1] == '"' else bytes.fromhex(v).decode("utf-8", "replace")
+        except ValueError:
+            continue
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
+def _write_conf(host, conf, then=""):
+    script = (
+        f"cat > {WPA_CONF}.new && chmod 600 {WPA_CONF}.new && mv {WPA_CONF}.new {WPA_CONF}" + then
+    )
+    return ssh(host, script, stdin=conf.encode(), timeout=60)
+
+
+def _read_conf(host):
+    """The brick's WiFi config, to add to or take from. Its keys stay in memory here: they're
+    never logged, returned or kept."""
+    return ssh(host, f"cat {WPA_CONF} 2>/dev/null", timeout=15)
+
+
+def wifi_forget(host, ssid):
+    """Removes one saved network; the brick stays on the one it's on until that's lost."""
+    raw = _wpa_bytes(ssid)
+    _write_conf(host, conf_with(_read_conf(host), raw, None), "; wpa_cli -i wlan0 reconfigure >/dev/null 2>&1")
+    return {"ok": True, "saved": wifi_saved(host)}
+
+
 def wifi_join(host, ssid, password):
-    """Writes the leJOS WiFi config and runs leJOS's own startwlan. The password is turned
-    into the WPA key here (PBKDF2, as wpa_passphrase does), so it never reaches the brick
-    or any log in plain text. Returns the new WiFi address."""
+    """Adds a network to the brick's saved ones (the others are kept, so it can move between
+    them) and runs leJOS's own startwlan. The password is turned into the WPA key here (PBKDF2,
+    as wpa_passphrase does), so it never reaches the brick or any log in plain text. Returns
+    the new WiFi address."""
     raw = _wpa_bytes(ssid)  # the SSID as the radio sends it
     ssid_hex = raw.hex()
     if password:
@@ -442,7 +519,7 @@ def wifi_join(host, ssid, password):
         net = f"\tssid={ssid_hex}\n\tkey_mgmt=WPA-PSK\n\tpsk={psk}\n"
     else:
         net = f"\tssid={ssid_hex}\n\tkey_mgmt=NONE\n"
-    conf = f"ctrl_interface=/var/run/wpa_supplicant\n\nnetwork={{\n{net}}}\n"
+    conf = conf_with(_read_conf(host), raw, f"network={{\n{net}}}")
     script = (
         "cat > /home/root/lejos/config/wpa_supplicant.conf.new && "
         "chmod 600 /home/root/lejos/config/wpa_supplicant.conf.new && "

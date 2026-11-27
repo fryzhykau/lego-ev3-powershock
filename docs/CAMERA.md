@@ -140,6 +140,47 @@ Then:
 sudo systemctl enable --now powershock-cam
 ```
 
+## 7. Move to the strongest WiFi (optional)
+
+The Pi only changes WiFi network when the one it's on is lost altogether. If the robot drives between floors, each with its own router or extender, it clings to the far one, and the video gets choppy. `pi/powershock_wifi.py` fixes that. Every 5 seconds it looks at the signal. When the signal is weak (below -60 dBm) and a saved network is at least 8 dB stronger, it switches. After a switch it stays at least a minute, so it never flaps between two.
+
+1. **Save every network** the robot drives through on the Pi, typing each password yourself when asked:
+
+   ```sh
+   sudo nmcli --ask device wifi connect <network name>
+   ```
+
+   This joins the network straight away, so run it last for the one you want to stay on now. `sudo nmtui` does the same with menus.
+2. **Try it** (it only says what it would do):
+
+   ```sh
+   sudo python3 powershock_wifi.py --dry-run --once
+   ```
+
+3. **Make it a service**, like the camera. Copy `pi/powershock_wifi.py` to the Pi, and create `/etc/systemd/system/powershock-wifi.service` with `sudo nano`. It runs as root, because looking for networks and switching need it:
+
+   ```ini
+   [Unit]
+   Description=PowerShock WiFi: move to the strongest saved network
+   After=NetworkManager.service
+
+   [Service]
+   ExecStart=/usr/bin/python3 /home/<your user>/powershock_wifi.py
+   Restart=always
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   ```sh
+   sudo systemctl enable --now powershock-wifi
+   journalctl -u powershock-wifi -f    # watch it switch
+   ```
+
+To undo: `sudo systemctl disable --now powershock-wifi`, then delete the service file.
+
+**The Map page** shows the camera's signal next to the brick's, so you can see where in the house it gets weak.
+
 ## Trying it without a Pi
 
 On the laptop, with Pillow installed (`pip install pillow`):

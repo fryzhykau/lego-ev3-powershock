@@ -160,7 +160,7 @@ class Camera:
                 conn.close()
             out.update({"reachable": True, "ok": bool(info.get("ok")), "error": info.get("error"),
                         "width": info.get("width"), "height": info.get("height"), "fps": info.get("fps"),
-                        "source": info.get("source"), "version": info.get("version")})
+                        "source": info.get("source"), "version": info.get("version"), "wifi": info.get("wifi")})
         except (CameraError, ValueError) as e:
             out.update({"reachable": False, "ok": False, "error": str(e)})
         with self.lock:

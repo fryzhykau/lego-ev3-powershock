@@ -76,6 +76,9 @@ class Link:
         self.out = {}
         self.sent = 0
         self.rate = 0.0
+        self.lost_at = None    # when the link dropped while still wanted
+        self.find_at = 0.0     # when the brick was last looked for at a new address
+        self.moved = None      # {"from", "to"}: the brick came back at a new address
         threading.Thread(target=self._run, daemon=True).start()
 
     def set_input(self, inp):
@@ -136,6 +139,19 @@ class Link:
             self.error = None
         threading.Thread(target=self._read, args=(s,), daemon=True).start()
         return True
+
+    def _find(self):
+        with self.lock:
+            host = self.host
+        if not host or not moves(host):
+            return
+        found = [h for h in find_receivers(local_subnets()) if h != host]
+        if len(found) != 1:
+            return  # none, or more than one brick: don't guess
+        with self.lock:
+            if self.sock is None and self.want and self.host == host:
+                self.host, self.moved = found[0], {"from": host, "to": found[0]}
+        self._open(blocking=False)
 
     def _read(self, s):
         """Reads what the brick sends back: "V <version>" once, then "T <battery> <ports>" 4 per second."""
@@ -203,6 +219,7 @@ class Link:
                 "connectMs": self.connect_ms,
                 "localIp": self.local_ip if self.sock else None,
                 "brickVersion": self.brick_version if self.sock else None,
+                "moved": self.moved,
                 "telemetry": self.telemetry if self.sock and time.monotonic() - self.telemetry_at < 2.0 else None,
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
@@ -247,6 +264,15 @@ class Link:
             elif want and t0 - last_retry > 1.5:
                 last_retry = t0
                 self._open(blocking=False)
+            # Lost for a while: the brick may have moved to another WiFi network, and been given
+            # a new address there. Look for it on this laptop's networks now and then.
+            if s or not want:
+                self.lost_at = None
+            elif self.lost_at is None:
+                self.lost_at = t0
+            elif t0 - self.lost_at > FIND_AFTER and t0 - self.find_at > FIND_EVERY:
+                self.find_at = t0
+                threading.Thread(target=self._find, daemon=True).start()
             # The brick sends status 4 times a second. Silence means the link is dead even if
             # Windows still accepts our writes: drop it hard (discarding queued commands) and retry.
             if s:
@@ -448,10 +474,11 @@ class FakeEV3:
                     load = sum(abs(speeds[k]) / max_dps[k] for k in speeds) / 3
                     volts = 8.35 - 0.4 * load
                     motors = " ".join(f"m{k}={int(tacho[k])}:{int(speeds[k])}:0:-" for k in ("A", "B", "C"))
+                    wifi = -48 - int(abs(truth.x) / 10)  # weaker the further it drives, like a real one
                     ir, col = practice_sensors(truth.x, truth.y, truth.th)
                     conn.sendall((f"T {volts:.2f} {0.15 + 0.6 * load:.3f} {0.55 * load:.3f} "
                                   "A=125:8h B=125:7h C=125:7h D=126:126 1=121:16 2=126:126 3=122:29h 4=122:33h "
-                                  f"{motors} s3=col:{col} s4=ir:{ir}\n").encode())
+                                  f"{motors} s3=col:{col} s4=ir:{ir} w={wifi}\n").encode())
                     with self.lock:
                         self.motors_now = {k: round(speeds[k] / max_dps[k] * 100) for k in speeds}
                 try:
@@ -728,6 +755,37 @@ def local_subnets():
     return sorted(nets, key=str)
 
 
+FIND_AFTER = 8.0    # s the link must be lost before looking for the brick at a new address
+FIND_EVERY = 20.0   # s between looks
+
+
+def moves(host):
+    """Whether the brick at this address could turn up at another one: a WiFi address can
+    change with the network; the Bluetooth link's and Practice's can't."""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False  # a name: it follows the brick by itself
+    return ip.is_private and not ip.is_loopback and host != LEJOS_PAN_IP
+
+
+def is_receiver(host, timeout=0.8):
+    """A PowerShock brick program answers on port 5000 with its "V <version>" line at once."""
+    try:
+        with socket.create_connection((host, EV3_PORT), timeout=timeout) as s:
+            s.settimeout(timeout)
+            return s.recv(32).startswith(b"V ")
+    except OSError:
+        return False
+
+
+def find_receivers(nets):
+    """Addresses on these networks where a PowerShock brick program is running."""
+    hosts = [str(h) for n in nets for h in n.hosts()]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=128) as ex:
+        return [h for h, ok in zip(hosts, ex.map(lambda h: is_receiver(h, 0.35), hosts)) if ok]
+
+
 def scan():
     """Looks for SSH servers on this laptop's /24 networks; leJOS runs dropbear."""
     nets = local_subnets()
@@ -1001,7 +1059,7 @@ class Handler(BaseHTTPRequestHandler):
                 fake.stop()
                 self._json({"ok": True})
         elif self.path in ("/api/brick/ports", "/api/brick/run", "/api/brick/stop",
-                           "/api/wifi/scan", "/api/wifi/join"):
+                           "/api/wifi/scan", "/api/wifi/join", "/api/wifi/saved", "/api/wifi/forget"):
             host = str(b.get("host", "")).strip()
             if not host:
                 return self._json({"ok": False, "error": "no brick address"})
@@ -1016,12 +1074,16 @@ class Handler(BaseHTTPRequestHandler):
                     r = ev3_brick.stop(host)
                 elif self.path == "/api/wifi/scan":
                     r = {"ok": True, "networks": ev3_brick.wifi_scan(host)}
+                elif self.path == "/api/wifi/saved":
+                    r = {"ok": True, "saved": ev3_brick.wifi_saved(host)}
+                elif self.path == "/api/wifi/forget":
+                    r = ev3_brick.wifi_forget(host, str(b.get("ssid", "")))
                 else:
                     # The password goes straight into the key derivation and is never logged.
                     r = ev3_brick.wifi_join(host, str(b.get("ssid", "")), str(b.get("password", "")))
             except ev3_brick.BrickError as e:
                 r = {"ok": False, "error": str(e)}
-            if self.path != "/api/wifi/scan":
+            if self.path not in ("/api/wifi/scan", "/api/wifi/saved"):
                 brick.refresh_soon()
             self._json(r)
         elif self.path == "/api/build":
