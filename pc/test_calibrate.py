@@ -8,7 +8,6 @@ import unittest
 import calibrate as cb
 import ev3_console as c
 import mapping
-import worldmap as w
 
 
 def fresh():
@@ -146,42 +145,39 @@ class PracticeCarTest(unittest.TestCase):
         return False
 
     def test_steering_then_turning_circle(self):
-        link = c.Link()
-        link.cal = fresh()
-        cfg = os.path.join(tempfile.mkdtemp(), "worldmap.json")
-        link.world = w.WorldMap(cfg)  # not the owner's saved robot size
-        real_save = mapping.save
-        mapping.save = lambda m: None  # not the owner's saved controls
+        link = c.Link(practice=True)
         try:
             link.set_mapping(mapping.validate(mapping.CAR))
             self.assertTrue(link.connect("127.0.0.1"))
             self.assertTrue(self.wait(lambda: link.tacho("D") is not None, 3))
-            self.assertTrue(link.calibrate_steer()["ok"])
-            self.assertTrue(self.wait(lambda: (link.cal.snapshot()["job"] or {}).get("state") in ("done", "failed"), 30))
+            still = {"lx": 0.0, "ly": 0.0, "rx": 0.0, "ry": 0.0, "l2": 0.0, "r2": 0.0, "pad": False}
+            self.assertFalse(link.calibrate_steer(link.status()["epoch"])["ok"])
+            epoch = link.arm(link.status()["epoch"])["epoch"]
+            self.assertTrue(link.calibrate_steer(epoch)["ok"])
+            self.assertTrue(self.wait(lambda: (link.cal.snapshot()["job"] or {}).get("state") in ("done", "failed"),
+                                      30, lambda: link.set_input(still, epoch)))
             snap = link.cal.snapshot()
             self.assertEqual(snap["job"]["state"], "done", snap["job"])
             self.assertAlmostEqual(snap["steer"]["eachWay"], c.PRACTICE_STOP, delta=4)
             self.assertEqual(link.mapper.mapping["ports"]["D"]["range"], snap["steer"]["range"])
 
             # the turning circle needs Motors on: the page sends input all the while
-            still = {"lx": 0.0, "ly": 0.0, "rx": 0.0, "ry": 0.0, "l2": 0.0, "r2": 0.0, "stop": False, "pad": False}
-            self.assertFalse(link.turn("start", "left")["ok"])  # Motors off
-            link.set_input(still)
-            self.assertTrue(link.turn("start", "left")["ok"])
+            self.assertFalse(link.turn("start", "left", epoch - 1)["ok"])
+            self.assertTrue(link.set_input(still, epoch))
+            self.assertTrue(link.turn("start", "left", epoch)["ok"])
             th0 = self.fake.pose[2]
 
             def keep():
-                link.set_input(still)
-                link.turn("keep")
+                link.set_input(still, epoch)
+                link.turn("keep", epoch=epoch)
             self.assertTrue(self.wait(lambda: abs(self.fake.pose[2] - th0) >= 2 * math.pi, 30, keep), "drove a full circle")
-            r = link.turn("done")
+            r = link.turn("done", epoch=epoch)
             self.assertTrue(r["ok"], r)
             # the practice car: wheels at full lock (the steering range), axle spacing 14 cm
             lock = snap["steer"]["range"]
             self.assertAlmostEqual(r["result"]["wheel"], lock, delta=4)
             self.assertAlmostEqual(link.world.robot["steerRatio"], 1.0, delta=0.1)
         finally:
-            mapping.save = real_save
             link.disconnect()
 
 

@@ -25,7 +25,7 @@ def tank(left, right, a="-"):
 
 class SettingsTest(unittest.TestCase):
     def test_defaults_are_on(self):
-        self.assertEqual(b.settings(None), {"on": True, "stop": b.STOP, "slow": b.SLOW, "camera": True})
+        self.assertEqual(b.settings(None), {"on": True, "stop": b.STOP, "slow": b.SLOW, "camera": True, "required": False})
 
     def test_kept_in_range_and_slow_beyond_stop(self):
         s = b.settings({"on": False, "stop": 999, "slow": 1})
@@ -37,8 +37,9 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(b.settings({"stop": "x", "slow": None}), ON)
 
     def test_saved_with_the_mapping(self):
-        m = mapping.validate(dict(mapping.TANK, brake={"on": False, "stop": 20, "slow": 50, "camera": False}))
-        self.assertEqual(m["brake"], {"on": False, "stop": 20.0, "slow": 50.0, "camera": False})
+        expected = {"on": True, "stop": 20.0, "slow": 50.0, "camera": False, "required": True}
+        self.assertEqual(mapping.validate(dict(mapping.TANK, brake=expected))["brake"], expected)
+        self.assertFalse(b.settings({"required": "true"})["required"])
         self.assertEqual(mapping.validate(mapping.TANK)["brake"], ON)  # older saved mappings get the default
 
 
@@ -273,6 +274,47 @@ class CameraTest(unittest.TestCase):
         self.assertEqual(out, tank(40, 40))  # nothing in the way, but half speed at most
 
 
+class RequiredCoverageTest(unittest.TestCase):
+    def setUp(self):
+        self.brake = b.Brake()
+        self.conf = dict(ON, required=True)
+
+    def step(self, power=60, sensor=None, cam=None, angle=0, layout=TANK, now=NOW):
+        return self.brake.apply(tank(power, power), layout, sensor, self.conf, dict(ROBOT, eyeAngle=angle), now, cam)
+
+    def test_forward_needs_a_fresh_usable_reading(self):
+        for cam in (None, view(80, good=False), view(80, age=2)):
+            with self.subTest(cam=cam):
+                self.assertEqual(self.step(sensor=eye(70, hit=False, age=2), cam=cam), tank(0, 0))
+                self.assertEqual(self.brake.state["blindReason"], "ahead")
+        self.assertEqual(self.step(cam=view(None), now=NOW + 0.2), tank(24, 24))  # gradual recovery
+        self.assertEqual(self.brake.state["blindReason"], None)
+
+    def test_camera_can_cover_forward_with_the_range_sensor_facing_back(self):
+        self.assertEqual(self.step(sensor=eye(5), cam=view(None), angle=180), tank(60, 60))
+        self.assertEqual(self.step(power=-60, sensor=eye(5), cam=view(None), angle=180), tank(0, 0))
+        self.assertEqual(self.brake.state["state"], "stop")
+
+    def test_reverse_needs_a_fresh_rear_reading(self):
+        self.assertEqual(self.step(power=-60, sensor=eye(70, hit=False), cam=view(None)), tank(0, 0))
+        self.assertEqual(self.brake.state["blindReason"], "behind")
+        self.assertEqual(self.step(power=-60, sensor=eye(70, hit=False), angle=180, now=NOW + 0.2), tank(-24, -24))
+
+    def test_tank_can_turn_on_the_spot_without_a_reading(self):
+        res = tank(60, -60)
+        self.assertEqual(self.brake.apply(res, TANK, None, self.conf, ROBOT, NOW), res)
+
+    def test_missing_layout_blocks_speed_commands(self):
+        self.assertEqual(self.step(layout=None), tank(0, 0))
+        self.assertEqual(self.brake.state["blindReason"], "layout")
+
+    def test_switches_can_disable_coverage_or_the_camera(self):
+        self.conf["camera"] = False
+        self.assertEqual(self.step(cam=view(None)), tank(0, 0))
+        self.conf["on"] = False
+        self.assertEqual(self.step(), tank(60, 60))
+
+
 class PracticeRoomTest(unittest.TestCase):
     """End to end: the practice robot drives full speed at the box ahead of it and stops short."""
 
@@ -288,9 +330,12 @@ class PracticeRoomTest(unittest.TestCase):
         cls.fake.stop()
 
     def drive(self, link, ly, seconds):
+        status = link.status()
+        epoch = status["epoch"] if status["armed"] else link.arm(status["epoch"])["epoch"]
         end = time.monotonic() + seconds
         while time.monotonic() < end:
-            link.set_input({"lx": 0.0, "ly": ly, "rx": 0.0, "ry": 0.0, "l2": 0.0, "r2": 1.0, "stop": False, "pad": False})
+            self.assertTrue(link.set_input({"lx": 0.0, "ly": ly, "rx": 0.0, "ry": 0.0, "l2": 0.0,
+                                            "r2": 1.0, "pad": False}, epoch))
             time.sleep(0.05)
 
     def test_stops_before_the_box(self):
@@ -331,10 +376,12 @@ class PracticeRoomTest(unittest.TestCase):
             while time.monotonic() < end:  # the camera starts watching
                 see.watch_floor()
                 time.sleep(0.05)
+            epoch = link.arm(link.status()["epoch"])["epoch"]
             end = time.monotonic() + 3.5
             while time.monotonic() < end:
                 see.watch_floor()
-                link.set_input({"lx": 0.0, "ly": -1.0, "rx": 0.0, "ry": 0.0, "l2": 0.0, "r2": 1.0, "stop": False, "pad": False})
+                self.assertTrue(link.set_input({"lx": 0.0, "ly": -1.0, "rx": 0.0, "ry": 0.0, "l2": 0.0,
+                                                "r2": 1.0, "pad": False}, epoch))
                 time.sleep(0.05)
             x = link.world.snapshot()["pose"]["x"]
             st = link.status()["brake"]

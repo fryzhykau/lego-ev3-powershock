@@ -282,6 +282,8 @@ class WorldMap:
         self.reset()
 
     def _load(self):
+        if self.config is None:
+            return dict(ROBOT)
         try:
             with open(self.config, encoding="utf-8") as f:
                 return robot_settings(json.load(f))
@@ -292,6 +294,8 @@ class WorldMap:
         r = robot_settings(d if isinstance(d, dict) else {})
         with self.lock:
             self.robot = r
+        if self.config is None:
+            return r
         try:
             with open(self.config, "w", encoding="utf-8") as f:
                 json.dump(r, f, indent=2)
@@ -317,6 +321,8 @@ class WorldMap:
     def relink(self):
         with self.lock:
             self.odo.relink()
+            self.eye = self.view = None
+            self.fed_at = 0.0
 
     def feed(self, telemetry, mapping, now=None):
         """One status line from the brick (see ev3_brick.parse_telemetry)."""

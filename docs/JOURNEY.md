@@ -501,6 +501,12 @@ The hardest problems so far, grouped by where they came from.
 - **First versions of anything with steps:** calibration, setup panels. They needed a second design once someone actually used them.
 - **Putting everything on screen at once.**
 
+## Stop, Practice, and brake coverage
+
+- A short delay after Stop only covered requests that arrived within that delay. The console now ends the motor session on Stop and checks each queued command again before sending it to the brick. A fresh arm action starts a new session.
+- Practice and the brick used the same saved settings even though they have different motors and geometry. Each now has its own controls, map and calibration. Practice keeps its measurements in memory, and copying controls to the brick takes an explicit action.
+- A missing or unusable reading is different from a fresh reading of clear space. The optional coverage setting checks the requested direction before allowing the robot to drive.
+
 ## Open threads
 
 - **Upload the new brick program** (0.8, with sensors) and try the map on the real robot.

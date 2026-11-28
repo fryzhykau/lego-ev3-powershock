@@ -41,7 +41,7 @@ CAM_FILE = os.path.join(HERE, "console", "camera.html")
 HTTP_PORT = int(os.environ.get("POWERSHOCK_PORT", "8765"))
 EV3_PORT = 5000
 RATE_HZ = 50
-INPUT_STALE_S = 0.3  # no command from the page for this long -> send zeros
+INPUT_STALE_S = 0.3  # the page must keep renewing permission to move
 FIT_SETTLE_S = 1.5   # the motors plugged in stay the same this long before the controls move to them
 FIT_IDLE_S = 2.0     # ... and nobody has driven for this long: a job never moves while someone drives
 LEJOS_PAN_IP = "10.0.1.1"
@@ -55,7 +55,7 @@ def clamp100(v):
 class Link:
     """The TCP connection to the brick plus the 50 Hz sender thread."""
 
-    def __init__(self):
+    def __init__(self, practice=False):
         self.lock = threading.Lock()
         self.sock = None
         self.host = None
@@ -66,7 +66,7 @@ class Link:
         self.local_ip = None
         self.send_lock = threading.Lock()  # driving lines and test lines must not interleave
         self.open_lock = threading.Lock()  # one connection attempt at a time
-        self.hold_until = 0.0  # after Stop, ignore input for a moment (a late request can't restart driving)
+        self.stopping = False
         self.telemetry = None  # live battery + ports streamed back by the receiver
         self.telemetry_at = 0.0
         self.port_check = ev3_brick.PortCheck()  # a motor in a sensor port, or the other way round
@@ -75,53 +75,86 @@ class Link:
         self.on_fit = None  # saves a fitted mapping; only the console's own link does
         self.on_lost = None  # told when the link drops, so the brick's details are checked again at once
         self.brick_version = None  # from the receiver's "V <version>" line; None for versions before 0.7.0
-        self.world = worldmap.WorldMap()  # live map from motor angles and sensor readings
+        self.world = worldmap.WorldMap(None) if practice else worldmap.WorldMap()
         # Controls mapping: the page sends raw controller input; the mapping turns it into
         # per-port commands here, 50 times a second, with smoothing.
-        self.mapper = mapping.Mapper(mapping.load())
+        self.mapper = mapping.Mapper(mapping.default() if practice else mapping.load())
+        self.practice = practice
         self.brake = brake.Brake()  # slows and stops for obstacles, after the mapping
         self.inp = None
         self.inp_at = 0.0
-        self.epoch = 0  # goes up whenever the link drops: input armed before a drop is refused
+        self.epoch = 0  # changes on Stop, re-arm and disconnect
+        self.armed = False
         self.out = {}
         self.sent = 0
         self.rate = 0.0
         self.lost_at = None    # when the link dropped while still wanted
         self.find_at = 0.0     # when the brick was last looked for at a new address
         self.moved = None      # {"from", "to"}: the brick came back at a new address
-        self.cal = calibrate.Calibration()  # the car's measured limits (pc/calibrate.py)
+        self.cal = calibrate.Calibration(None) if practice else calibrate.Calibration()
         self.turn_job = None   # the turning-circle drive while it runs
         self.cal_port = None   # the steering port while its end stops are found: the controls leave it alone
         threading.Thread(target=self._run, daemon=True).start()
 
-    def set_input(self, inp, epoch=None):
-        """Controller input from the page. epoch: the link it was switched on for. Input for a link
-        that has dropped since, or sent with no link at all, is refused (False): after a drop, Motors
-        on must be switched on again, even when the link came straight back."""
+    def arm(self, epoch):
         with self.lock:
-            if epoch is not None and (self.sock is None or epoch != self.epoch):
-                self.inp = None
+            if self.sock is None or self.stopping or self.armed or epoch != self.epoch:
+                return {"ok": False, "error": "Motors could not be switched on. Check the link and try again."}
+            self.epoch += 1
+            self.armed = True
+            self.inp_at = time.monotonic()
+            return {"ok": True, "epoch": self.epoch}
+
+    def set_input(self, inp, epoch):
+        with self.lock:
+            if not self.armed or epoch != self.epoch:
                 return False
-            if inp is not None and time.monotonic() < self.hold_until:
-                return True
             self.inp, self.inp_at = inp, time.monotonic()
             return True
+
+    def _disarm(self):
+        """Invalidate motion and cancel calibration while holding the state lock."""
+        self.epoch += 1
+        self.armed = False
+        self.inp = None
+        self.mapper.step(None, 0, stop=True)
+        self.out = dict.fromkeys(mapping.PORTS)
+        self.cal.abort.set()
+        if self.turn_job:
+            self.turn_job = None
+            self.cal.set_job(what="turn", state="stopped", note="Stopped.")
 
     def _lost(self, err):
         """The link dropped (call with the lock held): forget the input, so nothing drives on reconnect."""
         self.sock, self.error = None, err
-        self.epoch += 1
-        self.inp = None
+        self._disarm()
+        self.stopping = False
         if self.on_lost:
             self.on_lost()
 
-    def stop_input(self):
+    def stop(self, epoch=None):
         with self.lock:
-            self.inp, self.hold_until = None, time.monotonic() + 0.6
+            if epoch is not None and (not self.armed or epoch != self.epoch):
+                return None
+            self._disarm()
+            self.stopping = True
+            s, epoch = self.sock, self.epoch
+        # Replace even a pending position command before asking the brick to stop its tests.
+        if s:
+            self._send(s, epoch, mapping.line(dict.fromkeys(mapping.PORTS)) + "\nM * stop 0 50")
+        with self.lock:
+            if epoch == self.epoch:
+                self.stopping = False
+        return epoch
 
     def set_mapping(self, m):
         with self.lock:
             self.mapper.set_mapping(m)
+
+    def save_mapping(self, m):
+        if not self.practice:
+            mapping.save(m)
+        self.set_mapping(m)
 
     def connect(self, host):
         self.disconnect()
@@ -159,6 +192,7 @@ class Link:
                 return self.sock is not None
             self.sock = s
             self.brick_version = None
+            self.telemetry = None
             self.world.relink()  # motor angles restart from 0 with a new connection
             self.telemetry_at = time.monotonic()  # grace period for the first status line
             self.connected_at = time.time()
@@ -175,51 +209,50 @@ class Link:
         m = ((t or {}).get("motors") or {}).get(port)
         return m["tacho"] if m else None
 
-    def calibrate_steer(self):
+    def calibrate_steer(self, epoch):
         """Feels for the steering's end stops, sets centre, and fits the steering range inside them."""
         with self.lock:
-            m, connected = self.mapper.mapping, self.sock is not None
-        port = next((p for p, c in sorted(m["ports"].items()) if c["mode"] == "position"), None)
-        if not connected:
-            return {"ok": False, "error": "Connect to the brick first."}
-        if port is None:
-            return {"ok": False, "error": "No steering: set a port to Steering (angle) on the Driving page first."}
-        job = self.cal.snapshot()["job"]
-        if job and job.get("state") == "running":
-            return {"ok": False, "error": "A calibration is already running."}
+            if not self.armed or epoch != self.epoch:
+                return {"ok": False, "error": "Turn motors on first."}
+            if self.cal_port or self.turn_job:
+                return {"ok": False, "error": "A calibration is already running."}
+            ports = self.mapper.mapping["ports"]
+            port = next((p for p in mapping.PORTS if ports[p]["mode"] == "position"), None)
+            if port is None:
+                return {"ok": False, "error": "No steering: set a port to Steering (angle) on the Driving page first."}
+            self.cal_port = port
+            self.cal.abort.clear()
+            self.cal.set_job(what="steer", state="running", note="Starting…")
 
         def work():
-            with self.lock:
-                self.cal_port = port
             try:
-                r = self.cal.find_steer(port, self.send_line, lambda: self.tacho(port))
+                r = self.cal.find_steer(port, lambda line: self.send_line(line, epoch), lambda: self.tacho(port))
                 with self.lock:
+                    if self.cal.abort.is_set():
+                        raise RuntimeError("Stopped.")
                     m2 = copy.deepcopy(self.mapper.mapping)
                 if m2["ports"][port]["mode"] == "position":
                     m2["ports"][port]["range"] = r["range"]
                     m2["name"] = "custom"
                     m2 = mapping.validate(m2)
-                    mapping.save(m2)
-                    self.set_mapping(m2)
+                    self.save_mapping(m2)
                 self.cal.set_job(what="steer", state="done",
                                  note=f"The steering turns {r['eachWay']}° each way. Centre is set, and the steering now "
                                       f"turns up to {r['range']}°, {calibrate.MARGIN}° short of the stops.")
-            except RuntimeError as e:
-                self.cal.set_job(what="steer", state="failed", note=str(e))
+            except (RuntimeError, OSError) as e:
+                self.cal.set_job(what="steer", state="stopped" if self.cal.abort.is_set() else "failed", note=str(e))
             finally:
                 with self.lock:
                     self.cal_port = None
-        self.cal.set_job(what="steer", state="running", note="Starting…")
         threading.Thread(target=work, name="calibrate-steer", daemon=True).start()
         return {"ok": True}
 
-    def turn(self, action, side=None):
+    def turn(self, action, side=None, epoch=None):
         """The turning circle: start (side left or right), keep (the page is still there), done, cancel."""
         now = time.monotonic()
         with self.lock:
             m, connected = self.mapper.mapping, self.sock is not None
-            armed = self.inp is not None and now - self.inp_at < INPUT_STALE_S
-            tj = self.turn_job
+            armed = self.armed and epoch == self.epoch and self.inp is not None and now - self.inp_at < INPUT_STALE_S
         lay = worldmap.layout(m)
         if action == "start":
             if side not in ("left", "right"):
@@ -233,28 +266,30 @@ class Link:
             sp, ssign = lay["steer"]
             c = m["ports"][sp] if m["ports"][sp]["mode"] == "position" else m["ports"][m["ports"][sp]["leader"]]
             lock = c["range"]
+            travel = self.world.travelled()
             with self.lock:
-                self.turn_job = {"side": side, "start": now, "keep": now, "travel0": self.world.travelled(),
+                if not self.armed or epoch != self.epoch:
+                    return {"ok": False, "error": "Turn motors on first."}
+                if self.cal_port or self.turn_job:
+                    return {"ok": False, "error": "A calibration is already running."}
+                self.turn_job = {"side": side, "start": now, "keep": now, "travel0": travel,
                                  "steer": (sp, int(round((1 if side == "right" else -1) * lock * ssign)), int(c["speed"])),
                                  "drive": {p: int(calibrate.TURN_SPEED * sg) for p, sg in lay["drive"].items()},
                                  "lock": lock}
-            self.cal.set_job(what="turn", state="running", side=side,
-                             note="Driving a slow circle at full lock. Press Back where it started when it gets there.")
+                self.cal.set_job(what="turn", state="running", side=side,
+                                 note="Driving a slow circle at full lock. Press Back where it started when it gets there.")
             return {"ok": True}
         if action == "keep":
             with self.lock:
-                if self.turn_job:
+                running = bool(self.turn_job and self.armed and epoch == self.epoch)
+                if running:
                     self.turn_job["keep"] = now
-            return {"ok": True, "running": tj is not None}
-        if action == "cancel":
-            with self.lock:
-                self.turn_job = None
-            self.cal.set_job(what="turn", state="stopped", side=side, note="Stopped.")
-            return {"ok": True}
+            return {"ok": True, "running": running}
         if action == "done":
-            if not tj:
-                return {"ok": False, "error": "The circle isn't running."}
             with self.lock:
+                tj = self.turn_job
+                if not tj or not self.armed or epoch != self.epoch:
+                    return {"ok": False, "error": "The circle isn't running."}
                 self.turn_job = None
             travelled = self.world.travelled() - tj["travel0"]
             try:
@@ -296,9 +331,9 @@ class Link:
             except socket.timeout:
                 continue
             except OSError:
-                return
+                break
             if not data:
-                return
+                break
             buf += data
             *lines, buf = buf.split(b"\n")
             for line in lines:
@@ -311,12 +346,19 @@ class Link:
                     continue
                 t = ev3_brick.parse_telemetry(text)
                 if t:
-                    t["wrong"] = self.port_check.update(t["ports"], time.monotonic())
                     with self.lock:
+                        if self.sock is not s:
+                            return
+                        t["wrong"] = self.port_check.update(t["ports"], time.monotonic())
                         self.telemetry, self.telemetry_at = t, time.monotonic()
                         m = self.mapper.mapping
                     self.world.feed(t, m)
                     self._fit(t, time.monotonic())
+        with self.lock:
+            if self.sock is not s:
+                return
+            self._lost("the brick disconnected")
+        _abort(s)
 
     def _fit(self, t, now):
         """Moves the controls onto the motors that are plugged in, when they don't fit (mapping.fit)."""
@@ -346,23 +388,30 @@ class Link:
             s = self.sock
             self._lost(None)
         if s:
-            try:
-                s.sendall(b"0 0 0\n")
-            except OSError:
-                pass
-            s.close()
+            _abort(s)  # discard queued drive commands and let the brick's link-loss stop take over
 
-    def send_line(self, line):
-        """Sends one extra line (a motor test) on the driving connection."""
+    def send_line(self, line, epoch):
+        """Send a motor test or calibration command for the current arm session."""
         with self.lock:
+            if not self.armed or epoch != self.epoch:
+                return False
             s = self.sock
-        if not s:
-            return False
+        return self._send(s, epoch, line)
+
+    def _send(self, s, epoch, line):
+        """Check again after taking the send lock: Stop may have invalidated the queued line."""
         try:
             with self.send_lock:
+                with self.lock:
+                    if self.sock is not s or epoch != self.epoch:
+                        return False
                 s.sendall((line + "\n").encode("ascii"))
             return True
-        except OSError:
+        except OSError as e:
+            with self.lock:
+                if self.sock is s:
+                    self._lost(f"connection lost: {e.strerror or e}")
+            _abort(s)
             return False
 
     def status(self):
@@ -377,6 +426,8 @@ class Link:
                 "brickVersion": self.brick_version if self.sock else None,
                 "moved": self.moved,
                 "epoch": self.epoch,
+                "armed": self.armed,
+                "practice": self.practice,
                 "telemetry": self.telemetry if self.sock and time.monotonic() - self.telemetry_at < 2.0 else None,
                 # per port: ["s", pct] or ["p", deg, speed] or null
                 "sending": {p: (list(v) if v else None) for p, v in self.out.items()},
@@ -399,10 +450,13 @@ class Link:
             eye, robot = self.world.eye_now()  # its own lock, taken before ours
             view = self.world.camera_now(t0)
             with self.lock:
-                s, want = self.sock, self.want
-                inp = self.inp if t0 - self.inp_at < INPUT_STALE_S else None
+                s, want, epoch = self.sock, self.want, self.epoch
+                expired = self.armed and t0 - self.inp_at >= INPUT_STALE_S
+                inp = None if expired else self.inp
                 m = self.mapper.mapping
                 res = self.mapper.step(inp, dt, stop=bool(inp and inp.get("stop")))
+                if inp is None:
+                    res = dict.fromkeys(mapping.PORTS)
                 lay = worldmap.layout(m)
                 if self.cal_port:
                     res = dict(res, **{self.cal_port: None})  # the steering calibration owns it
@@ -427,19 +481,13 @@ class Link:
                 power, straight = self.brake.state.get("given"), _straight(res, lay, m) and not tj
             # top speed against the battery, learned from driving straight at full power
             self.cal.observe(power, straight, self.world.speed, volts, t0)
-            payload = mapping.line(res)
-            if s:
-                try:
-                    with self.send_lock:
-                        s.sendall((payload + "\n").encode("ascii"))
+            if expired:
+                self.stop(epoch)
+            elif s:
+                if self._send(s, epoch, mapping.line(res)):
                     window_count += 1
                     with self.lock:
                         self.sent += 1
-                except OSError as e:
-                    with self.lock:
-                        if self.sock is s:
-                            self._lost(f"connection lost: {e.strerror or e}")
-                    s.close()
             elif want and t0 - last_retry > 1.5:
                 last_retry = t0
                 self._open(blocking=False)
@@ -449,7 +497,7 @@ class Link:
                 self.lost_at = None
             elif self.lost_at is None:
                 self.lost_at = t0
-            elif t0 - self.lost_at > FIND_AFTER and t0 - self.find_at > FIND_EVERY:
+            elif not self.practice and t0 - self.lost_at > FIND_AFTER and t0 - self.find_at > FIND_EVERY:
                 self.find_at = t0
                 threading.Thread(target=self._find, daemon=True).start()
             # The brick sends status 4 times a second. Silence means the link is dead even if
@@ -1034,13 +1082,40 @@ def build_upload(lejos_home, host):
 link = Link()
 link.on_fit = mapping.save
 fake = FakeEV3()
+practice_link = Link(practice=True)
+mode_lock = threading.Lock()
 bt = Bluetooth()
 brick = BrickInfo()
 link.on_lost = brick.refresh_soon
 cam = camera.Camera()
 # object recognition and the free-floor scan, optional (pc/vision.py, pc/floor.py): what's found goes on the map
-see = vision.Vision(cam, on_result=link.world.see, practice=fake.picture,
+see = vision.Vision(cam, on_result=link.world.see,
                     on_floor=lambda scan: link.world.surround(scan) if scan else link.world.end_view())
+practice_see = vision.Vision(cam, practice=fake.picture,
+                             on_floor=lambda scan: practice_link.world.surround(scan) if scan else practice_link.world.end_view())
+
+
+def active_link():
+    with mode_lock:
+        return practice_link if fake.srv else link
+
+
+def set_practice(on):
+    with mode_lock:
+        if on and not fake.srv:
+            err = fake.start()
+            if err:
+                return {"ok": False, "error": err}
+            link.disconnect()
+            practice_link.world.reset()
+            if not practice_link.connect("127.0.0.1"):
+                practice_link.disconnect()
+                fake.stop()
+                return {"ok": False, "error": "The practice brick could not connect."}
+        elif not on and fake.srv:
+            practice_link.disconnect()
+            fake.stop()
+        return {"ok": True}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1113,6 +1188,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._local_only():
             return
+        drive = active_link()
         if self.path in ("/", "/index.html", "/camera"):
             # /camera: just the robot's camera, in a window of its own (for a second monitor)
             with open(UI_FILE if self.path != "/camera" else CAM_FILE, "rb") as f:
@@ -1138,25 +1214,25 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == "/api/status":
-            ls = link.status()
+            ls = drive.status()
             ls["via"] = link_kind(ls.get("localIp"), bt.local_ips())
-            self._json({"link": ls, "fake": fake.status(), "app": {"version": version.__version__}})
+            self._json({"link": ls, "fake": dict(fake.status(), running=drive.practice), "app": {"version": version.__version__}})
         elif self.path == "/api/mapping":
-            with link.lock:
-                current = link.mapper.mapping
-            self._json({"mapping": current, "presets": mapping.PRESETS})
+            with drive.lock:
+                current = drive.mapper.mapping
+            self._json({"mapping": current, "presets": mapping.PRESETS, "practice": drive.practice})
         elif self.path == "/api/bluetooth":
             self._json(bt.status())
         elif self.path == "/api/map":
-            self._json(link.world.snapshot())
+            self._json(dict(drive.world.snapshot(), practice=drive.practice))
         elif self.path == "/api/camera":
             self._json(cam.status())
         elif self.path == "/api/vision":
             self._json(see.status())
         elif self.path == "/api/calibration":
-            with link.lock:
-                t = link.telemetry if link.sock else None
-            self._json(link.cal.snapshot(((t or {}).get("battery") or {}).get("volts")))
+            with drive.lock:
+                t = drive.telemetry if drive.sock else None
+            self._json(dict(drive.cal.snapshot(((t or {}).get("battery") or {}).get("volts")), practice=drive.practice))
         elif self.path.split("?")[0] == "/api/camera/stream":
             self._camera_stream()
         elif self.path.split("?")[0] == "/api/camera/snapshot":
@@ -1185,56 +1261,68 @@ class Handler(BaseHTTPRequestHandler):
         if not self._local_only():
             return
         b = self._body()
-        if self.path == "/api/input":
+        if not isinstance(b, dict):
+            return self._json({"ok": False, "error": "Expected an object."}, 400)
+        drive = active_link()
+        if self.path in ("/api/arm", "/api/input", "/api/mapping", "/api/test", "/api/disconnect", "/api/vision",
+                         "/api/map/reset", "/api/map/placement/forget", "/api/map/robot") or self.path.startswith("/api/calibration/"):
+            if b.get("practice") is not drive.practice:
+                return self._json({"ok": False, "rearm": True, "error": "The driving profile changed. Try again."})
+        epoch = b.get("epoch")
+        epoch = epoch if type(epoch) is int else None
+        if self.path == "/api/arm":
+            self._json(drive.arm(epoch))
+        elif self.path == "/api/input":
             # Raw controller (or keyboard) state from the page; the mapping does the rest.
             try:
                 inp = {k: float(b.get(k, 0)) for k in ("lx", "ly", "rx", "ry", "l2", "r2")}
-            except (TypeError, ValueError):
-                return self._json({"ok": False, "error": "bad input"})
-            inp["stop"] = bool(b.get("stop"))
+            except (TypeError, ValueError, OverflowError):
+                return self._json({"ok": False, "error": "bad input"}, 400)
+            if not all(math.isfinite(v) for v in inp.values()):
+                return self._json({"ok": False, "error": "bad input"}, 400)
+            if b.get("stop") is True and epoch is not None:
+                return self._json({"ok": drive.stop(epoch) is not None, "rearm": True})
             inp["hand"] = bool(b.get("hand"))  # handbrake: the drive motors brake, steering stays
             inp["pad"] = b.get("src", "pad") == "pad"  # calibration is for the real controller only
-            epoch = b.get("epoch")
-            ok = link.set_input(inp, epoch if isinstance(epoch, int) and not isinstance(epoch, bool) else -1)
+            ok = drive.set_input(inp, epoch)
             return self._json({"ok": ok, "rearm": not ok})
-            self._json({"ok": True})
         elif self.path == "/api/mapping":
             try:
                 m = mapping.validate(b.get("mapping"))
             except (TypeError, ValueError) as e:
                 return self._json({"ok": False, "error": str(e)})
-            mapping.save(m)
-            link.set_mapping(m)
+            drive.save_mapping(m)
             self._json({"ok": True, "mapping": m})
         elif self.path == "/api/test":
             # One motor at a time: {"port": "D", "action": "run|rotate|stop", "value": n, "speed": pct}
             port = str(b.get("port", "")).upper()
             action = str(b.get("action", ""))
-            if port not in ("A", "B", "C", "D", "*") or action not in ("run", "rotate", "stop", "zero"):
+            if port not in mapping.PORTS or action not in ("run", "rotate", "stop", "zero"):
                 return self._json({"ok": False, "error": "bad test command"})
             try:
                 value = max(-3600, min(3600, int(b.get("value") or 0)))
                 speed = max(5, min(100, int(b.get("speed") or 50)))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return self._json({"ok": False, "error": "bad test command"})
-            with link.lock:
-                m = link.mapper.mapping
+            with drive.lock:
+                m = drive.mapper.mapping
             # a grouped motor moves with its group, so two motors on one axle never fight
-            lines = [f"M {port} {action} {value} {speed}"] if port == "*" else mapping.test_lines(m, port, action, value, speed)
-            ok = all([link.send_line(x) for x in lines])
-            self._json({"ok": ok, "error": None if ok else "not connected to PowerShock", "ports": [x.split()[1] for x in lines]})
+            lines = mapping.test_lines(m, port, action, value, speed)
+            ok = all([drive.send_line(x, epoch) for x in lines])
+            self._json({"ok": ok, "error": None if ok else "Turn motors on first.", "ports": [x.split()[1] for x in lines]})
         elif self.path == "/api/stop":
-            link.stop_input()
-            link.send_line("M * stop 0 50")  # also ends any motor test in progress
-            self._json({"ok": True})
+            self._json({"ok": True, "epoch": drive.stop(), "practice": drive.practice})
         elif self.path == "/api/connect":
             host = str(b.get("host", "")).strip()
             if not host:
                 return self._json({"ok": False, "error": "enter the EV3 IP address"})
-            ok = link.connect(host)
+            with mode_lock:
+                if fake.srv:
+                    return self._json({"ok": False, "error": "Turn Practice off before connecting to the brick."})
+                ok = link.connect(host)
             self._json({"ok": ok, "error": link.status()["error"]})
         elif self.path == "/api/disconnect":
-            link.disconnect()
+            drive.disconnect()
             self._json({"ok": True})
         elif self.path == "/api/probe":
             host = str(b.get("host", "")).strip()
@@ -1260,24 +1348,23 @@ class Handler(BaseHTTPRequestHandler):
             on, flo = b.get("on"), b.get("floor")
             if (on is not None and not isinstance(on, bool)) or flo not in (None, True) or (on is None and not flo):
                 return self._json({"ok": False, "error": "bad vision command"})
-            out = see.poll(on) if on is not None else {"ok": True}
+            out = see.poll(on) if on is not None and not drive.practice else {"ok": True}
             if flo:
-                out["floor"] = see.watch_floor()
+                out["floor"] = (practice_see if drive.practice else see).watch_floor()
             self._json(out)
         elif self.path == "/api/calibration/steer":
-            self._json(link.calibrate_steer())
+            self._json(drive.calibrate_steer(epoch))
         elif self.path == "/api/calibration/stop":
-            link.cal.abort.set()
-            link.turn("cancel")
+            drive.stop()
             self._json({"ok": True})
         elif self.path == "/api/calibration/turn":
             action, side = str(b.get("action", "")), b.get("side")
-            if action not in ("start", "keep", "done", "cancel"):
+            if action not in ("start", "keep", "done"):
                 return self._json({"ok": False, "error": "bad calibration command"})
-            self._json(link.turn(action, side if side in ("left", "right") else None))
+            self._json(drive.turn(action, side if side in ("left", "right") else None, epoch))
         elif self.path == "/api/calibration/forget":
             what = str(b.get("what", ""))
-            self._json({"ok": link.cal.forget(what)})
+            self._json({"ok": drive.cal.forget(what)})
         elif self.path == "/api/vision/choose":
             # {"model": "nano|tiny|s|m", "chip": "auto|gpu|cpu"}: which recognition model, and where it runs
             self._json(see.choose(str(b.get("model", "")), str(b.get("chip", ""))))
@@ -1285,20 +1372,28 @@ class Handler(BaseHTTPRequestHandler):
             cam.forget()
             self._json({"ok": True})
         elif self.path == "/api/map/reset":
-            link.world.reset()
+            drive.world.reset()
             self._json({"ok": True})
         elif self.path == "/api/map/placement/forget":
-            link.world.forget_placement()
+            drive.world.forget_placement()
             self._json({"ok": True})
         elif self.path == "/api/map/robot":
-            self._json({"ok": True, "robot": link.world.set_robot(b.get("robot"))})
+            self._json({"ok": True, "robot": drive.world.set_robot(b.get("robot"))})
         elif self.path == "/api/fake":
-            if b.get("on"):
-                err = fake.start()
-                self._json({"ok": err is None, "error": err})
-            else:
-                fake.stop()
-                self._json({"ok": True})
+            if type(b.get("on")) is not bool:
+                return self._json({"ok": False, "error": "Choose whether to turn Practice on."}, 400)
+            self._json(set_practice(b["on"]))
+        elif self.path == "/api/fake/copy-controls":
+            with mode_lock:
+                if not fake.srv:
+                    return self._json({"ok": False, "error": "Turn Practice on first."})
+                with practice_link.lock:
+                    controls = practice_link.mapper.mapping
+                try:
+                    link.save_mapping(controls)
+                except OSError:
+                    return self._json({"ok": False, "error": "The brick's controls could not be saved."})
+            self._json({"ok": True})
         elif self.path in ("/api/brick/ports", "/api/brick/run", "/api/brick/stop",
                            "/api/wifi/scan", "/api/wifi/join", "/api/wifi/saved", "/api/wifi/forget"):
             host = str(b.get("host", "")).strip()
@@ -1311,7 +1406,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path == "/api/brick/run":
                     r = ev3_brick.run(host, "powershock-wifi.jar")
                 elif self.path == "/api/brick/stop":
-                    link.set_input(None)
+                    link.stop()
                     r = ev3_brick.stop(host)
                 elif self.path == "/api/wifi/scan":
                     r = {"ok": True, "networks": ev3_brick.wifi_scan(host)}
@@ -1347,7 +1442,7 @@ def main():
         pass
     finally:
         link.disconnect()
-        fake.stop()
+        set_practice(False)
 
 
 if __name__ == "__main__":

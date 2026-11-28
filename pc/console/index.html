@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PowerShock</title>
+<link rel="icon" href="data:,">
 <script>document.documentElement.dataset.theme = localStorage.getItem("theme") === "day" ? "day" : "night";</script>
 <style>
   /* Two looks. Night (the default) is an instrument cluster after dark: a blue-graphite cabin,
@@ -1545,6 +1546,8 @@
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="3" stroke-dasharray="3 2"/><circle cx="12" cy="15" r="2"/></svg>Practice<span class="pill" id="practicePill">off</span></div>
           <div class="ct-body">A pretend EV3 on this laptop, in a small room: two large motors, two medium motors (one steers, with end stops), and touch, colour and infrared sensors.</div>
           <label class="toggle"><input id="fakeToggle" type="checkbox"><span class="track"></span><span>Practice without the brick</span></label>
+          <button class="link hidden" id="practiceCopy">Copy Practice controls to brick profile</button>
+          <p class="note" id="practiceNote" role="status"></p>
         </div>
       </div>
       <div class="card setup hidden" id="setupPanel">
@@ -1676,6 +1679,8 @@ const api = async (path, body, ms) => {
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const S = { src: "pad", armed: false, keys: new Set(), link: null, fake: null, bt: null, brick: null, pinnedHost: localStorage.getItem("ev3host") || "" };
+const profileApi = (path, body) => api(path, { practice: S.link?.practice, ...body });
+const motorApi = (path, body) => profileApi(path, { epoch: S.armEpoch, ...body });
 const setNote = (id, text, kind) => { $(id).textContent = text || ""; $(id).className = "note " + (kind || ""); };
 const setHTML = (el, html) => { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
 async function busy(btn, fn) { btn.classList.add("busy"); btn.disabled = true; try { return await fn(); } finally { btn.classList.remove("busy"); btn.disabled = false; } }
@@ -1836,7 +1841,7 @@ function deviceHTML(p, v, live, cp) {
   const role = roleOf(p);
   const spd = live ? Math.round(live.speed / 6) : null;
   const label = `<div class="dlabel" style="${p.startsWith("S") ? "top" : "bottom"}: calc(100% + 10px)">${esc(v.label)}${role ? `<small>${role.replace(/ \(.*\)/, "")}</small>` : ""}${v.kind === "motor" ? '<small data-rpm>0 rpm</small><em data-stall hidden>stalled</em>' : ""}</div>`;
-  const ctl = v.kind === "motor" && S.link && S.link.connected && S.link.telemetry
+  const ctl = v.kind === "motor" && S.armed && S.link?.telemetry
     ? `<div class="mctl" data-port="${p}"><button data-dir="-1" title="Hold to run backwards">⟲</button><button data-dir="1" title="Hold to run forwards">⟳</button><button data-deg="-90">−90°</button><button data-deg="90">+90°</button></div>` : "";
   const hub = `<div class="hub" style="transform: rotate(${live ? live.tacho : 0}deg)"><i></i><i></i><i></i><i></i></div>`;
   let body;
@@ -1863,7 +1868,7 @@ function drawPorts() {
     el.classList.toggle("on", v.cls === "on");
     const mount = el.querySelector(".mount");
     // Re-render the device only when its shape changes; turn the hub in place so it animates.
-    const key = `${v.cls}|${v.dev}|${v.note}|${v.warn}|${!!(S.link && S.link.connected && S.link.telemetry)}`;
+    const key = `${v.cls}|${v.dev}|${v.note}|${v.warn}|${!!(S.armed && S.link?.telemetry)}`;
     if (mount.dataset.key !== key) { mount.innerHTML = deviceHTML(p, v, live, cp); mount.dataset.key = key; }
     const hub = mount.querySelector(".hub");
     if (hub && live) hub.style.transform = `rotate(${live.tacho}deg)`;
@@ -1900,6 +1905,7 @@ async function pollRobot(force) {
   S.robotAt = Date.now();
   try {
     const [m, c] = await Promise.all([api("/api/map"), api("/api/calibration")]);
+    if (m.practice !== S.link?.practice || c.practice !== m.practice) return;
     S.robot = m.robot; S.robotLayout = m.layout; if (!S.cal || !(S.cal.job && S.cal.job.state === "running")) S.cal = c;
     if (!S.mapFilled) { fillMapSize(m.robot); S.mapFilled = true; }
   } catch (e) { /* the console stopped: the notices say so */ }
@@ -2092,7 +2098,8 @@ function drawDevices(cp) {
   const m = cp.motors || {};
   const all = [...MOTOR_PORTS, ...SENSOR_PORTS];
   const present = all.filter((p) => cp.ports && cp.ports[p] && cp.ports[p].connected);
-  const canTest = !!(S.link && S.link.connected && S.link.telemetry);
+  const ready = !!(S.link && S.link.connected && S.link.telemetry);
+  const canTest = ready && S.armed;
   const P = mapPorts();
   // rebuild only when the set of devices or groups changes, so held buttons keep working
   const sensed = cp.sensors || {};
@@ -2140,10 +2147,10 @@ function drawDevices(cp) {
   $("devNote").textContent = !cp.ports ? ""  // the list above already says why
     : canTest ? `Hold ⟲ ⟳ to run; turns are exact. Tests run at the speed limit set in the top bar (${S.testSpeed}%). Space stops all.`
       + (grouped ? " Motors that work together move together: try a low speed and +90° first, and if they strain against each other, turn on Reversed." : "")
-    : "Start PowerShock and connect to test motors from here.";
+    : ready ? "Turn motors on to run a motor test." : "Start PowerShock and connect to test motors from here.";
 }
 function sendTest(port, action, value) {
-  return api("/api/test", { port, action, value: value || 0, speed: S.testSpeed });
+  return motorApi("/api/test", { port, action, value: value || 0, speed: S.testSpeed });
 }
 let holding = null;
 const portOfButton = (b) => (b.closest("[data-port]") || b.closest(".devrow")).dataset.port || b.closest(".devrow").dataset.p;
@@ -2162,7 +2169,12 @@ function testClick(e) {
   const port = portOfButton(b);
   if (b.dataset.stop !== undefined) sendTest(port, "stop"); else sendTest(port, "rotate", +b.dataset.deg);
 }
-function release() { if (!holding) return; clearInterval(holding.timer); holding.b.classList.remove("pressed"); sendTest(holding.port, "stop"); holding = null; }
+function release(stop = true) {
+  if (!holding) return;
+  clearInterval(holding.timer); holding.b.classList.remove("pressed");
+  if (stop) sendTest(holding.port, "stop");
+  holding = null;
+}
 for (const box of [$("devList"), $("scene")]) {
   box.addEventListener("pointerdown", testDown);
   box.addEventListener("click", testClick);
@@ -2177,7 +2189,12 @@ document.addEventListener("mouseover", (e) => {
 // ---------- controls page ----------
 S.mapDraft = null;
 let presets = {};
-api("/api/mapping").then((r) => { presets = r.presets || {}; S.mapDraft = r.mapping; drawControls(true); });
+api("/api/mapping").then((r) => {
+  presets = r.presets || {};
+  if (!S.link || S.link.practice === r.practice) {
+    S.mapDraft = r.mapping; S.mapProfile = r.practice; drawControls(true);
+  }
+});
 const AXIS_OPTS = ["LX", "LY", "RX", "RY", "R2-L2", "R2", "L2"];
 const sel = (key, value, opts) => `<select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${v === value ? "selected" : ""}>${t}</option>`).join("")}</select>`;
 const axisSel = (key, value, withNone) => sel(key, value, [...AXIS_OPTS, ...(withNone ? ["none"] : [])].map((a) => [a, AXIS_NAME[a]]));
@@ -2224,7 +2241,7 @@ function portCard(p, c, cp, ports) {
   if (c.mode === "position") f += `<div class="field" style="align-items:start"><span>Centre</span><div style="display:grid;gap:6px">
       <div class="nudge"><span class="grp"><button data-nudge="${p}:-5" title="Turn 5° back">◀ 5°</button><button data-nudge="${p}:-1" title="Turn 1° back">◀ 1°</button></span><span class="grp"><button data-nudge="${p}:1" title="Turn 1° on">1° ▶</button><button data-nudge="${p}:5" title="Turn 5° on">5° ▶</button></span></div>
       <div class="nudge"><button class="btn" data-zero="${p}">Set centre here</button><button class="btn" data-home="${p}" title="Turn back to the saved centre">Go to 0°</button></div>
-      <span class="help">Nudge until the wheels point straight, then Set centre here.</span></div></div>`;
+      <span class="help">Turn motors on, nudge until the wheels point straight, then Set centre here.</span></div></div>`;
   const mates = c.mode === "follow" ? [] : followersOf(p, ports);
   const group = mates.length ? `<div class="mates"><p class="mh">Runs together with ${mates.join(" and ")}: they get exactly what ${p} gets, so they start, stop and change speed as one. The test buttons move them all. Turn on Reversed for a motor mounted facing the other way, or the two will fight.</p>
       ${mates.map((q) => mateRow(q, ports[q], cp, ports)).join("")}</div>` : "";
@@ -2251,7 +2268,8 @@ function drawControls(force) {
       <label class="field"><span>Stop short by</span>${range("brake.stop", bk.stop, 5, 40, 1, " cm")}</label>
       <label class="field"><span>Slow from</span>${range("brake.slow", bk.slow, 20, 70, 5, " cm")}</label>
       <label class="toggle"><input type="checkbox" data-k="brake.camera" ${bk.camera !== false ? "checked" : ""}><span class="track"></span><span>Use the camera too</span></label>
-      <p class="help">Uses the infrared or ultrasonic sensor facing ahead (or behind). Only driving towards the obstacle is braked, so you can always back away or turn on the spot. Runs on this laptop: switch it off to push things on purpose.</p>
+      <label class="toggle"><input type="checkbox" data-k="brake.required" ${bk.required ? "checked" : ""} ${bk.on ? "" : "disabled"}><span class="track"></span><span>Brake coverage required</span></label>
+      <p class="help">With coverage required, you can drive only in a direction with a fresh range reading or a clear camera view. The camera covers forward driving. You can still turn a tank on the spot.</p>
       <p class="help">With the camera: it watches the floor across the robot's whole width, not just the sensor's narrow line. With object recognition set up, people and pets close ahead get twice the room, at half the speed. A patterned rug confuses it; then only the sensor counts.</p>`;
   }
   // live output on each card
@@ -2264,18 +2282,30 @@ function drawControls(force) {
   });
 }
 let saveTimer = null;
+let savePending = Promise.resolve();
+let saving = 0;  // saves on their way to the console; meanwhile its mapping may still be the old one
 function saveMapping() {
   $("mapSaved").textContent = "Saving…";
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    const sent = JSON.stringify(S.mapDraft);
+  saveTimer = setTimeout(flushMapping, 250);
+}
+function flushMapping() {
+  if (saveTimer === null) return savePending;
+  clearTimeout(saveTimer); saveTimer = null;
+  const practice = S.mapProfile, draft = S.mapDraft, sent = JSON.stringify(draft);
+  saving++;
+  savePending = savePending.then(async () => {
     try {
-      const r = await api("/api/mapping", { mapping: S.mapDraft });
+      const r = await api("/api/mapping", { practice, mapping: JSON.parse(sent) });
+      if (r.ok && r.mapping) S.mapSeen = JSON.stringify(r.mapping);
+      if (S.mapDraft !== draft || JSON.stringify(draft) !== sent) return;
       if (!r.ok) { $("mapSaved").textContent = "Not saved: " + r.error; return; }
-      if (JSON.stringify(S.mapDraft) === sent) S.mapDraft = r.mapping;  // else a newer save is coming
+      S.mapDraft = r.mapping;
       $("mapSaved").textContent = "Saved";
-    } catch (e) { $("mapSaved").textContent = "Not saved: the console isn't answering"; }
-  }, 250);
+    } catch (e) { if (S.mapDraft === draft) $("mapSaved").textContent = "Not saved: the console isn't answering"; }
+    finally { saving--; }
+  });
+  return savePending;
 }
 const MODE_DEFAULTS = {
   off: { mode: "off" },
@@ -2307,13 +2337,16 @@ $("pgrid").addEventListener("click", async (e) => {
     const live = S.link && S.link.telemetry && S.link.telemetry.motors && S.link.telemetry.motors[port];
     if (!live) { $("fitNote").textContent = "Connect to PowerShock first to move the motor."; return; }
     const deg = n ? +n.dataset.nudge.split(":")[1] : -live.tacho;
-    if (deg) await api("/api/test", { port, action: "rotate", value: deg, speed: 20 });
+    if (deg) {
+      const r = await motorApi("/api/test", { port, action: "rotate", value: deg, speed: 20 });
+      if (!r.ok) { $("fitNote").textContent = r.error; return; }
+    }
     $("fitNote").textContent = n ? `Port ${port}: turned ${deg > 0 ? "+" : ""}${deg}°, now at ${live.tacho + deg}°.` : `Port ${port}: back at 0°.`;
     return;
   }
   const b = e.target.closest("[data-zero]"); if (!b) return;
-  const r = await api("/api/test", { port: b.dataset.zero, action: "zero" });
-  $("fitNote").textContent = r.ok ? `Port ${b.dataset.zero}: centre set to where the motor is now.` : "Connect to PowerShock first to set the centre.";
+  const r = await motorApi("/api/test", { port: b.dataset.zero, action: "zero" });
+  $("fitNote").textContent = r.ok ? `Port ${b.dataset.zero}: centre set to where the motor is now.` : r.error;
 });
 $("presets").addEventListener("click", (e) => {
   const b = e.target.closest(".preset"); if (!b || !presets[b.dataset.preset]) return;
@@ -2521,7 +2554,7 @@ function padStatus(gp) {
 }
 window.addEventListener("gamepaddisconnected", () => {
   S.padLost = Date.now();
-  if (S.armed && S.src === "pad") { setArmed(false); S.disarmWhy = "Motors switched off: the controller disconnected."; }
+  if ((S.armed || S.armPending) && S.src === "pad") stopAll("Motors switched off because the controller disconnected.");
 });
 window.addEventListener("gamepadconnected", () => { S.padLost = 0; });
 function drawPadState(st) {
@@ -2814,7 +2847,7 @@ $("runBtn").addEventListener("click", () => busy($("runBtn"), async () => {
   pollBrick();
 }));
 $("stopProgBtn").addEventListener("click", () => busy($("stopProgBtn"), async () => {
-  stopAll(); await api("/api/disconnect", {});
+  await stopAll(); await profileApi("/api/disconnect", {});
   const r = await api("/api/brick/stop", { host: brickHost() });
   setNote("progNote", r.ok ? "Stopped." : r.error, r.ok ? "" : "bad"); pollBrick();
 }));
@@ -2840,7 +2873,7 @@ function drawNext() {
   if (S.consoleDown) return nextStep("bad", "!", "The console has stopped", "Start it again on this laptop (python pc\\ev3_console.py), then reload this page. The brick stops its motors by itself.");
   if (S.fake && S.fake.running) {
     if (!L.connected) return nextStep("", "…", "Connecting to the practice brick", "");
-    if (!S.armed) return nextStep("go", "▶", "Ready to practise", "Turn motors on, then drive with the controller or keyboard.", "Turn motors on", async () => setArmed(true));
+    if (!S.armed) return nextStep("go", "▶", "Ready to practise", S.disarmWhy || "Turn motors on, then drive with the controller or keyboard.", "Turn motors on", armMotors);
     return nextStep("go", "▶", "Driving the practice brick", "Space or Stop turns motors off.");
   }
   if (!brickHost()) {
@@ -2861,7 +2894,7 @@ function drawNext() {
     if (missing.length) return nextStep("warn", "!", `Nothing plugged into ${missing.join(" and ")}`, `Your controls use ${missing.join(" and ")}. Plug motors in there, or change the layout on the Driving page.`, "Open Controls", async () => { location.hash = "controls"; });
   }
   if (volts != null && volts < 7.5) return nextStep("warn", "!", `Battery is getting low (${volts.toFixed(1)} V)`, "Motors will be slower. Replace the batteries soon.");
-  if (!S.armed) return nextStep("go", "▶", "Ready to drive", `Connected over ${L.via || "the network"}. Turn motors on when the robot has room to move.`, "Turn motors on", async () => setArmed(true));
+  if (!S.armed) return nextStep("go", "▶", "Ready to drive", S.disarmWhy || `Connected over ${L.via || "the network"}. Turn motors on when the robot has room to move.`, "Turn motors on", armMotors);
   return nextStep("go", "▶", "Driving", "Space or Stop turns motors off.");
 }
 
@@ -3014,35 +3047,76 @@ $("savedNets").addEventListener("click", (e) => {
   });
 });
 $("fakeToggle").addEventListener("change", async (e) => {
-  setArmed(false);
-  if (e.target.checked) {
-    const r = await api("/api/fake", { on: true });
-    if (!r.ok) { e.target.checked = false; return; }
-    await api("/api/connect", { host: "127.0.0.1" });
-  } else { await api("/api/disconnect", {}); await api("/api/fake", { on: false }); }
+  const toggle = e.target, on = toggle.checked;
+  toggle.disabled = true;
+  try {
+    await stopAll();
+    await flushMapping();
+    const r = await api("/api/fake", { on });
+    setNote("practiceNote", r.ok ? "" : r.error, r.ok ? "" : "bad");
+    await pollLink();
+  } catch (err) { setNote("practiceNote", "The console did not answer. Try again.", "bad"); }
+  finally { toggle.disabled = false; toggle.checked = !!S.link?.practice; }
 });
+$("practiceCopy").addEventListener("click", () => busy($("practiceCopy"), async () => {
+  if (!confirm("Replace the brick profile's controls, speed limits, and brake settings with the Practice settings?")) return;
+  await flushMapping();
+  const r = await api("/api/fake/copy-controls", {});
+  setNote("practiceNote", r.ok ? "Controls copied. Check motor ports and directions before driving the brick." : r.error,
+    r.ok ? "ok" : "bad");
+}));
 
 // ---------- arming / stop ----------
-// Motors on belongs to one link: the console refuses input from before a drop (S.armEpoch).
 function setArmed(on) {
-  if (on && !(S.link && S.link.connected)) {
-    on = false;
-    S.disarmWhy = "Motors can only go on while the brick is connected.";
-  } else if (on) { S.disarmWhy = null; S.armEpoch = S.link.epoch; }
   S.armed = on; drawArm(); $("lcdArm").textContent = on ? "MOTORS ON" : "SAFE";
   $("stopBtn").classList.toggle("live", on);
+  if (!on) release(false);
   drawBrake();
-  if (!on) api("/api/stop", {});
+  drawPorts(); drawCal();
   drawNext();
+}
+async function armMotors() {
+  if (S.armed || S.armPending) return;
+  if (S.src === "pad" && !inputState()) {
+    S.disarmWhy = "Connect a controller or select Keyboard before turning motors on.";
+    drawArm(); drawNext(); return;
+  }
+  const pending = {};
+  const link = S.link;
+  const stopPending = S.stopPending;
+  if (!link?.connected) {
+    S.disarmWhy = "Connect to PowerShock before turning motors on.";
+    drawArm(); drawNext(); return;
+  }
+  S.armPending = pending;
+  try {
+    const stopped = await stopPending;
+    await flushMapping();
+    if (S.armPending !== pending || link.practice !== S.link?.practice) return;
+    const epoch = stopPending && stopped?.practice === link.practice ? stopped.epoch : link.epoch;
+    const r = await api("/api/arm", { practice: link.practice, epoch }, 2000);
+    if (S.armPending !== pending) return;
+    if (r.ok) { S.armEpoch = r.epoch; S.disarmWhy = null; setArmed(true); }
+    else { S.disarmWhy = r.error; pollLink(); }
+  } catch (err) {
+    if (S.armPending === pending) stopAll("The console did not answer. Try turning motors on again.");
+  } finally {
+    if (S.armPending === pending) { S.armPending = null; drawArm(); drawNext(); }
+  }
 }
 // The obstacle brake runs in the console (pc/brake.py); this only shows what it's doing.
 function brakeText(k) {
   if (!k) return "";
-  const what = k.dist != null ? `something ${Math.round(k.dist)} cm ahead${k.src === "camera" ? ", seen by the camera" : ""}`
-    : k.careful ? `${k.careful} ahead` : "something ahead";
+  const direction = k.asked < 0 ? "behind" : "ahead";
+  const what = k.dist != null ? `something ${Math.round(k.dist)} cm ${direction}${k.src === "camera" ? ", seen by the camera" : ""}`
+    : k.careful ? `${k.careful} ahead` : `something ${direction}`;
   const care = k.careful && k.dist != null ? ` (${k.careful} close by: more room, half speed)` : k.careful ? " (more room, half speed)" : "";
   return k.state === "stop" ? `Stopped: ${what}${care}` : k.state === "slow" ? `Slowing: ${what}${care}`
-    : k.state === "blind" ? "Stopped: no reading from the sensor or camera" : "";
+    : k.state === "blind" ? brakeBlindText(k) : "";
+}
+function brakeBlindText(k) {
+  if (k.blindReason === "layout") return "Set a Car or Tank layout for brake coverage";
+  return k.blindReason ? `No usable reading ${k.blindReason}` : "No reading from the sensor or camera";
 }
 function drawBrake() {
   const k = S.link && S.link.connected ? S.link.brake : null;
@@ -3050,17 +3124,33 @@ function drawBrake() {
   $("sbBrakeItem").classList.toggle("hidden", !active);
   if (active) {
     const d = k.dist != null ? `${Math.round(k.dist)} cm` : k.careful || "";
-    $("sbBrake").textContent = k.state === "slow" ? `Slowing · ${d}` : k.state === "blind" ? "No reading" : `Stopped · ${d}`;
+    $("sbBrake").textContent = k.state === "slow" ? `Slowing · ${d}` : k.state === "blind" ? brakeBlindText(k) : `Stopped · ${d}`;
     $("sbBrakeDot").className = "dot " + (k.state === "slow" ? "warn" : "bad");
   }
   setHTML($("camHud"), S.armed ? "<b>●</b> Motors on · Space stops" + (active ? " · " + esc(brakeText(k)) : "") : "Motors off");
   const now = !k ? "" : k.state === "off" ? "Off" : k.state === "no sensor" ? "No range sensor plugged in"
     : k.state === "sideways" ? "The range sensor faces sideways" : k.state === "no layout" ? "No motors drive yet"
-    : k.state === "blind" ? "No sensor reading" : k.braking && S.armed ? brakeText(k)
+    : k.state === "blind" ? brakeBlindText(k) : k.braking && S.armed ? brakeText(k)
     : (k.dist != null ? `Nearest thing ahead: ${Math.round(k.dist)} cm` : "Clear") + (k.camera ? ", camera watching" : "");
   if ($("brakeNow").textContent !== now) $("brakeNow").textContent = now;
 }
-function stopAll() { setArmed(false); }
+function stopAll(why) {
+  S.armPending = null;
+  S.keys.clear();
+  S.disarmWhy = typeof why === "string" ? why : "Motors stopped. Turn them on again when ready.";
+  setArmed(false);
+  if (!S.stopPending) {
+    S.stopPending = api("/api/stop", {}, 2000).then((r) => {
+      if (S.link?.practice === r.practice && r.epoch > S.link.epoch) {
+        S.link = { ...S.link, epoch: r.epoch, armed: false };
+      }
+      return r;
+    }).catch(() => {}).finally(() => {
+      S.stopPending = null; pollLink();
+    });
+  }
+  return S.stopPending;
+}
 function armSpeed() { const m = S.mapDraft || currentMapping(); return m && m.speed ? m.speed.base : 60; }
 function drawArm() {
   const v = S.armed ? armSpeed() : 0, r = $("armRange");
@@ -3072,10 +3162,10 @@ function drawArm() {
 // all the way left switches them off.
 $("armRange").addEventListener("input", (e) => {
   const v = +e.target.value;
-  if (v === 0) { if (S.armed) setArmed(false); else drawArm(); return; }
+  if (v === 0) { if (S.armed || S.armPending) stopAll(); else drawArm(); return; }
   const sp = Math.max(10, v);
   if (S.mapDraft && S.mapDraft.speed && S.mapDraft.speed.base !== sp) { S.mapDraft.speed.base = sp; saveMapping(); if (location.hash === "#driving") drawControls(true); }
-  if (!S.armed) setArmed(true); else drawArm();
+  if (!S.armed) armMotors(); else drawArm();
   if (!S.armed) drawNext();
 });
 $("stopBtn").addEventListener("click", stopAll);
@@ -3083,7 +3173,7 @@ function setSrc(src) {
   S.src = src;
   document.querySelectorAll("#srcMenu [data-src]").forEach((x) => x.setAttribute("aria-checked", x.dataset.src === src));
   $("padView").classList.toggle("hidden", src !== "pad"); $("manualView").classList.toggle("hidden", src !== "manual");
-  setArmed(false);
+  if (S.armed || S.armPending) stopAll();
 }
 $("srcMenu").addEventListener("click", (e) => {
   const b = e.target.closest("[data-src]");
@@ -3107,17 +3197,24 @@ $("srcMenu").addEventListener("keydown", (e) => {
 });
 const typing = () => document.activeElement && document.activeElement.tagName === "INPUT" && ["text", "password"].includes(document.activeElement.type);
 addEventListener("keydown", (e) => {
+  if ((e.code === "Space" || e.code === "Escape") && (S.armed || S.armPending)) { e.preventDefault(); stopAll(); return; }
   if (typing() || e.target.closest && e.target.closest("select")) return;
-  if (e.code === "Space" || e.code === "Escape") { e.preventDefault(); stopAll(); return; }
+  if (e.code === "Space" && e.target === document.body) { e.preventDefault(); stopAll(); return; }
+  if (e.target.matches?.("textarea, input[type=number]")) return;
+  if (e.code.startsWith("Arrow") && e.target.matches?.("input[type=range]")) return;
   if (S.src === "manual" && e.code.startsWith("Arrow")) e.preventDefault();
   S.keys.add(e.code);
 });
 addEventListener("keyup", (e) => S.keys.delete(e.code));
-addEventListener("blur", () => { S.keys.clear(); stopAll(); });
+function stopOnLeave() {
+  S.keys.clear();
+  if (S.armed || S.armPending) stopAll();
+}
+addEventListener("blur", stopOnLeave);
+document.addEventListener("visibilitychange", () => { if (document.hidden) stopOnLeave(); });
 
 // ---------- controller ----------
 const BTN = { cross: 0, circle: 1, square: 2, triangle: 3, L1: 4, R1: 5, L2: 6, R2: 7, share: 8, options: 9, L3: 10, R3: 11, up: 12, down: 13, left: 14, right: 15, PS: 16, pad: 17 };
-let prevOptions = false;
 function readPad() {
   const pads = [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
   const gp = pads.find((p) => p.mapping === "standard") || pads[0];
@@ -3200,22 +3297,21 @@ function drawPad(p) {
     const v = sent[x], pct = outPct(x, v), w = Math.abs(pct) / 2, left = pct >= 0 ? 50 : 50 - w;
     return `<div class="get ${pct ? "" : "idle"}"><span><b>${x}</b> ${esc((roleOf(x) || "").replace(/ \(.*\)/, ""))}</span><span class="bar"><i style="left:${left}%;width:${w}%"></i></span><span class="val">${outText(v)}</span></div>`;
   }).join("") : '<p class="muted">No ports mapped. Set them up on the Driving page.</p>');
-  $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off: switch on Motors on to drive.") : q.btn.cross ? "✕ held: everything stopped." : q.btn.circle ? "◯ held: handbrake, the drive motors brake and steering still works." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
+  $("getWhy").textContent = !L.connected ? "Not connected to the brick." : !S.armed ? (S.disarmWhy || "Motors are off. Turn them on to drive.") : q.btn.circle ? "◯ held: handbrake, the drive motors brake and steering still works." : `Speed limit ${speed}%.` + (boostAxis !== "none" ? ` Hold ${boostAxis} for more.` : "");
   // glow the sockets that are being driven
   document.querySelectorAll(".sock").forEach((el) => el.classList.toggle("active", !!outPct(el.dataset.p, sent[el.dataset.p]) && !!plugged(el.dataset.p)));
 }
 let inflight = false;
 setInterval(async () => {
   const p = inputState(); drawPad(p);
-  if (p && p.source === "pad" && p.btn.options && !prevOptions) stopAll();
-  prevOptions = !!(p && p.btn.options);
+  if ((S.armed || S.armPending) && p?.source === "pad" && (p.btn.cross || p.btn.options)) stopAll();
   if (S.armed && p && !inflight) {
     inflight = true;
+    const epoch = S.armEpoch;
     try {
-      const res = await fetch("/api/input", { method: "POST", signal: AbortSignal.timeout(300), headers: { "X-PowerShock": "1", "Content-Type": "application/json" },
-        body: JSON.stringify({ lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry, l2: p.l2, r2: p.r2, stop: !!p.btn.cross, hand: !!p.btn.circle, src: p.source, epoch: S.armEpoch }) });
-      const r = await res.json();
-      if (r.rearm && S.armed) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped. Switch them on again when the robot has room."; drawNext(); }
+      const r = await api("/api/input", { practice: S.link?.practice, epoch, lx: p.lx, ly: p.ly, rx: p.rx, ry: p.ry,
+        l2: p.l2, r2: p.r2, hand: !!p.btn.circle, src: p.source }, 300);
+      if (r.rearm && S.armed && S.armEpoch === epoch) { S.disarmWhy = "Motors switched off. Turn them on again when ready."; setArmed(false); }
     } catch (e) {} finally { inflight = false; }
   }
 }, 40);
@@ -3231,7 +3327,7 @@ async function pollLinkOnce() {
   let s;
   try { s = await api("/api/status", undefined, 2000); } catch (e) {
     $("sbLinkDot").className = "dot bad"; $("sbLink").textContent = "Console stopped"; S.link = null;
-    if (S.armed) { setArmed(false); S.disarmWhy = "Motors switched off: the console stopped."; }
+    if (S.armed || S.armPending) stopAll("Motors switched off because the console stopped answering.");
     if (!S.consoleDown) {
       S.consoleDown = true; S.brick = null; S.cam = null; S.fake = null;
       $("lcdHost").textContent = "EV3"; $("lcdRate").textContent = ""; setMeters({});
@@ -3242,10 +3338,28 @@ async function pollLinkOnce() {
     return;
   }
   S.consoleDown = false;
-  if (S.armed && S.link && S.link.connected && !s.link.connected) { setArmed(false); S.disarmWhy = "Motors switched off: the link to the brick dropped."; }
+  const L = s.link, practice = L.practice;
+  if (practice === S.link?.practice && L.connected && S.link.connected && L.epoch < S.link.epoch) return;
+  if (S.armed && (practice !== S.link?.practice || !L.connected || (L.epoch >= S.armEpoch && (!L.armed || L.epoch !== S.armEpoch)))) {
+    S.disarmWhy = "Motors switched off. Turn them on again when ready.";
+    setArmed(false);
+  }
   S.link = s.link; S.fake = s.fake; S.app = s.app;
+  if (S.mapProfile !== practice || !S.mapDraft) {
+    clearTimeout(saveTimer); saveTimer = null;
+    S.mapProfile = practice;
+    S.mapDraft = structuredClone(L.mapping); S.mapSeen = JSON.stringify(L.mapping); S.mapNext = null;
+    S.fittedAt = L.fitted?.at ?? null;
+    S.fitMsg = null; S.mapFilled = false; S.robot = null; S.cal = {}; S.map = null; S.floorRes = null;
+    $("mapSaved").textContent = "";
+    $("mapSave").disabled = true;
+    setNote("mapSizeSaved", "");
+    $("fitNote").textContent = "";
+    drawControls(true);
+    drawCal();
+    pollRobot(true); pollCal(true);
+  }
   if (s.app && $("appVer").textContent !== s.app.version) { $("appVer").textContent = s.app.version; $("footVer").textContent = s.app.version; }
-  const L = s.link, practice = s.fake.running && L.host === "127.0.0.1";
   // the console moved the controls onto the motors that are plugged in: take its mapping, so a
   // later edit here doesn't save the old one back, and say what moved
   const fitAt = L.fitted ? L.fitted.at : null;
@@ -3255,6 +3369,17 @@ async function pollLinkOnce() {
     $("fitNote").textContent = S.fitMsg.text;
   }
   S.fittedAt = fitAt;
+  // controls changed somewhere else (another tab, a fit, the API): take them, so the next edit here,
+  // even the speed slider, doesn't save this page's old copy over them. Not while an edit here is on
+  // its way, and only once two polls agree, so a reply sent before a save can't undo it.
+  const srv = L.mapping ? JSON.stringify(L.mapping) : null;
+  if (!srv || srv === S.mapSeen) S.mapNext = null;
+  else if (saveTimer !== null || saving) S.mapNext = null;
+  else if (S.mapNext !== srv) S.mapNext = srv;
+  else {
+    S.mapSeen = srv; S.mapNext = null;
+    if (JSON.stringify(S.mapDraft) !== srv) { S.mapDraft = structuredClone(L.mapping); drawControls(true); }
+  }
   if (L.connected) { $("sbLinkDot").className = "dot go"; $("sbLink").innerHTML = `<b>${practice ? "Practice" : esc(L.via || "Connected")}</b> <span class="opt">${esc(practice ? "" : L.host)}</span>`; }
   else if (L.want && !practice && brickState() === "unreachable") { $("sbLinkDot").className = "dot bad"; $("sbLink").innerHTML = `Brick not reachable, still trying <span class="opt">${esc(L.host)}</span>`; }
   else if (L.want) { $("sbLinkDot").className = "dot warn"; $("sbLink").textContent = `Reconnecting to ${practice ? "practice brick" : L.host}`; }
@@ -3278,6 +3403,7 @@ async function pollLinkOnce() {
   $("lcdRate").textContent = L.connected ? `${L.rate}Hz` : "";
   $("stageWho").textContent = L.connected ? (practice ? "Practice brick" : "EV3 at " + L.host) : "";
   $("fakeToggle").checked = s.fake.running;
+  $("practiceCopy").classList.toggle("hidden", !practice);
   drawPorts(); drawFacts(); drawProgram(); drawNext(); drawBrake();
   if (location.hash === "#driving") drawControls(false);
   if (location.hash === "#setup") drawConnTiles();
@@ -3401,7 +3527,7 @@ async function pollSee() {
   // not set up yet: ask again only now and then, in case it has been since
   if (want && S.seeRes && S.seeRes.ok === false && Date.now() - S.seeAt < 3000) return drawSee();
   S.seeBusy = true;
-  try { S.seeRes = await api("/api/vision", { on: want }); S.seeOn = want && S.seeRes.ok !== false; S.seeAt = Date.now(); }
+  try { S.seeRes = await profileApi("/api/vision", { on: want }); S.seeOn = want && S.seeRes.ok !== false; S.seeAt = Date.now(); }
   catch (e) { S.seeRes = null; S.seeOn = false; }
   finally { S.seeBusy = false; }
   drawSee();
@@ -3516,12 +3642,16 @@ async function pollCal(force) {
   if (!force && !running && location.hash !== "#driving") return;
   if (S.calBusy) return;
   S.calBusy = true;
-  try { S.cal = await api("/api/calibration"); } catch (e) { S.calBusy = false; return; }
-  S.calBusy = false;
+  try {
+    const c = await api("/api/calibration");
+    if (c.practice !== S.link?.practice) return;
+    S.cal = c;
+  } catch (e) { return; }
+  finally { S.calBusy = false; }
   drawCal();
 }
 function drawCal() {
-  const c = S.cal; if (!c) return;
+  const c = S.cal || {};
   const st = c.steer, t = c.turn || {}, sp = c.speed || {}, job = c.job;
   $("calSteer").textContent = st ? `${st.eachWay}° each way (motor ${st.port}); the steering turns up to ${st.range}°. Measured ${calDate(st.at)}.` : "Not measured yet.";
   const side = (k) => t[k] ? `${k === "left" ? "Left" : "Right"}: ${Math.round(t[k].across)} cm across, wheels at ${Math.round(t[k].wheel)}° (${calDate(t[k].at)})` : "";
@@ -3534,37 +3664,39 @@ function drawCal() {
   if (job) $("calJobNote").textContent = job.note || "";
   $("calTurnDone").classList.toggle("hidden", !(running && job.what === "turn"));
   $("calStop").textContent = running ? "Stop" : "Close";
-  const busy = running || !(S.link && S.link.connected);
+  const busy = running || !S.link?.connected || !S.armed;
   $("calSteerBtn").disabled = busy;
-  document.querySelectorAll("[data-turn]").forEach((b) => { b.disabled = busy || !S.armed; b.title = S.armed ? "" : "Switch Motors on first"; });
+  $("calSteerBtn").title = S.armed ? "" : "Turn motors on first";
+  document.querySelectorAll("[data-turn]").forEach((b) => { b.disabled = busy; b.title = S.armed ? "" : "Turn motors on first"; });
 }
 $("calSteerBtn").addEventListener("click", () => busy($("calSteerBtn"), async () => {
-  const r = await api("/api/calibration/steer", {});
+  const r = await motorApi("/api/calibration/steer", {});
   if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "steer", state: "failed", note: r.error } }; drawCal(); }
   await pollCal(true);
 }));
 document.querySelectorAll("[data-turn]").forEach((b) => b.addEventListener("click", () => busy(b, async () => {
-  const r = await api("/api/calibration/turn", { action: "start", side: b.dataset.turn });
+  const r = await motorApi("/api/calibration/turn", { action: "start", side: b.dataset.turn });
   if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "turn", state: "failed", note: r.error } }; drawCal(); }
   await pollCal(true);
 })));
 $("calTurnDone").addEventListener("click", () => busy($("calTurnDone"), async () => {
-  const r = await api("/api/calibration/turn", { action: "done" });
+  const r = await motorApi("/api/calibration/turn", { action: "done" });
   if (!r.ok) { S.cal = { ...(S.cal || {}), job: { what: "turn", state: "failed", note: r.error } }; drawCal(); }
   await pollCal(true);
 }));
+drawCal();
 $("calStop").addEventListener("click", async () => {
   const job = S.cal && S.cal.job;
-  if (job && job.state === "running") await api("/api/calibration/stop", {});
+  if (job && job.state === "running") await stopAll();
   else if (S.cal) { S.cal.job = null; drawCal(); return; }
   await pollCal(true);
 });
-$("calSpeedForget").addEventListener("click", async () => { await api("/api/calibration/forget", { what: "speed" }); pollCal(true); });
+$("calSpeedForget").addEventListener("click", async () => { await profileApi("/api/calibration/forget", { what: "speed" }); pollCal(true); });
 // While the car drives its circle, this page keeps saying it's still here: if it closes or loses
 // focus (Motors off), the console stops the car within about half a second.
 setInterval(() => {
   const job = S.cal && S.cal.job;
-  if (job && job.state === "running" && job.what === "turn" && S.armed && document.visibilityState === "visible") api("/api/calibration/turn", { action: "keep" }).catch(() => {});
+  if (job && job.state === "running" && job.what === "turn" && S.armed && document.visibilityState === "visible") motorApi("/api/calibration/turn", { action: "keep" }).catch(() => {});
 }, 200);
 setInterval(pollCal, 1000); pollCal(true);
 // ---------- the instrument panel over the 3D map ----------
@@ -3689,13 +3821,18 @@ function drawPlace(pl) {
 }
 $("mapPlace").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-place]"), pl = S.map && S.map.placement; if (!btn || !pl) return;
-  if (btn.dataset.place === "forget") return busy(btn, async () => { await api("/api/map/placement/forget", {}); pollMap(); });
+  if (btn.dataset.place === "forget") return busy(btn, async () => { await profileApi("/api/map/placement/forget", {}); pollMap(); });
   const set = (k, v) => { const el = document.querySelector(`#mapSize [data-k="${k}"]`); if (el) el.value = v; };
   set("camTilt", pl.tilt); if (pl.height != null) set("camHeight", pl.height);
   $("mapSave").click();
 });
 function fillMapSize(r) {
-  document.querySelectorAll("#mapSize [data-k]").forEach((el) => { if (document.activeElement !== el) el.value = r[el.dataset.k]; });
+  const changed = S.sizesProfile !== S.link?.practice;
+  S.sizesProfile = S.link?.practice;
+  $("mapSave").disabled = false;
+  document.querySelectorAll("#mapSize [data-k]").forEach((el) => {
+    if (changed || document.activeElement !== el) el.value = r[el.dataset.k];
+  });
 }
 function drawMapSeen(m) {
   const p = m && m.pose, objs = (m && m.objects) || [];
@@ -3722,7 +3859,7 @@ async function pollMapSee() {
   if (!want || S.mapSeeBusy) return; // when this stops asking, the console stops recognising a few seconds later
   if (S.mapSeeRes && S.mapSeeRes.ok === false && Date.now() - S.mapSeeAt < 3000) return;
   S.mapSeeBusy = true;
-  try { S.mapSeeRes = await api("/api/vision", { on: true }); S.mapSeeAt = Date.now(); } catch (e) { S.mapSeeRes = null; }
+  try { S.mapSeeRes = await profileApi("/api/vision", { on: true }); S.mapSeeAt = Date.now(); } catch (e) { S.mapSeeRes = null; }
   finally { S.mapSeeBusy = false; }
 }
 setInterval(pollMapSee, 500);
@@ -3741,7 +3878,8 @@ async function pollFloor() {
   try {
     if (S.visionOk === null) S.visionOk = !!(await api("/api/vision")).available;
     const practice = !!(S.fake && S.fake.running); // the practice camera has no picture to recognise
-    const r = await api("/api/vision", S.visionOk && !practice ? { floor: true, on: true } : { floor: true });
+    const r = await profileApi("/api/vision", S.visionOk && !practice ? { floor: true, on: true } : { floor: true });
+    if (practice !== S.link?.practice) return;
     S.floorRes = r.floor || null; S.floorAt = Date.now();
   } catch (e) { S.floorRes = null; }
   finally { S.floorBusy = false; }
@@ -3750,6 +3888,7 @@ setInterval(pollFloor, 500);
 async function pollMap() {
   if (location.hash !== "#driving") return;
   let m; try { m = await api("/api/map"); } catch (e) { return; }
+  if (m.practice !== S.link?.practice) return;
   S.map = m;
   const L = S.link;
   const mb = (L && L.mapping && L.mapping.brake) || { stop: 15, slow: 40 };
@@ -3764,11 +3903,14 @@ $("mapView").addEventListener("click", (e) => {
   $("mapView").querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
   if (window.Map3D) window.Map3D.setView(b.dataset.view);
 });
-$("mapReset").addEventListener("click", () => busy($("mapReset"), async () => { await api("/api/map/reset", {}); pollMap(); }));
+$("mapReset").addEventListener("click", () => busy($("mapReset"), async () => { await profileApi("/api/map/reset", {}); pollMap(); }));
 $("mapSave").addEventListener("click", () => busy($("mapSave"), async () => {
+  const practice = S.sizesProfile;
+  if (practice !== S.link?.practice) return;
   const robot = {};
   document.querySelectorAll("#mapSize [data-k]").forEach((el) => { robot[el.dataset.k] = Number(el.value); });
-  const r = await api("/api/map/robot", { robot });
+  const r = await api("/api/map/robot", { practice, robot });
+  if (practice !== S.link?.practice) return;
   if (r.ok) { fillMapSize(r.robot); S.robot = r.robot; drawRobot(); setNote("mapSizeSaved", "Saved.", "ok"); } else setNote("mapSizeSaved", "Couldn't save.", "bad");
 }));
 setInterval(pollMap, 250);
@@ -3781,7 +3923,9 @@ $("mapSize").addEventListener("focusout", () => $("mapSize").querySelectorAll(".
 
 setInterval(pollLink, 250); setInterval(pollBt, 2500); setInterval(pollBrick, 3000);
 Promise.all([pollLink(), pollBt()]).then(pollBrick);
-addEventListener("beforeunload", () => navigator.sendBeacon && navigator.sendBeacon("/api/stop", new Blob(["{}"], { type: "application/json" })));
+addEventListener("pagehide", () => {
+  if (S.armed || S.armPending) navigator.sendBeacon("/api/stop", new Blob(["{}"], { type: "application/json" }));
+});
 </script>
 <script type="module">
 // 3D gears (three.js): calculator, examples and the parts row.

@@ -29,9 +29,10 @@ SETTLE = 0.3              # s a decision must hold before it's logged, so the ed
 
 
 def settings(d):
-    """Checked brake settings from the page: {"on", "stop", "slow" (cm), "camera" (use it too)}."""
+    """Check the distances and switches saved with the controls."""
     d = d if isinstance(d, dict) else {}
-    out = {"on": bool(d.get("on", True)), "stop": STOP, "slow": SLOW, "camera": bool(d.get("camera", True))}
+    out = {"on": bool(d.get("on", True)), "stop": STOP, "slow": SLOW, "camera": bool(d.get("camera", True)),
+           "required": d.get("required") is True}
     try:
         out["stop"] = max(5.0, min(40.0, float(d.get("stop", STOP))))
     except (TypeError, ValueError):
@@ -129,18 +130,31 @@ class Brake:
         dt = 0.0 if self.last is None else max(0.0, min(0.2, now - self.last))
         self.last = now
         face = facing(robot.get("eyeAngle", 0))
-        ir = eye if eye is not None and face != 0 else None
-        # the camera looks ahead, so it only helps when the range sensor does too, or isn't there
-        cam = cam if conf.get("camera", True) and face != -1 else None
-        if ir is None and cam is not None:
-            face = 1
-        if not conf["on"] or not lay or (ir is None and cam is None):
+        asked = forward(res, lay)
+        required = conf["on"] and conf.get("required", False)
+        ir = eye if face else None
+        cam = cam if conf.get("camera", True) else None
+        blind_reason = None
+        if required:
+            # A fresh reading must cover the direction being requested. The camera looks forward.
+            direction = -1 if asked is not None and asked < 0 else 1
+            ir = ir if face == direction and ir is not None and now - ir["at"] <= STALE else None
+            cam = cam if direction == 1 and cam is not None and cam.get("good") and now - cam["at"] <= STALE else None
+            face = direction
+            if not lay:
+                blind_reason = "layout"
+            elif ir is None and cam is None:
+                blind_reason = "ahead" if face == 1 else "behind"
+        else:
+            cam = cam if face != -1 else None
+            if ir is None and cam is not None:
+                face = 1
+        if not conf["on"] or (not required and (not lay or (ir is None and cam is None))):
             self.allowed = 1.0
             why = ("off" if not conf["on"] else "no layout" if not lay
                    else "no sensor" if eye is None else "sideways")
-            fwd = forward(res, lay)
             self.state = {"state": why, "dist": None, "allowed": 1.0,
-                          "asked": None if fwd is None else round(fwd), "given": None if fwd is None else round(fwd)}
+                          "asked": None if asked is None else round(asked), "given": None if asked is None else round(asked)}
             self._note(why, now)
             return res
         stop, slow, top = conf["stop"], conf["slow"], 1.0
@@ -148,9 +162,9 @@ class Brake:
         if careful:
             stop = min(60.0, stop * 2)
             slow, top = min(150.0, max(slow * 2, stop + 10)), CAREFUL_SPEED
-        speed = (ir or cam).get("speed", 0.0)
+        speed = (ir or cam or {}).get("speed", 0.0)
         towards = max(0.0, speed * face)
-        near, src, blind = [], None, False
+        near, src, blind = [], None, blind_reason is not None
         if ir is not None:
             age = now - ir["at"]
             if age > STALE:
@@ -182,7 +196,10 @@ class Brake:
         out = dict(res)
         sides = _sides(res, lay)
         moving = False
-        if lay["type"] == "tank":
+        if not lay:
+            out = {p: ("s", 0) if v and v[0] == "s" else v for p, v in res.items()}
+            moving = any(v and v[0] == "s" and v[1] for v in res.values())
+        elif lay["type"] == "tank":
             left = [v for s, v, _ in sides.values() if s == "left"]
             right = [v for s, v, _ in sides.values() if s == "right"]
             if left and right:
@@ -200,11 +217,12 @@ class Brake:
                 for p, (s, v, sign) in sides.items():
                     out[p] = ("s", int(round(v * a * sign)))
         name = "blind" if blind else "stop" if a <= 0.0 else "slow" if a < 1.0 else "clear"
+        given = forward(out, lay)
         self.state = {"state": name, "dist": None if dist is None else round(max(0.0, dist), 1),
                       "allowed": round(a, 2), "braking": moving and a < 1.0, "src": src,
                       "careful": careful, "camera": cam is not None and bool(cam.get("good")),
-                      "stop": stop, "slow": slow,
-                      "asked": round(forward(res, lay)), "given": round(forward(out, lay))}
+                      "stop": stop, "slow": slow, "blindReason": blind_reason,
+                      "asked": None if asked is None else round(asked), "given": None if given is None else round(given)}
         # what it decided: only a change to the robot's driving counts, not what it merely sees
         self._note(name if moving and a < 1.0 or name == "blind" else "clear", now)
         return out

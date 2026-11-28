@@ -30,8 +30,12 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **The Your robot drawing is clickable:** the Pi camera opens the Pi page, a motor its card on the Driving page, a sensor its row in Devices, the brick the Setup page, and the car the size form.
 
 ### Fixed
+- **Stop requires turning Motors on again.** Late controller, motor test and calibration commands from the stopped session are refused. If the page goes quiet, active motor tests and calibration stop too.
+- **Practice uses its own controls, robot sizes and calibration.** An explicit copy action can transfer controls to the brick profile.
+- **Brake coverage required** blocks driving in directions without a usable sensor or camera reading and shows the missing coverage in the top bar.
 - **The Your robot drawing:** on a car, the size line under the axles no longer runs into the labels of the devices below it.
 - **Camera not answering on some Windows laptops:** the console couldn't find a Pi by its `.local` name when Windows only answers the name for IPv4 or IPv6 asked separately, so the camera showed "isn't answering" while the Pi was up. It now looks up each separately.
+- **An open page no longer saves old controls back.** A console page kept its own copy of the controls and only refreshed it on load, so after the controls changed elsewhere (another tab, Practice, the API), the next edit there, even moving the speed slider, saved the old copy over them. With mirrored drive motors, that could make them fight. The page now takes changes made elsewhere, unless an edit of its own is still being saved.
 
 ## [0.8.0] - 2026-11-27
 

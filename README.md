@@ -9,7 +9,7 @@ Drive a LEGO Mindstorms EV3 running leJOS with a PS4 DualShock 4 controller, fro
 - **See what the brick sees:** the brick, its motors and sensors in 3D, live. Each motor can be tested on its own.
 - **A live map:** the robot's infrared, ultrasonic, colour and gyro sensors build a 3D map of the room as you drive.
 - **A camera, if you have a Raspberry Pi:** drive from the robot's point of view. Optionally, the laptop recognises people, cups, balls, pets and more in the video, live.
-- **Built for a safe first drive:** the motors stop within half a second if anything goes quiet. They never restart by themselves after a dropped link.
+- **Built for a safe first drive:** Stop and a dropped link switch the motors off. Turn them on again when you're ready.
 - **No hardware?** **Practice** mode runs a pretend brick on the laptop.
 
 Current version: **0.7.0** (see [CHANGELOG.md](CHANGELOG.md)).
@@ -63,7 +63,7 @@ DualShock 4 ──Bluetooth/USB──▶ Windows laptop ──WiFi or Bluetooth�
 6. **Controller page:** pair the DualShock 4 with Windows, then press any button with the console open.
 7. **Driving page:** pick **Car**, **Tank** or **Fit to my motors**.
    - **Plugged in differently later?** If a motor your controls use isn't there but every job has a motor somewhere else, the console moves the jobs onto the motors that are plugged in, each with its own settings: steering to a medium motor, driving to the large ones, A before B. It waits until the motors have been the same for a moment and nobody has driven for 2 seconds, and says what moved above the brick. With a motor missing it changes nothing: a loose cable could otherwise turn the car's direction round. Check the direction once after a move, with the wheels off the ground.
-8. **Top bar:** slide the **Motors** slider (the power icon) to the right, and drive. All the way left is off; anywhere else is on, with that speed limit (the same as **Normal speed** on the Driving page; R2 still boosts). **Stop** (or Space, Esc, ✕ or Options on the controller) stops everything. To drive with the keyboard instead, click the controller in the top bar and choose **Keyboard**.
+8. **Top bar:** with a controller connected, slide the **Motors** slider (the power icon) to the right and drive. To use the keyboard, click the controller in the top bar and choose **Keyboard** first. The slider sets the same **Normal speed** as the Driving page. R2 still boosts. **Stop** (or Space, Esc, ✕ or Options on the controller) cancels driving, motor tests, and calibration. Turn **Motors** on again to move.
    - **The strip under the top bar** says what to do next, or what's wrong, on every page. The top bar itself shows icons and coloured dots; hover over one for the words.
    - **Handbrake:** hold ◯ (or F on the keyboard). The motors that drive brake while it's held, and the steering still works. Keep the throttle on and let go to power out of the slide: lock the rear wheels in a turn and the car swings round. The brick brakes for about a third of a second, then lets the wheels roll.
 
@@ -156,14 +156,15 @@ Which stick drives which motor. Pick a starting layout, then fine-tune each moto
 
 - **Steering ports** get a **Centre** control: nudge the wheels straight, then **Set centre here**.
 - **Car calibration:** what the car can really do, measured on the car. Repeat it any time, for example after rebuilding the steering. Results are kept in `pc/calibration.json`, with their dates.
-  - **Find steering limits:** the steering motor turns slowly each way until it meets its end stop. Centre is set halfway between, and the steering's **Turns up to** is set 4° short of the stops.
+  - **Find steering limits:** with Motors on and the wheels clear, the steering motor turns slowly each way until it meets its end stop. Centre is set halfway between, and the steering's **Turns up to** is set 4° short of the stops.
   - **Measure left turn / right turn:** with Motors on and about a metre of clear floor, the car drives slowly at full lock. Press **Back where it started** when it gets there. The distance the wheels measured gives the turning circle and the front wheels' real angle, and the map's steering ratio is set from it. It stops at once if the page closes, Motors goes off, or you press Stop, and the obstacle brake still works.
   - **Top speed:** learned by itself whenever you drive straight at full power, against the battery voltage, and shown for the battery now. A motor's top speed falls as the battery drains.
 - **Motors that work together** (two large motors on one axle, say): on the Robot page's **Devices** list, set **Works with** on one of them to the other, or on this page set the second port to **Same as A**. Grouped motors are joined by a bar in the Devices list, and share one card on this page: the leader's settings, with each motor that follows it underneath. It gets exactly what A gets, after smoothing, so the two always start, stop and change speed together. Turn on its **Reversed** if it's mounted facing the other way, or the two would fight. The test buttons on the Robot page move the whole group, and the obstacle brake and the map count both as driving.
 - **Changes** apply while you drive and are saved.
 - **Obstacle brake** (on unless you switch it off): with an infrared or ultrasonic sensor facing ahead, the robot slows down when something is closer than 40 cm and stops 15 cm short. Both distances can be changed.
+  - **Brake coverage required** (off by default): forward and reverse each need a fresh reading in that direction. A clear camera view covers forward. Reverse needs a rear-facing range sensor. The top bar says which reading is missing, and a tank can still turn on the spot. Motor tests and steering calibration move individual ports and need clear space.
   - **Infrared and ultrasonic together:** it goes by whichever sees the nearer obstacle. Each misses things the other sees: infrared misses dark surfaces, ultrasonic misses soft or slanted ones. Mount them close together at the front, since the map places both where **Robot size** says the sensor is.
-  - **Only driving towards the obstacle is braked.** You can always back away, or turn on the spot.
+  - **Only driving towards the obstacle is braked.** With the default settings you can back away, and a tank can turn on the spot.
   - **It runs on the laptop,** in the same loop that sends the commands, so no brick upload is needed. The sensor reading is up to a quarter of a second old, so the brake allows for how far the robot has driven since.
   - **No reading for 0.8 s:** it stops driving towards whatever might be there.
   - **While it brakes,** the status bar, the camera's full-screen view and the live map on the Driving page say so.
@@ -197,7 +198,7 @@ Work out speed and force with standard LEGO gears, shown in 3D.
 
 Everything the robot needs before driving, in the order you need it:
 
-1. **Connect:** Bluetooth, WiFi, **Practice**, and the camera.
+1. **Connect:** Bluetooth, WiFi, **Practice**, and the camera. Practice keeps its own controls, robot sizes and measurements until you quit the console. **Copy Practice controls to brick profile** explicitly replaces the brick's controls, speed and brake settings. Check the motor ports and directions before driving the brick.
    - **Set up WiFi** puts the brick on your network. Your password is turned into a WPA key on the laptop, so only the key reaches the brick.
    - **More than one network:** add each one the robot drives through, such as a router and its extender on another floor. The brick keeps them all, and **Forget** removes one. With brick program 0.8 or later, the brick moves to the strongest when its signal is weak. It only looks while the robot stands still, at most every two minutes, and only with two or more networks saved, because looking for networks stalls the radio for a second or two. The brick's dongle only sees 2.4 GHz networks. The Pi does the same with its own service: see [CAMERA.md](docs/CAMERA.md#7-move-to-the-strongest-wifi-optional).
    - **A new address after a switch:** if the brick's link has been lost for 8 seconds, the console looks for the PowerShock program on the laptop's networks, and connects to it at its new address. It only does this when exactly one brick answers.

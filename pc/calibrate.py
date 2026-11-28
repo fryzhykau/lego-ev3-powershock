@@ -60,9 +60,11 @@ class Calibration:
         self.dirty = False
 
     def _load(self):
+        d = {}
         try:
-            with open(self.config, encoding="utf-8") as f:
-                d = json.load(f)
+            if self.config is not None:
+                with open(self.config, encoding="utf-8") as f:
+                    d = json.load(f)
         except (OSError, ValueError):
             d = {}
         d = d if isinstance(d, dict) else {}
@@ -78,6 +80,8 @@ class Calibration:
         with self.lock:
             d = json.loads(json.dumps(self.data))
             self.dirty, self.saved_at = False, time.monotonic()
+        if self.config is None:
+            return
         try:
             with open(self.config, "w", encoding="utf-8") as f:
                 json.dump(d, f, indent=2)
@@ -139,9 +143,10 @@ class Calibration:
     def find_steer(self, port, send, tacho, sleep=time.sleep, clock=time.monotonic):
         """Feels for both end stops of the steering motor on `port`. send(line) sends a motor test
         line; tacho() is its latest angle (or None). Returns the result, or raises RuntimeError."""
-        self.abort.clear()
         ends = []
         for direction, name in ((-1, "left"), (1, "right")):
+            if self.abort.is_set():
+                raise RuntimeError("Stopped.")
             self.set_job(what="steer", state="running", note=f"Turning the steering {name} to its end stop…")
             ends.append(self._feel(port, direction, send, tacho, sleep, clock))
             if self.abort.is_set():
@@ -154,12 +159,14 @@ class Calibration:
         centre = (lo + hi) / 2
         self.set_job(what="steer", state="running", note="Turning back to the centre…")
         now = tacho()
-        send(f"M {port} rotate {int(round(centre - now))} 30")
+        if now is None or not send(f"M {port} rotate {int(round(centre - now))} 30"):
+            raise RuntimeError("Steering calibration was interrupted.")
         t0 = clock()
         while clock() - t0 < 4 and abs((tacho() or 0) - centre) > 3 and not self.abort.is_set():
             sleep(0.1)
         sleep(0.3)
-        send(f"M {port} zero 0 50")  # this is now 0°: straight ahead
+        if self.abort.is_set() or not send(f"M {port} zero 0 50"):
+            raise RuntimeError("Steering calibration was interrupted.")
         each = span / 2
         result = {"port": port, "eachWay": round(each, 1), "range": max(5, int(each - MARGIN)), "at": time.time()}
         with self.lock:
@@ -173,7 +180,8 @@ class Calibration:
             raise RuntimeError("No reading from the steering motor. Is the brick connected?")
         last, moved_at, t0 = start, clock(), clock()
         while clock() - t0 < SIDE_LIMIT_S and not self.abort.is_set():
-            send(f"M {port} run {direction * STEER_SPEED} 50")  # a held run stops by itself if this stops
+            if not send(f"M {port} run {direction * STEER_SPEED} 50"):
+                raise RuntimeError("Steering calibration was interrupted.")
             sleep(0.15)
             now = tacho()
             if now is None:

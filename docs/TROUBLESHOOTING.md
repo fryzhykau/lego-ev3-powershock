@@ -78,14 +78,20 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 
 ## The obstacle brake
 
-- **The robot won't drive forward:** something is closer than the stop distance (15 cm by default), or the sensor reads something that isn't there. The status bar says "Stopped" with the distance. Back away or turn, or switch the brake off on the Driving page.
+- **The robot won't drive forward:** something is closer than the stop distance (15 cm by default), or the sensor reads something that isn't there. The status bar says "Stopped" with the distance. Back away if coverage allows, or turn a tank on the spot.
 - **"No reading":** the brick stopped sending sensor readings for 0.8 s. The link is probably about to drop: check WiFi.
+- **"No usable reading ahead" or "behind":** **Brake coverage required** is on. Check the range sensor faces the direction you want to drive, or check the camera is sending a clear floor view for forward driving. A tank can still turn on the spot. If asked for a layout, select **Car** or **Tank** on the Driving page.
 - **It doesn't brake:**
   - The infrared or ultrasonic sensor must face straight ahead or straight back. Set which way under **Edit sizes and where things sit** (Your robot, on the Robot page). A sensor facing sideways isn't used for braking.
   - The brake needs a driving layout on the Driving page (two-wheel drive, or speed ports on the throttle).
   - Upload the latest brick program: versions before 0.8 don't send sensor readings.
 - **It stops too late:** make **Slow from** larger, or lower **Normal speed**. The infrared sensor only reads up to about 70 cm, and misses thin chair legs.
 - **It stops too early:** the infrared sensor's distance depends on the colour of what it sees. Dark things read further away, light things nearer. Lower **Stop short by**.
+
+## Motors stay off after Stop
+
+- Turn **Motors** on again after Stop, a link drop, loss of page focus, or a controller that goes quiet. Motor tests and steering calibration also need Motors on. Choose **Keyboard** in the top bar if you have no controller connected.
+- Practice settings last until the console closes. After changing back to the brick, the console shows the brick's own controls, sizes and calibration. To carry over just the controls, speed and brake settings, use **Copy Practice controls to brick profile** in Setup while Practice is on.
 
 ## Things on the map from the camera
 

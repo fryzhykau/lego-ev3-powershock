@@ -286,7 +286,7 @@ class Vision:
         self.sha256 = sha256 if sha256 is not None else MODEL_SHA256 if model is not None else MODELS[self.choice["model"]]["sha256"]
         self.on_result = on_result  # called with each picture's items, e.g. to put them on the map
         self.on_floor = on_floor    # called with each free-floor scan, and with None when the scan stops
-        self.practice = practice    # returns a floor.Picture of the practice room while Practice is on, else None
+        self.practice = practice    # a practice-only source, separate from the physical camera profile
         self.scanner = floor.Scanner()
         self.floor_until = 0.0
         self.floor_result, self.floor_error, self.floor_times = None, None, []
@@ -357,7 +357,7 @@ class Vision:
             return r
 
     def _floor_missing(self):
-        return importlib.util.find_spec("PIL") is None and not (self.practice and self.practice() is not None)
+        return self.practice is None and importlib.util.find_spec("PIL") is None
 
     def watch_floor(self):
         """The page asks for the free-floor scan to keep going. Returns its latest result."""
@@ -428,7 +428,7 @@ class Vision:
                 with self.lock:
                     if self.model == path:  # not changed again while it loaded
                         self.detector = d
-            t0 = time.monotonic()
+            t0 = time.perf_counter()  # monotonic() ticks every ~16 ms on Windows: a fast model would read 0 ms
             try:
                 items, size = d(jpeg)
             except (OSError, ValueError, SyntaxError):
@@ -439,9 +439,10 @@ class Vision:
                 self.until = 0.0
                 self.failed_at = time.monotonic()
             return False
+        ms = (time.perf_counter() - t0) * 1000
         t1 = time.monotonic()
         with self.lock:
-            self.result = {"items": items, "size": list(size), "ms": round((t1 - t0) * 1000, 1), "at": t1,
+            self.result = {"items": items, "size": list(size), "ms": max(0.1, round(ms, 1)), "at": t1,
                            "model": self.choice["model"], "where": d.where}
             self.times = [t for t in self.times if t1 - t < 2.0] + [t1]
             self.error = None
@@ -476,7 +477,8 @@ class Vision:
                 pass
 
     def _work(self):
-        stop, reader, next_try, source = threading.Event(), None, 0.0, None
+        stop, reader, next_try = threading.Event(), None, 0.0
+        read = self._read_practice if self.practice else self._read
         with self.lock:
             # a frame left from an earlier run may be from another camera, or minutes old
             self.frame, seen = None, self.seq
@@ -486,15 +488,9 @@ class Vision:
                 recog, flo = self._wanted()
                 if not (recog or flo):
                     break
-                # Practice watches the practice room: the real camera sees another room than the pretend robot's
-                want = "practice" if self.practice and self.practice() is not None else "camera"
-                if want != source:
-                    stop.set()
-                    reader, next_try, source = None, 0.0, want
                 if reader is None or not reader.is_alive():
                     if time.monotonic() >= next_try:
                         stop = threading.Event()
-                        read = self._read_practice if source == "practice" else self._read
                         reader = threading.Thread(target=read, args=(stop,), name="vision-camera", daemon=True)
                         reader.start()
                         next_try = time.monotonic() + RETRY
