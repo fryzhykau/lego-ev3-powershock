@@ -49,7 +49,7 @@ There's no need to restart the console: it notices the packages and the model th
 
 ## Bigger models, and the graphics chip
 
-Four sizes of the same model can be chosen under **Recognition model** on the Map page. Bigger ones find smaller and farther things, and guess wrong less often, but take longer per picture.
+Four sizes of the same model can be chosen under **Recognition model** on the Pi page. Bigger ones find smaller and farther things, and guess wrong less often, but take longer per picture.
 
 | Choice | Model | Download | Looks at | Accuracy (COCO mAP) | Processor | Graphics chip |
 |---|---|---|---|---|---|---|
@@ -71,9 +71,9 @@ The times are for the model alone, measured on one laptop (Intel Core i9-13900H;
    python -m pip install onnxruntime-directml
    ```
    To go back: uninstall `onnxruntime-directml` and install `onnxruntime` again.
-3. **Choose** on the Map page: the model, and **Runs on**. "Graphics chip if there is one" uses it when the DirectML package is installed. A laptop often has two graphics chips (one built into the processor); the console times each when a model loads and uses the faster one.
+3. **Choose** on the Pi page: the model, and **Runs on**. "Graphics chip if there is one" uses it when the DirectML package is installed. A laptop often has two graphics chips (one built into the processor); the console times each when a model loads and uses the faster one.
 
-The camera view and the Map page say which model is running, where, and how long each picture takes. The choice is kept in `pc/vision.json` (git-ignored).
+The camera view and the Pi page say which model is running, where, and how long each picture takes. The choice is kept in `pc/vision.json` (git-ignored).
 
 ## Use it
 
@@ -85,7 +85,7 @@ Click the button or press **R** again to turn it off. The console remembers your
 
 ## On the map
 
-What's recognised can also go on the **Map** page, as labelled markers where things stand. Turn on **Recognise things while this page is open** on the Map page. Recognition on the Camera view puts things on the map too.
+What's recognised can also go on the live map (Driving page), as labelled markers where things stand. Turn on **Recognise things while the Driving page is open**, next to the map. Recognition in the Camera card on the Robot page puts things on the map too.
 
 - **Direction** comes from where the thing is across the picture. **Camera sees across** under **Robot size** is the camera's view angle: 62° for the Pi camera v2, 54° for v1, more for a wide lens.
 - **Distance** comes from where the bottom of its box meets the floor. That needs the camera's **height** and how far it **looks down**, also under **Robot size**. Straight ahead, the infrared sensor's distance is used instead.

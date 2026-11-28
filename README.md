@@ -74,8 +74,7 @@ The brick's battery shows top-left on the leJOS screen. A blinking number means 
 The menu has the pages you use while driving, then the setup and a tool:
 
 - **Robot:** your robot drawn from above with each device wired to its port and how it's doing, its sizes and measured stats; the brick in 3D, live; the camera; and a test panel for each motor.
-- **Map:** what the sensors have found.
-- **Driving:** which stick drives which motor.
+- **Driving:** the live map of what the sensors found, and how the robot drives: speed boost, the obstacle brake, the car's limits and each motor port.
 - **Controller:** the DualShock in 3D, live, with what each stick and button does and what the brick gets; pairing, battery and stick calibration.
 - **Pi:** the Raspberry Pi camera: whether it's live, how to set it up, and which object recognition model runs.
 - **Setup:** connect the brick, put PowerShock on the brick, and check the brick.
@@ -144,10 +143,10 @@ The map also draws the obstacle brake's lines in front of the robot: where it st
 - **The camera on the robot:** drawn where it sits, with lines to the corners of the floor it can see. Change its height or tilt under **Edit sizes and where things sit** on the Robot page, and the lines move.
 - **Where the camera sits, worked out:** not sure how high the camera is, or how far it looks down? Stand the robot with its infrared sensor facing a box or wall, and stop at a few distances between 20 and 60 cm, holding still for a moment at each. The map compares where the camera sees the floor end with what the sensor measures, and suggests a tilt and height. **Use these** saves them.
 - **How it works:** it learns what the floor looks like just in front of the robot, then follows each column of the picture up until it stops looking like floor. Shadows still count as floor.
-- **Weak spots:** a patterned rug, things the same colour as the floor, white skirting on a white floor. The Map page says when the floor is too patterned to judge, and the brake then uses only the sensor.
+- **Weak spots:** a patterned rug, things the same colour as the floor, white skirting on a white floor. The live map on the Driving page says when the floor is too patterned to judge, and the brake then uses only the sensor.
 - **In Practice,** a pretend camera sees the practice room.
 
-![The Map page: the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
+![The live map (Driving page): the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
 
 ### Driving
 
@@ -165,7 +164,7 @@ Which stick drives which motor. Pick a starting layout, then fine-tune each moto
   - **Only driving towards the obstacle is braked.** You can always back away, or turn on the spot.
   - **It runs on the laptop,** in the same loop that sends the commands, so no brick upload is needed. The sensor reading is up to a quarter of a second old, so the brake allows for how far the robot has driven since.
   - **No reading for 0.8 s:** it stops driving towards whatever might be there.
-  - **While it brakes,** the status bar, the camera's full-screen view and the Map page say so.
+  - **While it brakes,** the status bar, the camera's full-screen view and the live map on the Driving page say so.
   - **Pushing something on purpose,** like a ball: switch the brake off.
   - **Use the camera too** (on by default, with a camera set up): the camera watches the floor across the robot's whole width, not just the sensor's narrow line. The nearer of the two counts. It works without an infrared sensor too, but then only for driving forward.
   - **People and pets:** with [object recognition](#object-recognition-optional) set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.

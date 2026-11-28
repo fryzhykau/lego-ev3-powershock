@@ -81,7 +81,7 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 - **The robot won't drive forward:** something is closer than the stop distance (15 cm by default), or the sensor reads something that isn't there. The status bar says "Stopped" with the distance. Back away or turn, or switch the brake off on the Driving page.
 - **"No reading":** the brick stopped sending sensor readings for 0.8 s. The link is probably about to drop: check WiFi.
 - **It doesn't brake:**
-  - The infrared or ultrasonic sensor must face straight ahead or straight back. Set which way under **Robot size** on the Map page. A sensor facing sideways isn't used for braking.
+  - The infrared or ultrasonic sensor must face straight ahead or straight back. Set which way under **Edit sizes and where things sit** (Your robot, on the Robot page). A sensor facing sideways isn't used for braking.
   - The brake needs a driving layout on the Driving page (two-wheel drive, or speed ports on the throttle).
   - Upload the latest brick program: versions before 0.8 don't send sensor readings.
 - **It stops too late:** make **Slow from** larger, or lower **Normal speed**. The infrared sensor only reads up to about 70 cm, and misses thin chair legs.
@@ -89,7 +89,7 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 
 ## Things on the map from the camera
 
-- **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Robot size** on the Map page. Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
+- **Markers are in the wrong place:** set the camera's height, tilt and view angle under **Edit sizes and where things sit** (Your robot, on the Robot page). Distance comes from where things meet the floor in the picture, so a wrong height or tilt moves everything.
 - **Nothing appears:** a thing must be seen twice, at least 50% sure. Things seen against the sky or above the horizon (on a shelf high up) aren't placed.
 
 ## Hot batteries, or a high current while standing still
@@ -105,7 +105,7 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
   - Only saved networks are used. On the brick, add each network under **Set up WiFi**. On the Pi, use `sudo nmcli --ask device wifi connect <name>`.
   - The brick's WiFi dongle only sees 2.4 GHz networks.
   - Upload brick program 0.8 or later.
-- **The link keeps dropping for a few seconds:** check the brick's signal on the Map page. Below about -70 dBm, the EV3's WiFi dongle loses many packets (ping the brick to see), and the console treats 1.5 s without news from the brick as a lost link. Move the dongle where the robot's motors and brick don't shield it (a short USB extension helps), or add a closer 2.4 GHz network.
+- **The link keeps dropping for a few seconds:** check the brick's signal on the live map (Driving page). Below about -70 dBm, the EV3's WiFi dongle loses many packets (ping the brick to see), and the console treats 1.5 s without news from the brick as a lost link. Move the dongle where the robot's motors and brick don't shield it (a short USB extension helps), or add a closer 2.4 GHz network.
 - **The link drops for a few seconds on a switch:** that's normal. The motors stop (the brick's 0.5 s safety stop), and the console connects again. Drive on once **Motors on** is back on.
 - **The console doesn't find the brick after a switch:** the laptop must be on the same home network. A second router (not an extender or mesh) makes a separate network, which the laptop can't reach. Put it in access point mode (its settings may call it "AP mode" or "bridge mode"), so all the floors share one network.
 - **The Pi's switching:** `journalctl -u powershock-wifi` says what it did and why.

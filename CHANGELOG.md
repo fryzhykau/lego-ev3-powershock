@@ -17,6 +17,11 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### Changed
+- **The Map is part of the Driving page:** the live map, with its readout and the sensors beside it, sits on top, and how the robot drives (speed boost, the obstacle brake, the car's limits, the motor ports) below. The Map tab is gone; old links to it open Driving. The brake's live state shows once, by the map.
+- **The Brick card starts folded** to one line: battery, how it's connected, the program, and a square per port coloured by what's in it. The arrow opens the 3D brick, and the page remembers.
+- **The Your robot drawing is clickable:** the Pi camera opens the Pi page, a motor its card on the Driving page, a sensor its row in Devices, the brick the Setup page, and the car the size form.
+
 ## [0.8.0] - 2026-11-27
 
 ### Added

@@ -179,7 +179,7 @@ The Pi only changes WiFi network when the one it's on is lost altogether. If the
 
 To undo: `sudo systemctl disable --now powershock-wifi`, then delete the service file.
 
-**The Map page** shows the camera's signal next to the brick's, so you can see where in the house it gets weak.
+**The live map on the Driving page** shows the camera's signal next to the brick's, so you can see where in the house it gets weak.
 
 ## Trying it without a Pi
 
