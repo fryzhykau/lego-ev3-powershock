@@ -17,10 +17,14 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### Added
+- **The camera on the map:** a camera button in the top right corner of the Driving page's map (or **C**) shows the robot's camera there, picture-in-picture, so you can watch the map and the road at once. Click the picture for full screen; the page remembers whether it's open, and the video runs only while it's shown.
+
 ### Changed
 - **The Driving tab** has a steering wheel icon.
 - **The live map takes a fifth less room** on screens 1280 px wide or less, like the other 3D views.
 - **New screenshots in the README** for every page, including the Pi page.
+- **The robot size form** is in three groups (wheels and drive, sensors, camera), each with a small drawing whose line lights up for the box you're editing; every box shows its unit (mm, °, ×, g) and a one-line hint.
 - **The Map is part of the Driving page:** the live map, with its readout and the sensors beside it, sits on top, and how the robot drives (speed boost, the obstacle brake, the car's limits, the motor ports) below. The Map tab is gone; old links to it open Driving. The brake's live state shows once, by the map.
 - **The Brick card starts folded** to one line: battery, how it's connected, the program, and a square per port coloured by what's in it. The arrow opens the 3D brick, and the page remembers.
 - **The Your robot drawing is clickable:** the Pi camera opens the Pi page, a motor its card on the Driving page, a sensor its row in Devices, the brick the Setup page, and the car the size form.

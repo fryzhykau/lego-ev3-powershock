@@ -87,7 +87,7 @@ Click the button or press **R** again to turn it off. The console remembers your
 
 What's recognised can also go on the live map (Driving page), as labelled markers where things stand. Turn on **Recognise things while the Driving page is open**, next to the map. Recognition in the Camera card on the Robot page puts things on the map too.
 
-- **Direction** comes from where the thing is across the picture. **Camera sees across** under **Robot size** is the camera's view angle: 62° for the Pi camera v2, 54° for v1, more for a wide lens.
+- **Direction** comes from where the thing is across the picture. **Sees across**, in the Camera group under **Edit sizes and where things sit** on the Robot page, is the camera's view angle: 62° for the Pi camera v2, 54° for v1, more for a wide lens.
 - **Distance** comes from where the bottom of its box meets the floor. That needs the camera's **height** and how far it **looks down**, also under **Robot size**. Straight ahead, the infrared sensor's distance is used instead.
 - **Accuracy:** a few centimetres close up, tens of centimetres at 2–3 m. Things whose bottom is cut off by the picture's edge are placed at the nearest floor the camera can see. Things further than 4 m aren't placed.
 - **Wrong guesses:** a thing has to be seen twice before it's drawn. One that should be in view but isn't seen for about 1.5 seconds is taken off.

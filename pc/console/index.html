@@ -849,6 +849,19 @@
   /* map page */
   .mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
   .mapstage { padding: 0; overflow: hidden; position: relative; }
+  /* the robot's camera in the map's top right corner, picture-in-picture */
+  .mapcambtn { position: absolute; top: 14px; right: 14px; z-index: 2; width: 36px; height: 36px; backdrop-filter: blur(8px); }
+  .mapcambtn svg { width: 18px; height: 18px; } .mapcambtn:hover { color: var(--ink); }
+  .mapcam { position: absolute; top: 14px; right: 14px; z-index: 3; width: clamp(220px, 32%, 380px); aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+    background: #0d1013; border: 1px solid var(--edge); box-shadow: 0 8px 24px #0006; display: grid; place-items: center; }
+  .mapcam[hidden], .mapcambtn[hidden] { display: none; }
+  .mapcam img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; } .mapcam img:not([src]) { display: none; }
+  .mapcamwait { padding: 36px 16px 14px; text-align: center; color: #c9ced1; font-size: 12.5px; line-height: 1.45; } .mapcamwait:empty { display: none; }
+  .mapcamwait a { color: #fff; }
+  .mapcam #mapCamClose { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: #000a; border-color: #fff3; color: #fff; }
+  .mapcam #mapCamClose svg { width: 14px; height: 14px; }
+  .mapcam:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; border-radius: 0; } .mapcam:fullscreen img { object-fit: contain; cursor: zoom-out; }
+  @media (max-width: 560px) { .mapcambtn { top: auto; bottom: 74px; } .mapcam { top: auto; bottom: 74px; width: 46%; } }
   /* the instrument panel over the 3D map: speed, heading, and what the autopilot decides */
   .maphud { position: absolute; left: 14px; top: 14px; width: 260px; padding: 12px 14px; border-radius: 12px; background: var(--glass);
     border: 1px solid var(--edge); backdrop-filter: blur(8px); font-size: 12.5px; line-height: 1.35; pointer-events: none; }
@@ -888,6 +901,35 @@
   .msens .v { font-weight: 650; font-variant-numeric: tabular-nums; }
   .msens .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; box-shadow: inset 0 0 0 1px #0002; }
   .mapsize { margin: 12px 0; border-top: 1px solid var(--rule); padding-top: 10px; }
+  /* the size form: three groups side by side, each with a drawing whose line lights up for the box being edited */
+  .msgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; margin: 12px 0; }
+  .msg { margin: 0; padding: 10px 12px 12px; border: 0; border-radius: var(--r-s); background: var(--soft); display: grid; gap: 2px; align-content: start; min-width: 0; }
+  .msg legend { float: left; width: 100%; padding: 0; margin-bottom: 4px; font: 650 13.5px var(--ui); color: var(--ink); }
+  .msd { width: 100%; max-width: 300px; height: auto; margin: 0 auto 6px; display: block; overflow: visible; }
+  .msd .b { fill: var(--face); stroke: var(--rule); stroke-width: 1.5; }
+  .msd .w { fill: var(--muted); opacity: .45; } .msd .ax { fill: var(--ink); }
+  .msd .a, .msd .lvl { stroke: var(--rule); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .msd .fl { stroke: var(--muted); stroke-width: 1.5; opacity: .5; }
+  .msd .s { fill: var(--face); stroke: var(--muted); stroke-width: 1.5; }
+  .msd .ray { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+  .msd .fov { fill: var(--muted); opacity: .12; }
+  .msd .d line, .msd .d path { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+  .msd text { font: 10px var(--ui); fill: var(--muted); } .msd text:not([text-anchor]) { text-anchor: middle; } .msd .f { font-size: 9.5px; opacity: .8; }
+  .msd .hi { stroke: var(--go) !important; opacity: 1 !important; } .msd .d.hi line, .msd .d.hi path { stroke: var(--go); stroke-width: 2; }
+  .msd .d.hi text { fill: var(--go); font-weight: 650; } .msd rect.hi, .msd circle.hi { fill: var(--go-soft); }
+  .msd .fov.hi { fill: var(--go); opacity: .2 !important; }
+  .msf { display: grid; grid-template-columns: minmax(0, 1fr) 118px; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule); }
+  .msl { display: grid; gap: 1px; min-width: 0; } .msl b { font-weight: 600; font-size: 13px; color: var(--ink); } .msl small { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+  .msu { position: relative; display: flex; }
+  .msu input, .msu select { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--field); color: var(--ink); font: inherit; font-size: 13px; }
+  .msu input { padding-right: 36px; text-align: right; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+  .msu input::-webkit-inner-spin-button, .msu input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .msu i { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 12px var(--ui); font-style: normal; color: var(--muted); pointer-events: none; }
+  .msu input:invalid { border-color: var(--warn); }
+  .mplace:empty { display: none; }
+  .msnote { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); }
+  .msact { display: flex; align-items: center; gap: 10px; }
+  @media (max-width: 480px) { .msf { grid-template-columns: minmax(0, 1fr) 100px; } }
   .mbrake { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--soft); font-size: 13px; }
   .mbrake.slow { background: var(--warn-tint); } .mbrake.stop { background: var(--stop-tint); }
   .mfloor::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--map-free); flex: none; }
@@ -1164,26 +1206,32 @@
           </div>
           <details class="mapsize" id="mapSize">
             <summary>Edit sizes and where things sit</summary>
-            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure in millimetres.</p>
-            <div class="msform">
-              <label class="field"><span>Wheel diameter</span><input type="number" data-k="wheel" min="20" max="200" step="0.1"></label>
-              <label class="field"><span>Motor turns per wheel turn</span><input type="number" data-k="gear" min="0.1" max="10" step="0.01" title="1 if the drive motor turns the wheel directly. With gears or a differential in between: roll the robot until a wheel turns once and count the motor's turns"></label>
-              <label class="field"><span>Wheel spacing</span><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"></label>
-              <label class="field"><span>Axle spacing</span><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"></label>
-              <label class="field"><span>Steering ratio</span><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05" title="Degrees the front wheels turn per degree of the steering motor"></label>
-              <label class="field"><span>IR sensor ahead</span><input type="number" data-k="eyeAhead" min="-300" max="300" title="How far ahead of the driven axle the infrared or ultrasonic sensor sits"></label>
-              <label class="field"><span>IR sensor faces</span><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></label>
-              <label class="field"><span>Colour sensor ahead</span><input type="number" data-k="floorAhead" min="-300" max="300"></label>
-              <label class="field"><span>Gyro</span><select data-k="gyroSign"><option value="1">Left turn counts up</option><option value="-1">Left turn counts down</option></select></label>
-              <label class="field"><span>Camera ahead</span><input type="number" data-k="camAhead" min="-300" max="300" title="How far ahead of the driven axle the Raspberry Pi camera sits"></label>
-              <label class="field"><span>Camera height</span><input type="number" data-k="camHeight" min="30" max="600" title="The camera lens above the floor"></label>
-              <label class="field"><span>Camera looks down</span><input type="number" data-k="camTilt" min="-10" max="60" title="Degrees below level; 0 looks straight ahead"></label>
-              <label class="field"><span>Camera sees across</span><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right: 62 for the Pi camera v2, 54 for v1, more for a wide lens"></label>
-              <label class="field"><span>Weight (grams)</span><input type="number" data-k="weight" min="0" max="20000" step="10" title="The whole robot with batteries in, on a kitchen scale. 0 if not weighed yet"></label>
+            <p class="muted">The map works out where the robot is from how far its wheels turn, so these need to match your robot. Measure with a ruler, from the middle of the driven axle.</p>
+            <div class="msgroups">
+              <fieldset class="msg"><legend>Wheels and drive</legend><svg class="msd" viewBox="0 0 240 100" aria-hidden="true"><rect class="b" x="40" y="22" width="130" height="48" rx="8"/><line class="a" x1="62" y1="16" x2="62" y2="76"/><line class="a" x1="148" y1="16" x2="148" y2="76"/><rect class="w" data-for="wheel" x="50" y="8" width="24" height="10" rx="3"/><rect class="w" x="50" y="74" width="24" height="10" rx="3"/><rect class="w" x="136" y="8" width="24" height="10" rx="3"/><rect class="w" x="136" y="74" width="24" height="10" rx="3"/><g class="d" data-for="base"><line x1="62" y1="46" x2="148" y2="46"/><path d="M62 42v8M148 42v8"/><text x="105" y="41">axles</text></g><g class="d" data-for="track"><line x1="184" y1="13" x2="184" y2="79"/><path d="M180 13h8M180 79h8"/><text x="190" y="50" text-anchor="start">wheels</text></g><g class="d" data-for="wheel"><line x1="50" y1="4" x2="74" y2="4"/><text x="62" y="2" dy="-1">⌀</text></g><text class="f" x="105" y="97">front →</text></svg>
+                <label class="msf"><span class="msl"><b>Wheel diameter</b><small>across the tyre</small></span><span class="msu"><input type="number" data-k="wheel" min="20" max="200" step="0.1"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Wheel spacing</b><small>left to right, middle of each tyre</small></span><span class="msu"><input type="number" data-k="track" min="40" max="400" title="Left to right wheel, for tank steering"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Axle spacing</b><small>front axle to rear axle</small></span><span class="msu"><input type="number" data-k="base" min="40" max="400" title="Front to rear axle, for car steering"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Motor turns per wheel turn</b><small>1 if the motor turns the wheel directly</small></span><span class="msu"><input type="number" data-k="gear" min="0.1" max="10" step="0.01" title="With gears or a differential in between: roll the robot until a wheel turns once and count the motor's turns"><i>×</i></span></label>
+                <label class="msf"><span class="msl"><b>Steering ratio</b><small>wheel degrees per steering motor degree</small></span><span class="msu"><input type="number" data-k="steerRatio" min="0.05" max="3" step="0.05"><i>×</i></span></label>
+                <label class="msf"><span class="msl"><b>Weight</b><small>with batteries; 0 if not weighed</small></span><span class="msu"><input type="number" data-k="weight" min="0" max="20000" step="10" title="The whole robot with batteries in, on a kitchen scale"><i>g</i></span></label>
+              </fieldset>
+              <fieldset class="msg"><legend>Sensors</legend><svg class="msd" viewBox="0 0 240 100" aria-hidden="true"><line class="fl" x1="8" y1="80" x2="232" y2="80"/><rect class="b" x="30" y="34" width="150" height="30" rx="6"/><circle class="w" cx="62" cy="68" r="12"/><circle class="w" cx="150" cy="68" r="12"/><circle class="ax" cx="62" cy="68" r="2.5"/><rect class="s" data-for="eyeAhead" x="176" y="38" width="14" height="12" rx="3"/><path class="ray" data-for="eyeAngle" d="M190 44h34"/><rect class="s" data-for="floorAhead" x="118" y="64" width="10" height="9" rx="2"/><g class="d" data-for="eyeAhead"><line x1="62" y1="22" x2="183" y2="22"/><path d="M62 18v8M183 18v8"/><text x="122" y="16">infrared, ahead of the axle</text></g><g class="d" data-for="floorAhead"><line x1="62" y1="93" x2="123" y2="93"/><path d="M62 89v8M123 89v8"/></g><text x="56" y="96" text-anchor="end">colour</text></svg>
+                <label class="msf"><span class="msl"><b>Infrared or ultrasonic</b><small>ahead of the driven axle; behind is negative</small></span><span class="msu"><input type="number" data-k="eyeAhead" min="-300" max="300"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>It faces</b><small>the brake uses it facing ahead or back</small></span><span class="msu"><select data-k="eyeAngle"><option value="0">Ahead</option><option value="90">Left</option><option value="-90">Right</option><option value="180">Back</option></select></span></label>
+                <label class="msf"><span class="msl"><b>Colour sensor</b><small>ahead of the driven axle; behind is negative</small></span><span class="msu"><input type="number" data-k="floorAhead" min="-300" max="300"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Gyro</b><small>its reading as the robot turns left on the spot</small></span><span class="msu"><select data-k="gyroSign"><option value="1">Goes up</option><option value="-1">Goes down</option></select></span></label>
+              </fieldset>
+              <fieldset class="msg"><legend>Camera</legend><svg class="msd" viewBox="0 0 240 92" aria-hidden="true"><line class="fl" x1="8" y1="82" x2="232" y2="82"/><rect class="b" x="20" y="56" width="90" height="18" rx="5"/><circle class="w" cx="38" cy="76" r="6"/><circle class="w" cx="92" cy="76" r="6"/><circle class="ax" cx="38" cy="76" r="2"/><line class="a" x1="74" y1="56" x2="74" y2="22"/><path class="fov" data-for="camFov" d="M80 18 L232 58 L232 82 L196 82 Z"/><line class="ray" data-for="camTilt" x1="80" y1="18" x2="226" y2="58"/><line class="lvl" x1="80" y1="18" x2="160" y2="18"/><rect class="s" data-for="camAhead" x="70" y="12" width="14" height="11" rx="3"/><g class="d" data-for="camHeight"><line x1="58" y1="18" x2="58" y2="82"/><path d="M54 18h8M54 82h8"/><text x="52" y="50" text-anchor="end">height</text></g><g class="d" data-for="camAhead"><line x1="38" y1="8" x2="77" y2="8"/><path d="M38 4v8M77 4v8"/><text x="34" y="11" text-anchor="end">ahead</text></g><g class="d" data-for="camTilt"><path d="M150 18 A70 70 0 0 1 148 36" fill="none"/><text x="156" y="31" text-anchor="start">looks down</text></g></svg>
+                <label class="msf"><span class="msl"><b>Ahead</b><small>ahead of the driven axle; behind is negative</small></span><span class="msu"><input type="number" data-k="camAhead" min="-300" max="300" title="How far ahead of the driven axle the Raspberry Pi camera sits"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Height</b><small>the lens above the floor</small></span><span class="msu"><input type="number" data-k="camHeight" min="30" max="600"><i>mm</i></span></label>
+                <label class="msf"><span class="msl"><b>Looks down</b><small>below level; 0 looks straight ahead</small></span><span class="msu"><input type="number" data-k="camTilt" min="-10" max="60"><i>°</i></span></label>
+                <label class="msf"><span class="msl"><b>Sees across</b><small>62 for Pi camera v2, 54 for v1</small></span><span class="msu"><input type="number" data-k="camFov" min="30" max="160" title="Degrees from the left edge of the picture to the right; more for a wide lens"><i>°</i></span></label>
+                <p class="msnote">Height and tilt tell the map how far away things are, from where they meet the floor in the picture.</p>
+              </fieldset>
             </div>
-            <p class="muted">The camera's height and tilt tell the map how far away things are, from where they meet the floor in the picture. The 3D view shows the camera on the robot, with lines to the corners of the floor it can see.</p>
             <div class="mplace" id="mapPlace"></div>
-            <button class="btn" id="mapSave">Save robot size</button> <span class="note" id="mapSizeSaved"></span>
+            <div class="msact"><button class="btn" id="mapSave">Save sizes</button><span class="note" id="mapSizeSaved"></span></div>
           </details>
         </div>
 
@@ -1254,6 +1302,8 @@
             </div>
             <ol class="hud-log" id="hudLog" aria-label="What the autopilot decided" aria-live="polite"></ol>
           </div>
+          <button class="iconbtn mapcambtn" id="mapCamBtn" aria-pressed="false" aria-controls="mapCam" title="Show the camera in the corner of the map (C)" aria-label="Show the camera on the map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+          <div class="mapcam" id="mapCam" hidden><img id="mapCamImg" alt="Live picture from the robot's camera"><div class="mapcamwait" id="mapCamWait"></div><button class="iconbtn" id="mapCamClose" title="Hide the camera (C)" aria-label="Hide the camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
           <div class="mapbar">
             <div class="tabs" role="tablist" id="mapView" aria-label="Camera">
               <button role="tab" aria-selected="true" data-view="behind">Behind</button>
@@ -3278,6 +3328,36 @@ $("camWait").addEventListener("click", (e) => { if (e.target.closest("[data-cam-
 $("camSetupBtn").addEventListener("click", () => { $("camSetupCard").scrollIntoView({ block: "start", behavior: "smooth" }); setTimeout(() => $("camHost").focus(), 300); });
 addEventListener("hashchange", syncCam);
 document.addEventListener("visibilitychange", syncCam);
+// the camera in the map's corner on the Driving page: streams only while it's open and can be seen
+S.mapCam = localStorage.getItem("mapCam") === "1";
+function setMapCam(on) {
+  S.mapCam = on; localStorage.setItem("mapCam", on ? "1" : "0");
+  syncMapCam();
+  if (!on) $("mapCamBtn").focus(); else $("mapCamClose").focus();
+}
+function syncMapCam() {
+  const c = S.cam, img = $("mapCamImg");
+  $("mapCam").hidden = !S.mapCam; $("mapCamBtn").hidden = S.mapCam; $("mapCamBtn").setAttribute("aria-pressed", S.mapCam);
+  const want = S.mapCam && location.hash === "#driving" && document.visibilityState === "visible" && c && c.configured && c.reachable !== false;
+  if (want && !img.dataset.on) { img.dataset.on = "1"; img.src = "/api/camera/stream?t=" + Date.now(); }
+  if (!want && img.dataset.on) { img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live; }
+  setHTML($("mapCamWait"), !c ? "Checking the camera…"
+    : !c.configured ? 'No camera yet. Set one up on the <a href="#pi">Pi page</a>.'
+    : c.reachable === false ? "The camera isn't answering. Check the Raspberry Pi is switched on."
+    : c.ok === false && c.error ? esc(c.error)
+    : img.dataset.live ? "" : "Connecting to the camera…");
+}
+$("mapCamBtn").addEventListener("click", () => setMapCam(true));
+$("mapCamClose").addEventListener("click", () => setMapCam(false));
+$("mapCamImg").addEventListener("load", () => { $("mapCamImg").dataset.live = "1"; syncMapCam(); });
+$("mapCamImg").addEventListener("error", () => {
+  const img = $("mapCamImg"); img.removeAttribute("src"); delete img.dataset.on; delete img.dataset.live;
+  setTimeout(syncMapCam, 2000);
+});
+$("mapCamImg").addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : $("mapCam").requestFullscreen().catch(() => {}));
+addEventListener("keydown", (e) => { if (e.code === "KeyC" && !e.ctrlKey && !e.metaKey && !e.altKey && location.hash === "#driving" && !typing()) setMapCam(!S.mapCam); });
+addEventListener("hashchange", syncMapCam);
+document.addEventListener("visibilitychange", syncMapCam);
 function drawCamTile() {
   const c = S.cam || {};
   const [cls, pill] = !c.configured ? ["", "not set up"] : c.reachable === false ? ["warn", "not answering"] : c.ok ? ["go", "live"] : ["warn", "no picture"];
@@ -3296,7 +3376,7 @@ function drawCamTile() {
 }
 async function pollCam() {
   try { S.cam = await api("/api/camera"); } catch (e) { return; }
-  drawCamTile(); syncCam();
+  drawCamTile(); syncCam(); syncMapCam();
 }
 $("camShow").addEventListener("click", () => { location.hash = "#robot"; setTimeout(() => $("camCard").scrollIntoView({ block: "start", behavior: "smooth" }), 50); });
 function camFullScreen() {
@@ -3692,6 +3772,12 @@ $("mapSave").addEventListener("click", () => busy($("mapSave"), async () => {
   if (r.ok) { fillMapSize(r.robot); S.robot = r.robot; drawRobot(); setNote("mapSizeSaved", "Saved.", "ok"); } else setNote("mapSizeSaved", "Couldn't save.", "bad");
 }));
 setInterval(pollMap, 250);
+// the size form's drawings: the line for the box being edited lights up
+$("mapSize").addEventListener("focusin", (e) => {
+  const k = e.target.dataset && e.target.dataset.k;
+  $("mapSize").querySelectorAll(".msd [data-for]").forEach((el) => el.classList.toggle("hi", el.dataset.for === k));
+});
+$("mapSize").addEventListener("focusout", () => $("mapSize").querySelectorAll(".msd .hi").forEach((el) => el.classList.remove("hi")));
 
 setInterval(pollLink, 250); setInterval(pollBt, 2500); setInterval(pollBrick, 3000);
 Promise.all([pollLink(), pollBt()]).then(pollBrick);

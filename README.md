@@ -111,7 +111,7 @@ The second command downloads the YOLOX-nano model (3.7 MB, Apache-2.0) and check
 
 ### Map
 
-A live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above.
+A live 3D map of what the robot's sensors find while it drives, seen from behind the robot or from above. The camera button in the map's top right corner (or **C**) shows the robot's camera there too, so you can watch the map and the road at once; click the picture for full screen.
 
 - **Infrared or ultrasonic sensor,** facing forward: draws walls and obstacles.
 - **Colour sensor,** pointing at the floor: paints the floor's colours.
