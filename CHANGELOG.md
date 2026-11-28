@@ -17,6 +17,8 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-27
+
 ### Added
 - **A footer** on every page: the version, a link to the source on GitHub and to fiodar.ai, the licence status (all rights reserved for now; three.js MIT, YOLOX Apache-2.0) and that LEGO and Sony's trademarks aren't ours.
 - **Controls follow the motors:** when a port your controls use has no motor, but every job can find one, the console moves the jobs onto the motors that are plugged in (steering to a medium motor, driving to the large ones) and keeps each job's settings. It waits for the motors to stay the same for 1.5 s and for nobody to have driven for 2 s, never moves anything with a motor missing, and says what moved on the Robot page.
@@ -264,5 +266,6 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
   - Tank mixing.
   - A pygame client for the laptop.
 
-[Unreleased]: https://github.com/fryzhykau/lego-ev3-powershock/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/fryzhykau/lego-ev3-powershock/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/fryzhykau/lego-ev3-powershock/releases/tag/v0.8.0
 [0.7.0]: https://github.com/fryzhykau/lego-ev3-powershock/releases/tag/v0.7.0
