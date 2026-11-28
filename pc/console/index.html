@@ -83,6 +83,11 @@
   @media (max-width: 1100px) { .opt { display: none; } }
   @media (max-width: 960px) { .hide-m, .hide-m + .sep { display: none; } }
   .statusbar { overflow: hidden; } .stop { flex: none; }
+  /* Stop is never pushed off: long items shrink and end in "…", the program, WiFi and link first */
+  .statusbar > .si { min-width: 0; flex: 0 1 auto; }
+  .statusbar > #sbProgItem { flex-shrink: 10; } .statusbar > #sbWifiItem { flex-shrink: 6; } .statusbar > #sbLinkItem { flex-shrink: 2; }
+  #sbLink, #sbWifi, #sbProg, #sbPad { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .statusbar > .brand, .statusbar > .sep, .statusbar > #sbArmItem { flex: none; }
   @media (max-width: 760px) { .hide-s, .sep.hide-s { display: none; } }
 
   /* ---------- shell ---------- */
@@ -2765,7 +2770,9 @@ function drawFacts() {
   icon.style.width = bv ? bv.level * 1.6 + "px" : "0"; icon.style.background = bv ? (bv.cls === "good" ? "var(--go)" : bv.cls === "low" ? "var(--warn)" : "var(--stop)") : "";
   $("lcdBatt").textContent = bat ? bat.volts.toFixed(1) + "V" : "";
   const wf = d && d.ok && d.wifi;
-  $("sbWifi").innerHTML = !wf ? "WiFi –" : !wf.present ? "No WiFi dongle" : wf.ip ? `<b>${esc(wf.ssid)}</b> <span class="opt">${esc(wf.ip)}</span>` : "WiFi off";
+  // the brick's address shows once: the link item already has it when that's how it's reached
+  const wfAddr = wf && wf.ip && !(S.link && S.link.connected && S.link.host === wf.ip) ? ` <span class="opt">${esc(wf.ip)}</span>` : "";
+  setHTML($("sbWifi"), !wf ? "WiFi –" : !wf.present ? "No WiFi dongle" : wf.ip ? `<b>${esc(wf.ssid)}</b>${wfAddr}` : "WiFi off");
   setBadge("brick", (bv ? (bv.cls === "crit" ? "bad" : bv.cls === "low" ? "warn" : "") : ""));
   drawSpecs();
   if (!d) return setHTML($("strip"), `<div class="stat"><div class="k">Status</div><div class="s">${brickHost() ? "Reading the brick…" : "Connect over Bluetooth or WiFi to see the battery, versions and settings."}</div></div>`);
@@ -2862,10 +2869,14 @@ function drawProgram() {
   $("ledRing").className = "glow " + (run || (S.fake && S.fake.running) ? "green" : d && d.ok ? "orange" : "");
   $("sbProgDot").className = "dot " + (dot === "on" ? "go" : dot === "warn" ? "warn" : dot === "bad" ? "bad" : "");
   // what the PowerShock program on the brick is doing, or why that isn't known
-  $("sbProg").textContent = S.fake && S.fake.running ? "Practice brick: no program needed"
-    : d && d.ok ? "PowerShock on the brick: " + (run ? "running" : builds && builds.onBrick ? "stopped" : "not uploaded yet")
-    : d ? "PowerShock on the brick: can't check, the brick isn't answering"
-    : host ? "PowerShock on the brick: checking…" : "PowerShock on the brick: no brick connected";
+  // short in the top bar, so it fits beside everything else; the whole sentence is its tooltip
+  const [progShort, progLong] = S.fake && S.fake.running ? ["Practice brick", "Practice brick: no program needed"]
+    : d && d.ok ? (run ? ["PowerShock running", "PowerShock is running on the brick"]
+      : builds && builds.onBrick ? ["PowerShock stopped", "PowerShock is on the brick but stopped"] : ["PowerShock not uploaded", "PowerShock isn't on the brick yet"])
+    : d ? ["Brick not answering", "Can't check PowerShock: the brick isn't answering"]
+    : host ? ["Checking the brick…", "Checking PowerShock on the brick…"] : ["No brick", "PowerShock on the brick: no brick connected"];
+  $("sbProg").textContent = progShort;
+  $("sbProgItem").title = progLong + ". Click for the program on the brick.";
   setBadge("prog", (dot === "warn" ? "warn" : ""));
   // PowerShock's own files: is the brick's copy the same as the latest build here?
   if (d && d.ok && d.builds) {

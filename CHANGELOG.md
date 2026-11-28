@@ -38,6 +38,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 - **The Your robot drawing:** on a car, the size line under the axles no longer runs into the labels of the devices below it.
 - **Camera not answering on some Windows laptops:** the console couldn't find a Pi by its `.local` name when Windows only answers the name for IPv4 or IPv6 asked separately, so the camera showed "isn't answering" while the Pi was up. It now looks up each separately.
 - **An open page no longer saves old controls back.** A console page kept its own copy of the controls and only refreshed it on load, so after the controls changed elsewhere (another tab, Practice, the API), the next edit there, even moving the speed slider, saved the old copy over them. With mirrored drive motors, that could make them fight. The page now takes changes made elsewhere, unless an edit of its own is still being saved.
+- **The top bar fits again with the brick on WiFi:** the brick's address no longer shows twice, the program reads "PowerShock running" (the full sentence is its tooltip), and when space runs out the longer items end in "…" so **Stop motors** always stays in view.
 
 ## [0.8.0] - 2026-11-27
 
