@@ -2,7 +2,7 @@
 
 Drive a LEGO Mindstorms EV3 running leJOS with a PS4 DualShock 4 controller, from a local web console on your Windows laptop.
 
-![The Robot page: the controller and the brick in 3D, live, with a motor test panel](docs/screenshots/robot.png)
+![The Robot page: the car drawn from above with each motor and sensor wired to its brick port, its sizes and stats, and a test panel for each motor](docs/screenshots/robot.png)
 
 - **Plug and drive:** pair the controller with Windows, connect the brick over WiFi or Bluetooth, and drive.
 - **Your robot, your controls:** choose which stick drives which motor. Each port gets two-wheel drive, speed, or a steering angle, with smoothing and a steering centre.
@@ -90,6 +90,8 @@ Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live v
 - **In the console:** the **Pi** page takes the Pi's address and the access key it prints.
 - **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
 
+![The Pi page: the camera's state, the object recognition model, and how to set up the Pi, with a 3D Raspberry Pi showing where each cable goes](docs/screenshots/pi.png)
+
 ### Object recognition (optional)
 
 The laptop can recognise 80 kinds of everyday thing in the camera's video, and draw a box and a name around each, about 10 times a second. Turn it on with the **Recognise objects** button on the Camera view, or press **R**.
@@ -146,7 +148,7 @@ The map also draws the obstacle brake's lines in front of the robot: where it st
 - **Weak spots:** a patterned rug, things the same colour as the floor, white skirting on a white floor. The live map on the Driving page says when the floor is too patterned to judge, and the brake then uses only the sensor.
 - **In Practice,** a pretend camera sees the practice room.
 
-![The live map (Driving page): the robot from behind, its infrared beam lighting up a box ahead, and the path driven from the start](docs/screenshots/map.png)
+![The Driving page: the live map with the robot from behind, the walls its infrared sensor found, and the path driven from the start; the sensors and the obstacle brake beside it](docs/screenshots/map.png)
 
 ### Driving
 
@@ -170,7 +172,7 @@ Which stick drives which motor. Pick a starting layout, then fine-tune each moto
   - **People and pets:** with [object recognition](#object-recognition-optional) set up, a person, cat, dog or bird close ahead makes the brake keep twice the distance, at half the speed.
   - **If the camera stops** while it's the only thing watching, the brake stops the robot, as it does without a sensor reading.
 
-![The Driving page: Car layout with steering on A and drive on B and C](docs/screenshots/driving.png)
+![How it drives, on the Driving page: speed boost, the obstacle brake, car calibration, and the Car layout with drive on B and C and steering on D](docs/screenshots/driving.png)
 
 ### Controller
 
@@ -183,7 +185,7 @@ The Controller page covers:
   - **Calibrate** learns the sticks' rest position and full range.
   - **Dead zone** and **Response** tune the feel.
 
-![The Controller page: wake-up help, controller details and stick calibration](docs/screenshots/controller.png)
+![The Controller page: the DualShock in 3D with what each control does, wake-up help, controller details and stick calibration](docs/screenshots/controller.png)
 
 ### Gearing
 
@@ -204,7 +206,7 @@ Everything the robot needs before driving, in the order you need it:
 2. **Program on the brick:** is PowerShock on the brick, and is it this version? **Upload latest build**, **Start**, **Stop**.
 3. **Brick:** battery, memory, versions, and what's plugged into each port, with LEGO's specs.
 
-![The Setup page: connect over Bluetooth, WiFi or Practice, the camera, the program on the brick, and the brick's ports](docs/screenshots/setup.png)
+![The Setup page: connect over Bluetooth, WiFi or Practice, the program on the brick, and the brick's ports](docs/screenshots/setup.png)
 
 ## Safety and security
 
