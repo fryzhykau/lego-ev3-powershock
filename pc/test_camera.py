@@ -80,6 +80,36 @@ class CheckTest(unittest.TestCase):
                 camera.check(host, port, key)
 
 
+class OpenSocketTest(unittest.TestCase):
+    def test_a_name_windows_only_finds_one_family_at_a_time_still_connects(self):
+        """Windows can fail a .local lookup for "either family" while answering for IPv4 alone."""
+        import socket
+        srv = socket.socket(); srv.bind(("127.0.0.1", 0)); srv.listen(1)
+        self.addCleanup(srv.close)
+        port = srv.getsockname()[1]
+        real = socket.getaddrinfo
+
+        def lookup(host, prt, family=0, *a):
+            if family == socket.AF_INET:
+                return real("127.0.0.1", prt, family, *a)
+            raise socket.gaierror(11001, "getaddrinfo failed")
+        camera.socket.getaddrinfo = lookup
+        self.addCleanup(setattr, camera.socket, "getaddrinfo", real)
+        s = camera.open_socket("pi.local", port, 2)
+        s.close()
+
+    def test_no_address_at_all_raises(self):
+        import socket
+        real = socket.getaddrinfo
+
+        def lookup(*a, **k):
+            raise socket.gaierror(11001, "getaddrinfo failed")
+        camera.socket.getaddrinfo = lookup
+        self.addCleanup(setattr, camera.socket, "getaddrinfo", real)
+        with self.assertRaises(OSError):
+            camera.open_socket("pi.local", 8080, 1)
+
+
 class FakePi:
     """The real Pi request handler, fed with two pretend frames."""
 

@@ -31,6 +31,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ### Fixed
 - **The Your robot drawing:** on a car, the size line under the axles no longer runs into the labels of the devices below it.
+- **Camera not answering on some Windows laptops:** the console couldn't find a Pi by its `.local` name when Windows only answers the name for IPv4 or IPv6 asked separately, so the camera showed "isn't answering" while the Pi was up. It now looks up each separately.
 
 ## [0.8.0] - 2026-11-27
 

@@ -26,10 +26,18 @@ class CameraError(Exception):
 def open_socket(host, port, timeout):
     """Like socket.create_connection, but IPv4 addresses first. The Pi's streamer listens on IPv4,
     and a .local name also resolves to an IPv6 address: on Windows each refused IPv6 attempt costs
-    about 2 seconds before IPv4 is tried."""
+    about 2 seconds before IPv4 is tried. Each family is looked up on its own: Windows can fail a
+    .local lookup for either family while answering for IPv4 or IPv6 alone."""
+    err, infos = None, []
+    for fam in (socket.AF_INET, socket.AF_INET6):
+        try:
+            infos += socket.getaddrinfo(host, port, fam, socket.SOCK_STREAM)
+        except socket.gaierror as e:
+            err = e
+    if not infos:
+        raise err or OSError(f"no address for {host}")
     err = None
-    infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
-    for fam, kind, proto, _, addr in sorted(infos, key=lambda a: a[0] != socket.AF_INET):
+    for fam, kind, proto, _, addr in infos:
         s = socket.socket(fam, kind, proto)
         s.settimeout(timeout)
         try:
