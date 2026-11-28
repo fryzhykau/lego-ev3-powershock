@@ -133,14 +133,18 @@ class Camera:
         except OSError:
             pass
 
-    def _request(self, path, timeout):
+    def _request(self, path, timeout, body=None):
         with self.lock:
             host, port, key = self.host, self.port, self.key
         if host is None:
             raise CameraError("No camera set up yet.")
         conn = _Connection(host, port, timeout=timeout)
         try:
-            conn.request("GET", path, headers={"X-PowerShock-Key": key})
+            if body is None:
+                conn.request("GET", path, headers={"X-PowerShock-Key": key})
+            else:
+                conn.request("POST", path, body=json.dumps(body).encode(),
+                             headers={"X-PowerShock-Key": key, "Content-Type": "application/json"})
             resp = conn.getresponse()
         except OSError as e:
             conn.close()
@@ -168,12 +172,31 @@ class Camera:
                 conn.close()
             out.update({"reachable": True, "ok": bool(info.get("ok")), "error": info.get("error"),
                         "width": info.get("width"), "height": info.get("height"), "fps": info.get("fps"),
-                        "source": info.get("source"), "version": info.get("version"), "wifi": info.get("wifi")})
+                        "source": info.get("source"), "version": info.get("version"), "wifi": info.get("wifi"),
+                        "colours": info.get("colours"), "coloursNote": info.get("coloursNote")})
         except (CameraError, ValueError) as e:
             out.update({"reachable": False, "ok": False, "error": str(e)})
         with self.lock:
             self._status, self._status_at = out, time.monotonic()
         return out
+
+    def set_colours(self, colours):
+        """Normal colours, or "noir" for a camera without an infrared filter (its picture looks pink
+        or purple otherwise). The Pi keeps the choice and restarts its camera with it."""
+        if colours not in ("normal", "noir"):
+            raise CameraError("Colours must be normal or noir.")
+        conn, resp = self._request("/settings", 5, {"colours": colours})
+        try:
+            if resp.status == 404:
+                raise CameraError("The camera on the Pi is too old for this. Update powershock_cam.py on the Pi.")
+            if resp.status != 200:
+                raise CameraError("The camera didn't take the setting.")
+            resp.read(65536)
+        finally:
+            conn.close()
+        with self.lock:
+            self._status_at = 0.0
+        return self.status(max_age=0)
 
     def snapshot(self):
         conn, resp = self._request("/snapshot.jpg", 3)

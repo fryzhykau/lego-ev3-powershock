@@ -118,6 +118,8 @@ ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -
 
 ## The camera and the floor
 
+- **The picture looks pink or purple:** infrared light reaches the camera's sensor. On the **Pi** page, set **Colours** to **No infrared filter**. If the choice is greyed out, copy the latest `pi/powershock_cam.py` to the Pi and restart it. See [CAMERA.md](CAMERA.md#4-copy-and-start-the-streamer).
+
 - **"Watching the floor needs Pillow":** run `python -m pip install pillow` (or the whole `pc/requirements-vision.txt`).
 - **"The floor is too patterned to judge":** a rug or tiles with strong patterns. The brake then uses only the infrared sensor. Nothing to fix; on a plainer floor it comes back by itself.
 - **The robot stops for nothing:**

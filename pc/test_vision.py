@@ -148,7 +148,8 @@ class FakePi:
 
     def __init__(self, frames):
         self.frames = pi.Frames()
-        args = argparse.Namespace(width=640, height=480, fps=20, flip=False)
+        args = argparse.Namespace(width=640, height=480, fps=20, flip=False, settings={"colours": "normal"},
+                                  settings_file=os.path.join(tempfile.mkdtemp(), "cam.json"))
         self.srv = ThreadingHTTPServer(("127.0.0.1", 0), pi.make_handler(self.frames, KEY, args))
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()

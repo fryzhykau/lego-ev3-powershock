@@ -104,6 +104,8 @@ Options:
 
 It works with whichever camera tool the OS has: `rpicam-vid`, `libcamera-vid`, or `raspivid` on older systems. Nothing needs installing.
 
+**Pink or purple picture?** Infrared light is reaching the sensor: the camera has no infrared filter (a "NoIR" camera), or its switchable filter stays in night position. On some boards a small light sensor moves that filter; cover and uncover it, and listen for a click. Otherwise, on the console's **Pi** page, set **Colours** to **No infrared filter**. The streamer then uses the camera's own NoIR tuning (for example `ov5647_noir.json`), or grey-world white balance with `raspivid`. The choice is kept on the Pi in `~/.powershock-cam.json`.
+
 ## 5. Connect the console
 
 1. Open the **Pi** page; **Camera setup** is below the camera.

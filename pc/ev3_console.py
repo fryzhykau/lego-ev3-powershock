@@ -1368,6 +1368,12 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/vision/choose":
             # {"model": "nano|tiny|s|m", "chip": "auto|gpu|cpu"}: which recognition model, and where it runs
             self._json(see.choose(str(b.get("model", "")), str(b.get("chip", ""))))
+        elif self.path == "/api/camera/colours":
+            # {"colours": "normal" | "noir"}: noir for a camera without an infrared filter
+            try:
+                self._json({"ok": True, "status": cam.set_colours(b.get("colours"))})
+            except camera.CameraError as e:
+                self._json({"ok": False, "error": str(e)})
         elif self.path == "/api/camera/forget":
             cam.forget()
             self._json({"ok": True})

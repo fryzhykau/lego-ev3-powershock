@@ -17,12 +17,16 @@ can type it into the console's Camera setup. Without it, anyone on your network 
   /stream.mjpg   live video (multipart JPEG)
   /snapshot.jpg  the latest picture
   /status        JSON: size, frames a second, which camera tool, clients
+  POST /settings {"colours": "normal" | "noir"}: "noir" for a camera without an infrared filter,
+                 whose picture otherwise looks pink or purple. Saved in ~/.powershock-cam.json.
 """
 import argparse
+import glob
 import hmac
 import io
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -34,6 +38,10 @@ from urllib.parse import parse_qs, urlparse
 
 VERSION = "0.8.0"
 KEY_FILE = os.path.expanduser("~/.powershock-cam-key")
+SETTINGS_FILE = os.path.expanduser("~/.powershock-cam.json")
+COLOURS = ("normal", "noir")
+TUNING_DIRS = ("/usr/share/libcamera/ipa/rpi/vc4", "/usr/share/libcamera/ipa/rpi/pisp",
+               "/usr/local/share/libcamera/ipa/rpi/vc4", "/usr/local/share/libcamera/ipa/rpi/pisp")
 BOUNDARY = "powershockframe"
 MAX_CLIENTS = 4
 SOI, EOI = b"\xff\xd8", b"\xff\xd9"
@@ -56,6 +64,49 @@ def load_key(path=KEY_FILE):
     return key
 
 
+def load_settings(path=SETTINGS_FILE):
+    """What the console chose, kept on the Pi so it lasts across restarts."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        d = {}
+    d = d if isinstance(d, dict) else {}
+    return {"colours": d.get("colours") if d.get("colours") in COLOURS else "normal"}
+
+
+def save_settings(settings, path=SETTINGS_FILE):
+    tmp = path + ".part"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(settings, f)
+    os.replace(tmp, path)
+
+
+def sensor_name():
+    """The camera chip, e.g. "ov5647", from the camera tool's list. Asked before the camera starts."""
+    for tool in ("rpicam-hello", "libcamera-hello"):
+        if shutil.which(tool):
+            try:
+                out = subprocess.run([tool, "--list-cameras"], capture_output=True, text=True, timeout=20).stdout
+            except (OSError, subprocess.SubprocessError):
+                continue
+            m = re.search(r"^\s*\d+\s*:\s*([A-Za-z0-9_]+)", out, re.M)
+            if m:
+                return m.group(1).lower()
+    return None
+
+
+def noir_tuning(sensor, dirs=TUNING_DIRS):
+    """The camera's own tuning for having no infrared filter (e.g. ov5647_noir.json), if there is one."""
+    if not sensor:
+        return None
+    for d in dirs:
+        hits = glob.glob(os.path.join(d, f"{sensor}_noir.json"))
+        if hits:
+            return hits[0]
+    return None
+
+
 class Frames:
     """The latest JPEG; readers wait for the next one."""
 
@@ -65,6 +116,8 @@ class Frames:
         self.times = []
         self.error = None
         self.source = None
+        self.proc = None  # the camera tool now running, so a settings change can restart it
+        self.colours_note = None
 
     def put(self, jpeg):
         now = time.monotonic()
@@ -100,8 +153,9 @@ def split_jpegs(buf):
         buf = buf[end + 2:]
 
 
-def camera_commands(w, h, fps, flip, quality):
-    """Ways to get MJPEG on stdout, newest camera tool first."""
+def camera_commands(w, h, fps, flip, quality, tuning=None, greyworld=False):
+    """Ways to get MJPEG on stdout, newest camera tool first. tuning: a libcamera tuning file (the
+    NoIR one for a camera without an infrared filter); greyworld: the same idea for raspivid."""
     cmds = []
     for tool in ("rpicam-vid", "libcamera-vid"):
         if shutil.which(tool):
@@ -109,11 +163,15 @@ def camera_commands(w, h, fps, flip, quality):
                  "--framerate", str(fps), "--quality", str(quality), "-o", "-"]
             if flip:
                 c += ["--hflip", "--vflip"]
+            if tuning:
+                c += ["--tuning-file", tuning]
             cmds.append(c)
     if shutil.which("raspivid"):
         c = ["raspivid", "-t", "0", "-n", "-cd", "MJPEG", "-w", str(w), "-h", str(h), "-fps", str(fps), "-o", "-"]
         if flip:
             c += ["-hf", "-vf"]
+        if greyworld:
+            c += ["-awb", "greyworld"]
         cmds.append(c)
     return cmds
 
@@ -121,7 +179,13 @@ def camera_commands(w, h, fps, flip, quality):
 def run_camera(frames, args, stop):
     """Keeps a camera tool running and feeds its frames in; restarts it if it stops."""
     while not stop.is_set():
-        cmds = camera_commands(args.width, args.height, args.fps, args.flip, args.quality)
+        noir = args.settings["colours"] == "noir"
+        if noir and getattr(args, "tuning", "unknown") == "unknown":
+            args.tuning = noir_tuning(sensor_name())  # looked up once, while the camera is free
+        tuning = args.tuning if noir else None
+        frames.colours_note = ("This camera has no NoIR tuning; colours stay as they are."
+                               if noir and not tuning and not shutil.which("raspivid") else None)
+        cmds = camera_commands(args.width, args.height, args.fps, args.flip, args.quality, tuning, noir)
         if not cmds:
             frames.error = "no camera tool found (rpicam-vid, libcamera-vid or raspivid)"
             stop.wait(5)
@@ -133,6 +197,7 @@ def run_camera(frames, args, stop):
             except OSError as e:
                 frames.error = f"{cmd[0]}: {e}"
                 continue
+            frames.proc = p
             buf, got = b"", 0
             while not stop.is_set():
                 chunk = p.stdout.read(65536)
@@ -145,9 +210,10 @@ def run_camera(frames, args, stop):
                 if got:
                     frames.error = None
             p.kill()
+            frames.proc = None
             err = (p.stderr.read() or b"").decode("utf-8", "replace").strip().splitlines()
             if got:
-                break  # it worked for a while: start the same tool again
+                break  # it worked for a while (or the settings changed): start the same tool again
             frames.error = f"{cmd[0]} gave no pictures: {err[-1] if err else 'no message'}"
         stop.wait(2)
 
@@ -206,16 +272,47 @@ def make_handler(frames, key, args):
             self.end_headers()
             self.wfile.write(body)
 
+        def _allowed(self, url):
+            given = self.headers.get("X-PowerShock-Key") or (parse_qs(url.query).get("key") or [""])[0]
+            return hmac.compare_digest(given.encode(), key.encode())
+
+        def _status(self):
+            return {"ok": frames.jpeg is not None, "version": VERSION, "source": frames.source,
+                    "error": frames.error, "width": args.width, "height": args.height,
+                    "fps": frames.fps(), "flip": args.flip, "wifi": wifi_signal(),
+                    "colours": args.settings["colours"], "coloursNote": frames.colours_note}
+
+        def do_POST(self):
+            url = urlparse(self.path)
+            if not self._allowed(url):
+                return self._send(403, b'{"error": "wrong or missing key"}', "application/json")
+            if url.path != "/settings":
+                return self._send(404, b'{"error": "not found"}', "application/json")
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(n)) if 0 < n <= 4096 else None
+                colours = body["colours"]
+                if colours not in COLOURS:
+                    raise ValueError
+            except (ValueError, KeyError, TypeError):
+                return self._send(400, b'{"error": "colours must be normal or noir"}', "application/json")
+            if colours != args.settings["colours"]:
+                args.settings = dict(args.settings, colours=colours)
+                try:
+                    save_settings(args.settings, args.settings_file)
+                except OSError:
+                    pass  # it still applies until the streamer restarts
+                p = frames.proc
+                if p:
+                    p.kill()  # the camera loop starts it again with the new setting
+            return self._send(200, json.dumps(self._status()).encode(), "application/json")
+
         def do_GET(self):
             url = urlparse(self.path)
-            given = self.headers.get("X-PowerShock-Key") or (parse_qs(url.query).get("key") or [""])[0]
-            if not hmac.compare_digest(given.encode(), key.encode()):
+            if not self._allowed(url):
                 return self._send(403, b'{"error": "wrong or missing key"}', "application/json")
             if url.path == "/status":
-                body = {"ok": frames.jpeg is not None, "version": VERSION, "source": frames.source,
-                        "error": frames.error, "width": args.width, "height": args.height,
-                        "fps": frames.fps(), "flip": args.flip, "wifi": wifi_signal()}
-                return self._send(200, json.dumps(body).encode(), "application/json")
+                return self._send(200, json.dumps(self._status()).encode(), "application/json")
             if url.path == "/snapshot.jpg":
                 if frames.jpeg is None:
                     return self._send(503, b'{"error": "no picture yet"}', "application/json")
@@ -257,7 +354,9 @@ def main(argv=None):
     ap.add_argument("--flip", action="store_true", help="turn the picture 180 degrees")
     ap.add_argument("--test", action="store_true", help="test pattern instead of the camera (needs Pillow)")
     ap.add_argument("--key-file", default=KEY_FILE)
+    ap.add_argument("--settings-file", default=SETTINGS_FILE)
     args = ap.parse_args(argv)
+    args.settings = load_settings(args.settings_file)
     args.width = max(160, min(1920, args.width))
     args.height = max(120, min(1080, args.height))
     args.fps = max(1, min(30, args.fps))

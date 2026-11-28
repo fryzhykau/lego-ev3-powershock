@@ -19,6 +19,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 
 ### Added
 - **The camera on the map:** a camera button in the top right corner of the Driving page's map (or **C**) shows the robot's camera there, picture-in-picture, so you can watch the map and the road at once. Click the picture for full screen; the page remembers whether it's open, and the video runs only while it's shown.
+- **Camera colours:** on the Pi page, **Colours** can be set to **No infrared filter** for a camera whose picture looks pink or purple. The Pi's camera program then uses the camera's own NoIR tuning and keeps the choice. Needs the updated `pi/powershock_cam.py` on the Pi.
 
 ### Changed
 - **The Driving tab** has a steering wheel icon.

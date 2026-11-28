@@ -222,6 +222,10 @@
   .pigrid > #camSetupCard { grid-column: 1 / -1; }
   @media (max-width: 960px) { .pigrid { grid-template-columns: minmax(0, 1fr); } }
   .pitile { background: var(--face); }
+  /* the camera's colours: a camera without an infrared filter needs its own tuning, or it looks pink */
+  .camcolours { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13px; }
+  .camcolours[hidden] { display: none; } .camcolours .cc-label { font-weight: 600; color: var(--ink); }
+  .camcolours .cc-hint { flex-basis: 100%; font-size: 12px; } .camcolours .tabs button:disabled { opacity: .5; cursor: default; }
   #recogCard .modelpick:not([hidden]) + #recogNone { display: none; }
   .progmore { margin-top: 4px; } .progmore > summary { cursor: pointer; color: var(--muted); font-size: 13.5px; margin: 0 4px 10px; }
   .progmore[open] > summary { margin-bottom: 12px; } #buildCard { margin-top: 12px; }
@@ -1463,6 +1467,14 @@
           <div class="ct-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera<span class="pill" id="camPill">not set up</span></div>
           <div class="ct-body" id="camBody">Give the robot eyes: a Raspberry Pi with a camera, riding on it.</div>
           <div class="ct-acts"><button class="btn" id="camShow">Show the camera</button><button class="link" id="camSetupBtn">Set up</button></div>
+          <div class="camcolours" id="camColoursRow" hidden>
+            <span class="cc-label">Colours</span>
+            <div class="tabs" role="radiogroup" aria-label="Camera colours" id="camColours">
+              <button role="radio" aria-checked="true" aria-selected="true" data-colours="normal">Normal</button>
+              <button role="radio" aria-checked="false" aria-selected="false" data-colours="noir">No infrared filter</button>
+            </div>
+            <span class="muted cc-hint" id="camColoursNote">Pick No infrared filter if the picture looks pink or purple.</span>
+          </div>
         </div>
         <div class="card" id="recogCard">
           <div class="card-head"><h2>Object recognition</h2><span class="muted">Runs on this laptop, on the camera's picture</span></div>
@@ -3493,6 +3505,15 @@ function drawCamTile() {
     : c.reachable === false ? "The Pi isn't answering. Check it's switched on and on the same WiFi as this laptop."
     : c.error || `Set up for ${c.host}.`;
   $("camShow").disabled = !c.configured;
+  // colours: shown once the Pi answers; an older streamer on the Pi doesn't report them
+  $("camColoursRow").hidden = !(c.configured && c.reachable);
+  if (c.reachable && !S.camColoursBusy) {
+    const col = c.colours || "normal";
+    document.querySelectorAll("#camColours button").forEach((b) => { const on = b.dataset.colours === col; b.setAttribute("aria-checked", on); b.setAttribute("aria-selected", on); });
+    if (!S.camColoursMsg) $("camColoursNote").textContent = c.colours == null ? "Update the camera program on the Pi to change its colours from here."
+      : c.coloursNote || (col === "noir" ? "For a camera without an infrared filter. Pick Normal if colours now look wrong." : "Pick No infrared filter if the picture looks pink or purple.");
+    document.querySelectorAll("#camColours button").forEach((b) => { b.disabled = c.colours == null; });
+  }
   if (window.Pi3D) window.Pi3D.setStatus({ live: !!c.ok, reachable: !!c.reachable });
   document.querySelectorAll("#piLegend button").forEach((b) => b.classList.toggle("ok",
     b.dataset.key === "camera" || b.dataset.key === "module" ? !!c.ok : ["power", "sd", "wifi"].includes(b.dataset.key) ? !!c.reachable : false));
@@ -3504,6 +3525,18 @@ async function pollCam() {
   try { S.cam = await api("/api/camera"); } catch (e) { return; }
   drawCamTile(); syncCam(); syncMapCam();
 }
+$("camColours").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-colours]"); if (!b || b.disabled || b.getAttribute("aria-checked") === "true") return;
+  S.camColoursBusy = true; S.camColoursMsg = true;
+  document.querySelectorAll("#camColours button").forEach((x) => { const on = x === b; x.setAttribute("aria-checked", on); x.setAttribute("aria-selected", on); x.disabled = true; });
+  $("camColoursNote").textContent = "Restarting the camera with the new colours…";
+  let r; try { r = await api("/api/camera/colours", { colours: b.dataset.colours }, 15000); } catch (err) { r = { ok: false, error: "The console isn't answering." }; }
+  S.camColoursBusy = false;
+  $("camColoursNote").textContent = r.ok ? "Done. The picture comes back in a few seconds." : r.error;
+  setTimeout(() => { S.camColoursMsg = false; }, 6000);
+  if (r.ok) S.cam = r.status;
+  drawCamTile();
+});
 $("camShow").addEventListener("click", () => { location.hash = "#robot"; setTimeout(() => $("camCard").scrollIntoView({ block: "start", behavior: "smooth" }), 50); });
 function camFullScreen() {
   if (document.fullscreenElement) return document.exitFullscreen();

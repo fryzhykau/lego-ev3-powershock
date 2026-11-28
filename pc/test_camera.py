@@ -115,7 +115,9 @@ class FakePi:
 
     def __init__(self):
         self.frames = pi.Frames()
-        args = argparse.Namespace(width=640, height=480, fps=20, flip=False)
+        args = argparse.Namespace(width=640, height=480, fps=20, flip=False, settings={"colours": "normal"},
+                                  settings_file=os.path.join(tempfile.mkdtemp(), "cam.json"))
+        self.args = args
         self.srv = ThreadingHTTPServer(("127.0.0.1", 0), pi.make_handler(self.frames, KEY, args))
         self.srv.daemon_threads = True
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
@@ -225,6 +227,66 @@ class CameraTest(unittest.TestCase):
         self.cam.forget()
         self.assertFalse(os.path.exists(self.cfg))
         self.assertFalse(self.cam.configured())
+
+
+class ColoursTest(unittest.TestCase):
+    """A camera without an infrared filter looks pink or purple; its NoIR tuning fixes that."""
+
+    def setUp(self):
+        self.pi = FakePi()
+        self.addCleanup(self.pi.close)
+        self.cam = camera.Camera(os.path.join(tempfile.mkdtemp(), "camera.json"))
+        self.cam.set("127.0.0.1", self.pi.port, KEY)
+
+    def test_the_console_switches_the_pi_to_noir_and_it_keeps_the_choice(self):
+        killed = []
+        self.pi.frames.proc = type("P", (), {"kill": lambda _: killed.append(True)})()
+        st = self.cam.set_colours("noir")
+        self.assertEqual(st["colours"], "noir")
+        self.assertEqual(killed, [True], "the camera tool restarts with the new setting")
+        self.assertEqual(pi.load_settings(self.pi.args.settings_file), {"colours": "noir"})
+        self.assertEqual(self.cam.status(max_age=0)["colours"], "noir")
+        self.cam.set_colours("normal")
+        self.assertEqual(pi.load_settings(self.pi.args.settings_file), {"colours": "normal"})
+
+    def test_only_known_colours_are_taken(self):
+        with self.assertRaises(camera.CameraError):
+            self.cam.set_colours("purple")
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.pi.port, timeout=5)
+        conn.request("POST", "/settings", body=b'{"colours": "x"}', headers={"X-PowerShock-Key": KEY})
+        self.assertEqual(conn.getresponse().status, 400)
+        conn.close()
+        conn = http.client.HTTPConnection("127.0.0.1", self.pi.port, timeout=5)
+        conn.request("POST", "/settings", body=b'{"colours": "noir"}', headers={"X-PowerShock-Key": "wrong" * 4})
+        self.assertEqual(conn.getresponse().status, 403, "the key is needed to change settings too")
+        conn.close()
+        self.assertEqual(self.pi.args.settings["colours"], "normal")
+
+    def test_a_missing_or_broken_settings_file_means_normal(self):
+        d = tempfile.mkdtemp()
+        self.assertEqual(pi.load_settings(os.path.join(d, "none.json")), {"colours": "normal"})
+        bad = os.path.join(d, "bad.json")
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write('["noir"]')
+        self.assertEqual(pi.load_settings(bad), {"colours": "normal"})
+
+    def test_noir_uses_the_cameras_own_noir_tuning(self):
+        d = tempfile.mkdtemp()
+        open(os.path.join(d, "ov5647_noir.json"), "w").close()
+        tuning = pi.noir_tuning("ov5647", dirs=(os.path.join(d, "missing"), d))
+        self.assertEqual(tuning, os.path.join(d, "ov5647_noir.json"))
+        self.assertIsNone(pi.noir_tuning("imx219", dirs=(d,)))
+        self.assertIsNone(pi.noir_tuning(None, dirs=(d,)))
+        real = pi.shutil.which
+        pi.shutil.which = lambda tool: "/usr/bin/" + tool
+        self.addCleanup(setattr, pi.shutil, "which", real)
+        cmds = pi.camera_commands(640, 480, 20, False, 70, tuning, True)
+        self.assertEqual(cmds[0][-2:], ["--tuning-file", tuning])
+        self.assertEqual(cmds[-1][-2:], ["-awb", "greyworld"], "raspivid has no tuning files")
+        plain = pi.camera_commands(640, 480, 20, False, 70)
+        self.assertNotIn("--tuning-file", plain[0])
+        self.assertNotIn("greyworld", plain[-1])
 
 
 if __name__ == "__main__":
