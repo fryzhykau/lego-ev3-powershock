@@ -90,7 +90,7 @@ Give the robot eyes: a Raspberry Pi with a camera rides on it and streams live v
 - **In the console:** the **Pi** page takes the Pi's address and the access key it prints.
 - **Setup guide:** [docs/CAMERA.md](docs/CAMERA.md) covers the SD card, connecting the camera, the access key and starting at boot.
 
-![The Pi page: the camera's state, the object recognition model, and how to set up the Pi, with a 3D Raspberry Pi showing where each cable goes](docs/screenshots/pi.png)
+![The Pi page: the camera live, with Colours set to No infrared filter; the object recognition model; and how to set up the Pi, with a 3D Raspberry Pi showing where each cable goes](docs/screenshots/pi.png)
 
 ### Object recognition (optional)
 
@@ -118,6 +118,8 @@ A live 3D map of what the robot's sensors find while it drives, seen from behind
 - **Gyro sensor,** if you have one: keeps the heading accurate.
 
 Plug a sensor into any sensor port; it's picked up within a few seconds. The robot's position is worked out from its wheels, so set its sizes to match your robot (Robot page, **Your robot** → **Edit sizes and where things sit**): wheel diameter, wheel spacing, axle spacing, and where the sensors sit. If there are gears between the drive motor and the wheels (a gearbox, or the ring on a differential), set **Motor turns per wheel turn**: roll the robot until a wheel turns once and count how often the motor turned. Leave it at 1 when the motor turns the wheel directly. Without it, speed and distance come out wrong by the same factor. **Weight** (in grams, the whole robot with batteries, from a kitchen scale) is kept for later planning; nothing uses it yet. In Practice mode, the pretend robot drives around a small room with two boxes, blue tape and a red mat.
+
+![Edit sizes and where things sit: wheels and drive, sensors, and camera, each with a small drawing of what to measure and its unit](docs/screenshots/sizes.png)
 
 What to expect from the sensors that come with EV3 sets:
 
@@ -205,9 +207,11 @@ Everything the robot needs before driving, in the order you need it:
    - **The laptop** must be on the same home network as the brick and the Pi. A router and its extenders, or a mesh, are one network, even with different names.
    - **Enter address** connects to the brick by its IP address.
 2. **Program on the brick:** is PowerShock on the brick, and is it this version? **Upload latest build**, **Start**, **Stop**.
-3. **Brick:** battery, memory, versions, and what's plugged into each port, with LEGO's specs.
+3. **Brick:** battery, memory, what's plugged into each port with LEGO's specs, and the brick's software, Bluetooth and WiFi, with the link this laptop uses marked **In use**.
 
-![The Setup page: connect over Bluetooth, WiFi or Practice, the program on the brick, and the brick's ports](docs/screenshots/setup.png)
+![The Setup page in Practice: connect over Bluetooth, WiFi or Practice, and the program on the brick](docs/screenshots/setup.png)
+
+![The Brick section with a real brick on WiFi: battery, memory and SD card, the ports, and the brick's software, Bluetooth and WiFi with WiFi in use](docs/screenshots/brick.png)
 
 ## Safety and security
 

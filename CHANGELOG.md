@@ -24,7 +24,7 @@ All notable changes to PowerShock. The format follows [Keep a Changelog](https:/
 ### Changed
 - **The Driving tab** has a steering wheel icon.
 - **The live map takes a fifth less room** on screens 1280 px wide or less, like the other 3D views.
-- **New screenshots in the README** for every page, including the Pi page.
+- **New screenshots in the README** for every page, including the Pi page, the robot size form, and the brick's details on Setup.
 - **The robot size form** is in three groups (wheels and drive, sensors, camera), each with a small drawing whose line lights up for the box you're editing; every box shows its unit (mm, °, ×, g) and a one-line hint.
 - **The brick's details** on the Setup page are three rows (Software, Bluetooth, WiFi), each with an icon, its state, one main value and small labelled chips. The link this laptop is using is marked **In use**, and WiFi shows the brick's signal.
 - **The Map is part of the Driving page:** the live map, with its readout and the sensors beside it, sits on top, and how the robot drives (speed boost, the obstacle brake, the car's limits, the motor ports) below. The Map tab is gone; old links to it open Driving. The brake's live state shows once, by the map.
